@@ -12121,7 +12121,28 @@ class NefTranslator:
                 else:
                     continue
 
-                star_data.add_saveframe(sf)
+                try:
+                    star_data.add_saveframe(sf)
+                except ValueError:
+                    existing_names = [sf.name for sf in star_data.frame_list]
+                    sf_name_split = sf.name.split('_')
+                    last_term = sf_name_split[-1]
+                    if last_term.isdigit():
+                        p = int(last_term)
+                        while True:
+                            sf_name = '_'.join(sf_name_split[:-1]) + f'_{p + 1}'
+                            if sf_name not in existing_names:
+                                sf.name = sf_name
+                                break
+                            p += 1
+                    else:
+                        sf_name = sf.name
+                        while True:
+                            sf_name = sf_name + '_'
+                            if sf_name not in existing_names:
+                                sf.name = sf_name
+                                break
+                    nef_data.add_saveframe(sf)
 
         elif data_type in ('Saveframe', 'Loop'):
 
@@ -12618,7 +12639,28 @@ class NefTranslator:
                                     sf.tags[sf.tags.index('chemical_shift_list')][1] = cs_sf.name
                                 break
 
-                nef_data.add_saveframe(sf)
+                try:
+                    nef_data.add_saveframe(sf)
+                except ValueError:
+                    existing_names = [sf.name for sf in nef_data.frame_list]
+                    sf_name_split = sf.name.split('_')
+                    last_term = sf_name_split[-1]
+                    if last_term.isdigit():
+                        p = int(last_term)
+                        while True:
+                            sf_name = '_'.join(sf_name_split[:-1]) + f'_{p + 1}'
+                            if sf_name not in existing_names:
+                                sf.name = sf_name
+                                break
+                            p += 1
+                    else:
+                        sf_name = sf.name
+                        while True:
+                            sf_name = sf_name + '_'
+                            if sf_name not in existing_names:
+                                sf.name = sf_name
+                                break
+                    nef_data.add_saveframe(sf)
 
         elif data_type in ('Saveframe', 'Loop'):
 
