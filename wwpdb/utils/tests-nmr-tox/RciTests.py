@@ -13,8 +13,7 @@
 import sys
 import unittest
 
-from wwpdb.utils.nmr.rci.RCI import RCI
-
+# import commonsetup first: it mocks ConfigInfo, which ChemCompUtil reads when it is imported
 if __package__ is None or __package__ == "":
     from os import path
 
@@ -22,6 +21,8 @@ if __package__ is None or __package__ == "":
     from commonsetup import TESTOUTPUT  # noqa: F401 pylint: disable=import-error,unused-import
 else:
     from .commonsetup import TESTOUTPUT  # noqa: F401 pylint: disable=relative-beyond-top-level
+
+from wwpdb.utils.nmr.rci.RCI import RCI
 
 
 def build_input():

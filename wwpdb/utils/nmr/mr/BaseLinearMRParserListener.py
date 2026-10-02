@@ -6202,7 +6202,8 @@ class BaseLinearMRParserListener():
                                                           'comp_id': cifCompId,
                                                           'atom_id': cifAtomId})
 
-                    ambig['atom_id_list'] = [dict(s) for s in set(frozenset(atom.items()) for atom in ambig['atom_id_list'])]
+                    ambig['atom_id_list'] = [dict(s) for s in dict.fromkeys(frozenset(atom.items())
+                                                                            for atom in ambig['atom_id_list'])]
 
     def __mapAtomIdListToChainAssign(self, atomIdList: List[dict]  # pylint: disable=no-self-use
                                      ) -> List[dict]:

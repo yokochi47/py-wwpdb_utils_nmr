@@ -11179,7 +11179,8 @@ class AmberMRParserListener(ParseTreeListener):
                                                           'comp_id': cifCompId,
                                                           'atom_id': cifAtomId})
 
-                    ambig['atom_id_list'] = [dict(s) for s in set(frozenset(atom.items()) for atom in ambig['atom_id_list'])]
+                    ambig['atom_id_list'] = [dict(s) for s in dict.fromkeys(frozenset(atom.items())
+                                                                            for atom in ambig['atom_id_list'])]
 
     @functools.lru_cache(maxsize=256)
     def translateToStdResNameWrapper(self, seqId: int, compId: str) -> str:

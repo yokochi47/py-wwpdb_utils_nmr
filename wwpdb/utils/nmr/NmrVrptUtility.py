@@ -24,6 +24,11 @@
 # 16-Sep-2026  M. Yokochi - allow to run chemical shift analysis without coordinates (DAOTHER-9785, v1.3.3)
 # 30-Sep-2026  M. Yokochi - import NEXT_STAR_FILE_PATH_KEY in standalone mode too, and remove the temporary CIF file of
 #                           a pynmrstar object only when its path was not given (DAOTHER-9785)
+# 03-Oct-2026  M. Yokochi - detect duplicated chemical shifts within each list, which the check against the dictionary
+#                           of all lists never did, and look up the shifts of each residue for the random coil index
+#                           instead of scanning all shifts of the list per residue (DAOTHER-7829, 9785)
+# 03-Oct-2026  M. Yokochi - keep the workflow tasks as functions instead of bound methods, so that an instance is not
+#                           a reference cycle and is freed as soon as it is dropped (DAOTHER-7829, 9785)
 ##
 """ Wrapper class for NMR chemical shifts and restraints analysis.
     @author: Masashi Yokochi
@@ -1188,34 +1193,37 @@ class NmrVrptUtility:
         # whether molecular assembly is diamagnetic.
         self.__is_diamagnetic = True
 
-        __csValidTasks = [self.__parseCoordinate,
-                          self.__parseNmrData,
-                          self.__parseNmrDpReport,
-                          self.__checkPreviousCsAnalysis,
-                          self.__retrieveCoordAssemblyChecker,
-                          self.__extractCoordAtomSites,
-                          self.__extractEntityInstances,
-                          self.__extractChemicalShifts,
-                          self.__validateChemicalShifts,
-                          self.__summarizeCommonCsAnalysis,
-                          self.__outputResultsAsPickleFile]
+        # the tasks are functions, called with the instance, rather than bound methods, which would make each instance a
+        # reference cycle (instance -> task list -> bound method -> instance) that holds its coordinates, NMR data and
+        # report until a full garbage collection, e.g. the previous NMR unified data in 'nmr-str2str-deposit'
+        __csValidTasks = [NmrVrptUtility.__parseCoordinate,
+                          NmrVrptUtility.__parseNmrData,
+                          NmrVrptUtility.__parseNmrDpReport,
+                          NmrVrptUtility.__checkPreviousCsAnalysis,
+                          NmrVrptUtility.__retrieveCoordAssemblyChecker,
+                          NmrVrptUtility.__extractCoordAtomSites,
+                          NmrVrptUtility.__extractEntityInstances,
+                          NmrVrptUtility.__extractChemicalShifts,
+                          NmrVrptUtility.__validateChemicalShifts,
+                          NmrVrptUtility.__summarizeCommonCsAnalysis,
+                          NmrVrptUtility.__outputResultsAsPickleFile]
 
-        __mrValidTasks = [self.__parseCoordinate,
-                          self.__parseNmrData,
-                          self.__checkPreviousMrAnalysis,
-                          self.__retrieveCoordAssemblyChecker,
-                          self.__extractCoordAtomSites,
-                          self.__extractGenDistConstraints,
-                          self.__extractTorsionAngleConstraints,
-                          self.__extractRdcConstraints,
-                          self.__validateDistanceRestraints,
-                          self.__validateDihedralAngleRestraints,
-                          self.__validateRdcRestraints,
-                          self.__summarizeCommonMrAnalysis,
-                          self.__summarizeDistanceRestraintAnalysis,
-                          self.__summarizeDihedralAngleRestraintAnalysis,
-                          self.__summarizeRdcRestraintAnalysis,
-                          self.__outputResultsAsPickleFile]
+        __mrValidTasks = [NmrVrptUtility.__parseCoordinate,
+                          NmrVrptUtility.__parseNmrData,
+                          NmrVrptUtility.__checkPreviousMrAnalysis,
+                          NmrVrptUtility.__retrieveCoordAssemblyChecker,
+                          NmrVrptUtility.__extractCoordAtomSites,
+                          NmrVrptUtility.__extractGenDistConstraints,
+                          NmrVrptUtility.__extractTorsionAngleConstraints,
+                          NmrVrptUtility.__extractRdcConstraints,
+                          NmrVrptUtility.__validateDistanceRestraints,
+                          NmrVrptUtility.__validateDihedralAngleRestraints,
+                          NmrVrptUtility.__validateRdcRestraints,
+                          NmrVrptUtility.__summarizeCommonMrAnalysis,
+                          NmrVrptUtility.__summarizeDistanceRestraintAnalysis,
+                          NmrVrptUtility.__summarizeDihedralAngleRestraintAnalysis,
+                          NmrVrptUtility.__summarizeRdcRestraintAnalysis,
+                          NmrVrptUtility.__outputResultsAsPickleFile]
 
         # dictionary of processing tasks of each workflow operation
         self.__procTasksDict = {'nmr-cs-validation': __csValidTasks,
@@ -1371,7 +1379,7 @@ class NmrVrptUtility:
 
                 start_time = time.time()
 
-                if not task():
+                if not task(self):
                     break
 
                 if self.__verbose:
@@ -2867,7 +2875,7 @@ class NmrVrptUtility:
                     seq_key_1 = (auth_asym_id_1, auth_seq_id_1, comp_id_1)
                     seq_key_2 = (auth_asym_id_2, auth_seq_id_2, comp_id_2)
 
-                    seq_keys = set([seq_key_1, seq_key_2])
+                    seq_keys = dict.fromkeys([seq_key_1, seq_key_2])
 
                     for seq_key in seq_keys:
                         if seq_key not in self.__distRestSeqDict:
@@ -3071,7 +3079,7 @@ class NmrVrptUtility:
                     seq_key_3 = (auth_asym_id_3, auth_seq_id_3, comp_id_3)
                     seq_key_4 = (auth_asym_id_4, auth_seq_id_4, comp_id_4)
 
-                    seq_keys = set([seq_key_1, seq_key_2, seq_key_3, seq_key_4])
+                    seq_keys = dict.fromkeys([seq_key_1, seq_key_2, seq_key_3, seq_key_4])
 
                     for seq_key in seq_keys:
                         if seq_key not in self.__dihedRestSeqDict:
@@ -3279,7 +3287,7 @@ class NmrVrptUtility:
                     seq_key_1 = (auth_asym_id_1, auth_seq_id_1, comp_id_1)
                     seq_key_2 = (auth_asym_id_2, auth_seq_id_2, comp_id_2)
 
-                    seq_keys = set([seq_key_1, seq_key_2])
+                    seq_keys = dict.fromkeys([seq_key_1, seq_key_2])
 
                     for seq_key in seq_keys:
                         if seq_key not in self.__rdcRestSeqDict:
@@ -3596,7 +3604,7 @@ class NmrVrptUtility:
                     else:
                         cs_key = (cs_auth_chain_id, str(cs_auth_seq_id) + cs['ins_code'], cs_comp_id, cs_atom_id)
 
-                    if cs_key not in self.__chemShiftUniqDict:
+                    if cs_key not in self.__chemShiftUniqDict[list_id]:
                         self.__chemShiftUniqDict[list_id][cs_key] = {'value': cs_value,
                                                                      'error': cs_error,
                                                                      'ambig_code': ambig_code}
@@ -5133,7 +5141,17 @@ class NmrVrptUtility:
         for list_id, cs_data in self.__chemShiftUniqDict.items():
             rci_result[list_id] = {}
 
-            auth_chain_ids = list(set(cs_key[0] for cs_key in cs_data))
+            auth_chain_ids = list(dict.fromkeys(cs_key[0] for cs_key in cs_data))
+
+            # assigned shifts of each residue, {(auth_chain_id, auth_seq_id, comp_id): {cs_key: cs_vals}}, in the order of
+            # cs_data, so that each residue looks its shifts up instead of scanning all shifts of the list
+            cs_data_by_residue = {}
+            for cs_key, cs_vals in cs_data.items():
+                if cs_key[1].isdigit() and cs_vals['value'] not in EMPTY_VALUE:
+                    residue_key = (cs_key[0], int(cs_key[1]), cs_key[2])
+                    if residue_key not in cs_data_by_residue:
+                        cs_data_by_residue[residue_key] = {}
+                    cs_data_by_residue[residue_key][cs_key] = cs_vals
 
             for auth_chain_id in auth_chain_ids:
                 if has_coord:
@@ -5157,9 +5175,7 @@ class NmrVrptUtility:
                     else:
                         continue
 
-                    _cs_data = {k: v for k, v in cs_data.items()
-                                if k[0] == auth_chain_id and k[1].isdigit() and int(k[1]) == auth_seq_id
-                                and k[2] == comp_id and v['value'] not in EMPTY_VALUE}
+                    _cs_data = cs_data_by_residue.get((auth_chain_id, auth_seq_id, comp_id), {})
 
                     if len(_cs_data) == 0:
                         continue
@@ -5220,7 +5236,14 @@ class NmrVrptUtility:
                                       and cs['value'] not in EMPTY_VALUE]
 
                     if len(unmap_cs_data_) > 0:
-                        unmap_rci_residues = []
+                        unmap_rci_residues, unmap_rci_residue_set = [], set()
+
+                        unmap_cs_data_by_residue = {}
+                        for cs in unmap_cs_data_:
+                            residue_key = (cs['auth_seq_id'], cs['comp_id'])
+                            if residue_key not in unmap_cs_data_by_residue:
+                                unmap_cs_data_by_residue[residue_key] = []
+                            unmap_cs_data_by_residue[residue_key].append(cs)
 
                         for cs in unmap_cs_data_:
                             auth_seq_id = int(cs['auth_seq_id'])
@@ -5233,9 +5256,9 @@ class NmrVrptUtility:
                                 if not self.__csStat.peptideLike(comp_id):
                                     continue
 
-                                residue = [comp_id, auth_seq_id]
-                                if residue not in unmap_rci_residues:
-                                    unmap_rci_residues.append(residue)
+                                if (comp_id, auth_seq_id) not in unmap_rci_residue_set:
+                                    unmap_rci_residue_set.add((comp_id, auth_seq_id))
+                                    unmap_rci_residues.append([comp_id, auth_seq_id])
 
                         if len(unmap_rci_residues) > 0:
                             rci_residues.extend(unmap_rci_residues)
@@ -5243,9 +5266,7 @@ class NmrVrptUtility:
 
                             for comp_id, auth_seq_id in unmap_rci_residues:
 
-                                _unmap_cs_data = [cs for cs in unmap_cs_data_
-                                                  if cs['auth_seq_id'] == auth_seq_id
-                                                  and cs['comp_id'] == comp_id]
+                                _unmap_cs_data = unmap_cs_data_by_residue.get((auth_seq_id, comp_id), [])
 
                                 if len(_unmap_cs_data) == 0:
                                     continue
@@ -5555,7 +5576,7 @@ class NmrVrptUtility:
                             continue
 
                         atom_ids = set()
-                        distance_type = None
+                        distance_type = distance_sub_type = bond_flag = None
 
                         for r in self.__distRestDictWithCombKey[rest_key][comb_key]:
                             seq_key_1 = (r['atom_key_1'][0], r['atom_key_1'][1], r['atom_key_1'][2])
@@ -5833,10 +5854,10 @@ class NmrVrptUtility:
                             if angle_type is None:
                                 angle_type = r['angle_type']
 
-                        atom_ids = list(set(atom_ids_1))
-                        atom_ids.extend(list(set(atom_ids_2)))
-                        atom_ids.extend(list(set(atom_ids_3)))
-                        atom_ids.extend(list(set(atom_ids_4)))
+                        atom_ids = list(dict.fromkeys(atom_ids_1))
+                        atom_ids.extend(list(dict.fromkeys(atom_ids_2)))
+                        atom_ids.extend(list(dict.fromkeys(atom_ids_3)))
+                        atom_ids.extend(list(dict.fromkeys(atom_ids_4)))
 
                         angle_violation_seq[_seq_key].append([rest_key[0],
                                                               rest_key[1],
@@ -6074,8 +6095,8 @@ class NmrVrptUtility:
                             if rdc_type is None:
                                 rdc_type = r['rdc_type']
 
-                        atom_ids = list(set(atom_ids_1))
-                        atom_ids.extend(list(set(atom_ids_2)))
+                        atom_ids = list(dict.fromkeys(atom_ids_1))
+                        atom_ids.extend(list(dict.fromkeys(atom_ids_2)))
 
                         rdc_violation_seq[_seq_key].append([rest_key[0],
                                                             rest_key[1],

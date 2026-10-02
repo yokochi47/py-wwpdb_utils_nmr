@@ -5897,9 +5897,9 @@ class BaseStackedMRParserListener():
         if 'seq_not_specified' in _factor:
             del _factor['seq_not_specified']
 
-        atomSelection = [dict(s) for s in set(frozenset(atom.items())
-                                              for atom in _atomSelection
-                                              if isinstance(atom, dict))]
+        atomSelection = [dict(s) for s in dict.fromkeys(frozenset(atom.items())
+                                                        for atom in _atomSelection
+                                                        if isinstance(atom, dict))]
 
         valid = len(self.f) == len_warn_msg
 

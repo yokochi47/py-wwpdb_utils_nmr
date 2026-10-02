@@ -51,6 +51,12 @@
 # 29-Sep-2026 - my  - add release() to drop the parsed data blocks between workflow operations (DAOTHER-7829, 9785)
 # 29-Sep-2026 - my  - add getDistinctValues() and getFirstValue(), which scan a column without a dictionary per row
 #                     (DAOTHER-7829, 9785)
+# 02-Oct-2026 - my  - parse with SharingPdbxReader, which shares equal values among the parsed rows
+#                     (6x63: 1313 MB -> 453 MB retained, 1330 MB -> 529 MB peak) (DAOTHER-7829, 9785)
+# 02-Oct-2026 - my  - share the values in a copy of mmcif's tokenizer instead of wrapping it (parse time +30% -> +7%),
+#                     and hash the file in chunks (text_md5()) (DAOTHER-7829, 9785)
+# 03-Oct-2026 - my  - remove an unreadable data block cache, which was parsed around on every run, and write
+#                     the cache atomically (DAOTHER-7829, 9785)
 ##
 """ A collection of classes for parsing CIF files, extracting polymer sequence, and RMSD calculation.
 """
@@ -103,7 +109,8 @@ try:
                                                LEN_MAJOR_ASYM_ID,
                                                RMSD_OVERLAID_EXACTLY,
                                                RMSD_CUTOFF_FOR_DOMAIN,
-                                               CARTN_DATA_ITEMS)
+                                               CARTN_DATA_ITEMS,
+                                               text_md5)
 except ImportError:
     from nmr.NmrDpConstant import (SUB_DIR_NAME_FOR_CACHE,
                                    EMPTY_VALUE,
@@ -112,7 +119,8 @@ except ImportError:
                                    LEN_MAJOR_ASYM_ID,
                                    RMSD_OVERLAID_EXACTLY,
                                    RMSD_CUTOFF_FOR_DOMAIN,
-                                   CARTN_DATA_ITEMS)
+                                   CARTN_DATA_ITEMS,
+                                   text_md5)
 
 # throw RuntimeWarning as error for bug tracking, any runtimewarning should be handled
 warnings.filterwarnings('error', category=RuntimeWarning, module='CifReader')
@@ -186,6 +194,91 @@ MAX_INDEXED_COLUMNS_PER_CATEGORY = 8
 
 # threshold for garbage collection for high memory usage of DBSCAN
 GARBAGE_COLLECTION_CYCLES = 32 if SKLEARN_DBSCAN else 128
+
+
+# the mmCIF token regex of mmcif.io.PdbxReader.__tokenizer()
+MMCIF_TOKEN_PAT = re.compile(r"(?:"
+                             r"(?:_(.+?)[.](\S+))"  # _category.attribute
+                             r"|"
+                             r"(?:['](.*?)(?:[']\s|[']$))"  # single quoted strings
+                             r"|"
+                             r'(?:["](.*?)(?:["]\s|["]$))'  # double quoted strings
+                             r"|"
+                             r"(?:\s*#.*$)"  # comments (dumped)
+                             r"|"
+                             r"(\S+)"  # unquoted words
+                             r")")
+
+
+class SharingPdbxReader(PdbxReader):
+    """ PdbxReader that shares one str object among equal values of the parsed rows.
+        PdbxReader creates a new str for every value, e.g. 28.5 M values in 19.3 M str objects for the atom_site
+        of a 134 MB CIF file (6x63), of which only 1.85 M are distinct; sharing them cuts the parsed data blocks
+        from 1313 MB to 453 MB. The values themselves do not change.
+        Sharing has to happen while tokenizing: re-sharing the values of already parsed rows frees the str
+        objects but not the memory, which stays fragmented in the allocator.
+        The tokenizer is that of mmcif.io.PdbxReader (Ethan Merritt, Jay Painter; mmcif, Apache License 2.0)
+        with the sharing done where each token is made: wrapping the original generator instead cost 30%
+        more parse time, this costs 7% (6x63: 22.3 s, wrapped 29.1 s, here 23.9 s).
+        PdbxReader.read() calls its private tokenizer as self.__tokenizer, i.e. self._PdbxReader__tokenizer,
+        which this class overrides, and keeps the line number for its error messages in
+        self._PdbxReader__curLineNumber. Should mmcif rename the former, the override no longer applies and the
+        parse falls back to unshared values; CifReaderTests detects both.
+    """
+
+    def _PdbxReader__tokenizer(self, ifh):  # pylint: disable=invalid-name
+        """ Yield (category name, attribute name, quoted string, word without quotes or white space) per token.
+        """
+
+        pool = {}
+        share = pool.setdefault
+        finditer = MMCIF_TOKEN_PAT.finditer
+
+        fileIter = iter(ifh)
+
+        while True:
+            try:
+                line = next(fileIter)
+                self._PdbxReader__curLineNumber += 1  # pylint: disable=no-member
+
+                # dump comments
+                if line.startswith('#'):
+                    continue
+
+                # gobble up the entire semi-colon/multi-line delimited string
+                if line.startswith(';'):
+                    mlString = [line[1:]]
+                    while True:
+                        line = next(fileIter)
+                        self._PdbxReader__curLineNumber += 1  # pylint: disable=no-member
+                        if line.startswith(';'):
+                            break
+                        mlString.append(line)
+
+                    # remove trailing new-line that is part of the \n; delimiter
+                    mlString[-1] = mlString[-1].rstrip()
+
+                    quotedString = ''.join(mlString)
+                    yield (None, None, share(quotedString, quotedString), None)
+
+                    # process the remainder of the current line
+                    line = line[1:]
+
+                for it in finditer(line):
+                    catName, attName, singleQuoted, doubleQuoted, word = it.groups()
+                    if word is not None:
+                        if word.lower() == 'stop_':
+                            continue
+                        yield (catName, attName, None, share(word, word))
+                    elif singleQuoted is not None:
+                        yield (catName, attName, share(singleQuoted, singleQuoted), None)
+                    elif doubleQuoted is not None:
+                        yield (catName, attName, share(doubleQuoted, doubleQuoted), None)
+                    elif catName is not None or attName is not None:
+                        yield (catName, attName, None, None)
+
+            except StopIteration:
+                return
 
 
 def M(axis: list, theta: float) -> list:
@@ -456,8 +549,7 @@ class CifReader:
                 return False
 
             if self.__use_cache:
-                with open(self.__filePath, 'r', encoding='utf-8', errors='ignore') as ifh:
-                    self.__hashCode = hashlib.md5(ifh.read().encode('utf-8')).hexdigest()
+                self.__hashCode = text_md5(self.__filePath)
 
             return self.__setDataBlock(self.__getDataBlockFromFile())
 
@@ -498,14 +590,20 @@ class CifReader:
                     os.remove(self.__cachePath)
 
                 except Exception:  # pylint: disable=broad-exception-caught
-                    pass
+                    # an unreadable cache, e.g. one that refers to a module that is no longer installed or one that was
+                    # cut short, must go: __setDataBlock() writes the cache only when there is none, so it would
+                    # otherwise be parsed around on every run
+                    try:
+                        os.remove(self.__cachePath)
+                    except OSError:
+                        pass
 
         if self.__dBlockList is None:
             self.__dBlockList, self.__dBlockNameList = [], []
             self.__categoryNameList = {}
 
             with open(self.__filePath, 'r', encoding='utf-8') as ifh:
-                pRd = PdbxReader(ifh)
+                pRd = SharingPdbxReader(ifh)
                 pRd.read(self.__dBlockList)
 
                 is_star = all(container.getType() == 'data' for container in self.__dBlockList)
@@ -539,8 +637,15 @@ class CifReader:
                 self.__dBlock = dataBlock
 
                 if self.__use_cache and not os.path.exists(self.__cachePath):
-                    with open(self.__cachePath, 'wb') as ofh:
-                        pickle.dump(dataBlock, ofh)
+                    # write a complete cache or none: a dump cut short would leave an unreadable cache behind
+                    tmpPath = f'{self.__cachePath}.{os.getpid()}.tmp'
+                    try:
+                        with open(tmpPath, 'wb') as ofh:
+                            pickle.dump(dataBlock, ofh)
+                        os.replace(tmpPath, self.__cachePath)
+                    finally:
+                        if os.path.exists(tmpPath):
+                            os.remove(tmpPath)
 
                 return True
 
@@ -580,8 +685,7 @@ class CifReader:
         """
 
         if self.__hashCode is None:
-            with open(self.__filePath, 'r', encoding='utf-8', errors='ignore') as ifh:
-                self.__hashCode = hashlib.md5(ifh.read().encode('utf-8')).hexdigest()
+            self.__hashCode = text_md5(self.__filePath)
 
         return self.__hashCode
 

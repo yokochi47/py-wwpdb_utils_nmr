@@ -14,7 +14,6 @@ __license__ = "Apache License 2.0"
 __version__ = "5.4.0"
 
 import copy
-import hashlib
 import os
 import re
 from datetime import datetime
@@ -34,7 +33,8 @@ try:
                                                EMPTY_VALUE,
                                                TRUE_VALUE,
                                                MAX_DIM_NUM_OF_SPECTRA,
-                                               INCONSISTENT_RESTRAINT_WARNING_WO_SF_PAT)
+                                               INCONSISTENT_RESTRAINT_WARNING_WO_SF_PAT,
+                                               text_md5)
     from wwpdb.utils.nmr.NmrDpReport import NmrDpReportOutputStatistics
     from wwpdb.utils.nmr.CifToNmrStar import (has_key_value,
                                               get_first_sf_tag)
@@ -53,7 +53,8 @@ except ImportError:
                                    EMPTY_VALUE,
                                    TRUE_VALUE,
                                    MAX_DIM_NUM_OF_SPECTRA,
-                                   INCONSISTENT_RESTRAINT_WARNING_WO_SF_PAT)
+                                   INCONSISTENT_RESTRAINT_WARNING_WO_SF_PAT,
+                                   text_md5)
     from nmr.NmrDpReport import NmrDpReportOutputStatistics
     from nmr.CifToNmrStar import (has_key_value,
                                   get_first_sf_tag)
@@ -94,8 +95,7 @@ class NmrDpValidationOutStats(NmrDpValidationBase):
                 service_host = _service_host
         self._reg.output_statistics.setItemValue('processed_site', service_host)
         self._reg.output_statistics.setItemValue('file_size', os.path.getsize(__srcPath))
-        with open(__srcPath, 'r', encoding='utf-8', errors='ignore') as ifh:
-            self._reg.output_statistics.setItemValue('md5_checksum', hashlib.md5(ifh.read().encode('utf-8')).hexdigest())
+        self._reg.output_statistics.setItemValue('md5_checksum', text_md5(__srcPath))
 
         entry_title = entry_authors = submission_date = None
 

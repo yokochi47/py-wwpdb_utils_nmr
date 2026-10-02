@@ -3316,9 +3316,9 @@ class CnsMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
             if _term is not None:
                 _atomSelection.extend(_term)
 
-        atomSelection = [dict(s) for s in set(frozenset(atom.items())
-                                              for atom in _atomSelection
-                                              if isinstance(atom, dict))] if len(_atomSelection) > 1 else _atomSelection
+        atomSelection = [dict(s) for s in dict.fromkeys(frozenset(atom.items())
+                                                        for atom in _atomSelection
+                                                        if isinstance(atom, dict))] if len(_atomSelection) > 1 else _atomSelection
 
         if len(atomSelection) > 0:
             if self.depth == 0 and not self.top_union_expr:
@@ -3379,9 +3379,9 @@ class CnsMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 if _term is not None and not isinstance(_term, str):
                     _atomSelection.extend(_term)
 
-            atomSelection = [dict(s) for s in set(frozenset(atom.items())
-                                                  for atom in _atomSelection
-                                                  if isinstance(atom, dict))] if len(_atomSelection) > 1 else _atomSelection
+            atomSelection = [dict(s) for s in dict.fromkeys(frozenset(atom.items())
+                                                            for atom in _atomSelection
+                                                            if isinstance(atom, dict))] if len(_atomSelection) > 1 else _atomSelection  # noqa: E501
 
             if len(atomSelection) > 0:
                 self.stackSelections.append(atomSelection)
@@ -3679,9 +3679,9 @@ class CnsMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                                             self.log.write(f"+{self.__class_name__}.exitFactor() ++ Error  - {str(e)}")
 
                     if len(self.factor['atom_selection']) > 0:
-                        self.factor['atom_selection'] = [dict(s) for s in set(frozenset(atom.items())
-                                                                              for atom in _atomSelection
-                                                                              if isinstance(atom, dict))]
+                        self.factor['atom_selection'] = [dict(s) for s in dict.fromkeys(frozenset(atom.items())
+                                                                                        for atom in _atomSelection
+                                                                                        if isinstance(atom, dict))]
 
                         if len(self.factor['atom_selection']) == 0:
                             self.factor['atom_id'] = [None]
@@ -4226,9 +4226,9 @@ class CnsMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                         if len(_atom) == 1:
                             _atomSelection.append(_atom[0])
 
-                    self.factor['atom_selection'] = [dict(s) for s in set(frozenset(atom.items())
-                                                                          for atom in _atomSelection
-                                                                          if isinstance(atom, dict))]
+                    self.factor['atom_selection'] = [dict(s) for s in dict.fromkeys(frozenset(atom.items())
+                                                                                    for atom in _atomSelection
+                                                                                    if isinstance(atom, dict))]
 
                     if len(self.factor['atom_selection']) == 0:
                         self.factor['atom_id'] = [None]
@@ -4334,9 +4334,9 @@ class CnsMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                                                     _atomSelection.append({'chain_id': chainId, 'seq_id': seqId,
                                                                            'comp_id': compId, 'atom_id': _atomId})
 
-                    atomSelection = [dict(s) for s in set(frozenset(atom.items())
-                                                          for atom in _atomSelection
-                                                          if isinstance(atom, dict))]
+                    atomSelection = [dict(s) for s in dict.fromkeys(frozenset(atom.items())
+                                                                    for atom in _atomSelection
+                                                                    if isinstance(atom, dict))]
 
                     if len(atomSelection) <= len(self.factor['atom_selection']):
                         self.factor['atom_id'] = [None]
@@ -4400,9 +4400,9 @@ class CnsMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                                             _atomSelection.append({'chain_id': chainId, 'seq_id': seqId,
                                                                    'comp_id': compId, 'atom_id': atomId})
 
-                    self.factor['atom_selection'] = [dict(s) for s in set(frozenset(atom.items())
-                                                                          for atom in _atomSelection
-                                                                          if isinstance(atom, dict))]
+                    self.factor['atom_selection'] = [dict(s) for s in dict.fromkeys(frozenset(atom.items())
+                                                                                    for atom in _atomSelection
+                                                                                    if isinstance(atom, dict))]
 
                     if len(self.factor['atom_selection']) == 0:
                         self.factor['atom_id'] = [None]
@@ -4551,9 +4551,9 @@ class CnsMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                                 if self.verbose:
                                     self.log.write(f"+{self.__class_name__}.exitFactor() ++ Error  - {str(e)}")
 
-                self.factor['atom_selection'] = [dict(s) for s in set(frozenset(atom.items())
-                                                                      for atom in _atomSelection
-                                                                      if isinstance(atom, dict))]
+                self.factor['atom_selection'] = [dict(s) for s in dict.fromkeys(frozenset(atom.items())
+                                                                                for atom in _atomSelection
+                                                                                if isinstance(atom, dict))]
 
                 if len(self.factor['atom_selection']) == 0:
                     self.factor['atom_id'] = [None]

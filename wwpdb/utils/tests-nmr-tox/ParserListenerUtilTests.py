@@ -14,12 +14,7 @@ import random
 import sys
 import unittest
 
-from wwpdb.utils.nmr.mr.ParserListenerUtil import (USE_C_IMPLEMENTATION,
-                                                   atomKey, atomKeyPy,
-                                                   copyFactor, copyFactorPy,
-                                                   copyPolySeq, copyPolySeqPy,
-                                                   factorKey, factorKeyPy)
-
+# import commonsetup first: it mocks ConfigInfo, which ChemCompUtil reads when it is imported
 if __package__ is None or __package__ == "":
     from os import path
 
@@ -28,6 +23,11 @@ if __package__ is None or __package__ == "":
 else:
     from .commonsetup import TESTOUTPUT  # noqa: F401 pylint: disable=relative-beyond-top-level
 
+from wwpdb.utils.nmr.mr.ParserListenerUtil import (USE_C_IMPLEMENTATION,
+                                                   atomKey, atomKeyPy,
+                                                   copyFactor, copyFactorPy,
+                                                   copyPolySeq, copyPolySeqPy,
+                                                   factorKey, factorKeyPy)
 
 SCALARS = ["A", "HB2", 12, -3, 0, True, False, None, 1.25, "", "*"]
 

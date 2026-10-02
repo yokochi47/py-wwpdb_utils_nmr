@@ -1643,9 +1643,9 @@ class SchrodingerMRParserListener(ParseTreeListener, BaseStackedMRParserListener
             if _term is not None:
                 _atomSelection.extend(_term)
 
-        atomSelection = [dict(s) for s in set(frozenset(atom.items())
-                                              for atom in _atomSelection
-                                              if isinstance(atom, dict))] if len(_atomSelection) > 1 else _atomSelection
+        atomSelection = [dict(s) for s in dict.fromkeys(frozenset(atom.items())
+                                                        for atom in _atomSelection
+                                                        if isinstance(atom, dict))] if len(_atomSelection) > 1 else _atomSelection
 
         if len(atomSelection) > 0:
             if self.depth == 0 and not self.top_union_expr:
@@ -1706,9 +1706,9 @@ class SchrodingerMRParserListener(ParseTreeListener, BaseStackedMRParserListener
                 if _term is not None and not isinstance(_term, str):
                     _atomSelection.extend(_term)
 
-            atomSelection = [dict(s) for s in set(frozenset(atom.items())
-                                                  for atom in _atomSelection
-                                                  if isinstance(atom, dict))] if len(_atomSelection) > 1 else _atomSelection
+            atomSelection = [dict(s) for s in dict.fromkeys(frozenset(atom.items())
+                                                            for atom in _atomSelection
+                                                            if isinstance(atom, dict))] if len(_atomSelection) > 1 else _atomSelection  # noqa: E501
 
             if len(atomSelection) > 0:
                 self.stackSelections.append(atomSelection)

@@ -6425,11 +6425,13 @@ class BasePKParserListener():
                             continue
                         atom_set1.extend(atomSelectionSet[0])
                         atom_set2.extend(atomSelectionSet[1])
-                    common_atom1 = self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                  for a in atom_set1 if isinstance(a, dict))]
+                    common_atom1 = self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                            for a in atom_set1
+                                                                                            if isinstance(a, dict))]
                                                             if len(atom_set1) > 1 else atom_set1)
-                    common_atom2 = self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                  for a in atom_set2 if isinstance(a, dict))]
+                    common_atom2 = self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                            for a in atom_set2
+                                                                                            if isinstance(a, dict))]
                                                             if len(atom_set2) > 1 else atom_set2)
                     for atomSelectionSet, asIsSet in zip(self.atomSelectionSets, self.asIsSets):
                         ambig_code1 = ambig_code2 = None
@@ -6575,13 +6577,13 @@ class BasePKParserListener():
                             atom_set1.extend(atomSelectionSet[0])
                             atom_set2.extend(atomSelectionSet[1])
                         common_atoms = []
-                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                           for a in atom_set1
-                                                                                           if isinstance(a, dict))]
+                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                                     for a in atom_set1
+                                                                                                     if isinstance(a, dict))]
                                                                      if len(atom_set1) > 1 else atom_set1))
-                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                           for a in atom_set2
-                                                                                           if isinstance(a, dict))]
+                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                                     for a in atom_set2
+                                                                                                     if isinstance(a, dict))]
                                                                      if len(atom_set2) > 1 else atom_set2))
                         set_id = 1
                         for atomSelectionSet, asIsSet in itertools.zip_longest(self.atomSelectionSets, self.asIsSets):
@@ -6689,14 +6691,17 @@ class BasePKParserListener():
                         atom_set1.extend(atomSelectionSet[0])
                         atom_set2.extend(atomSelectionSet[1])
                         atom_set3.extend(atomSelectionSet[2])
-                    common_atom1 = self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                  for a in atom_set1 if isinstance(a, dict))]
+                    common_atom1 = self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                            for a in atom_set1
+                                                                                            if isinstance(a, dict))]
                                                             if len(atom_set1) > 1 else atom_set1)
-                    common_atom2 = self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                  for a in atom_set2 if isinstance(a, dict))]
+                    common_atom2 = self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                            for a in atom_set2
+                                                                                            if isinstance(a, dict))]
                                                             if len(atom_set2) > 1 else atom_set2)
-                    common_atom3 = self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                  for a in atom_set3 if isinstance(a, dict))]
+                    common_atom3 = self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                            for a in atom_set3
+                                                                                            if isinstance(a, dict))]
                                                             if len(atom_set3) > 1 else atom_set3)
                     for atomSelectionSet, asIsSet in zip(self.atomSelectionSets, self.asIsSets):
                         ambig_code1 = ambig_code2 = ambig_code3 = None
@@ -6859,17 +6864,17 @@ class BasePKParserListener():
                             atom_set2.extend(atomSelectionSet[1])
                             atom_set3.extend(atomSelectionSet[2])
                         common_atoms = []
-                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                           for a in atom_set1
-                                                                                           if isinstance(a, dict))]
+                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                                     for a in atom_set1
+                                                                                                     if isinstance(a, dict))]
                                                                      if len(atom_set1) > 1 else atom_set1))
-                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                           for a in atom_set2
-                                                                                           if isinstance(a, dict))]
+                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                                     for a in atom_set2
+                                                                                                     if isinstance(a, dict))]
                                                                      if len(atom_set2) > 1 else atom_set2))
-                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                           for a in atom_set3
-                                                                                           if isinstance(a, dict))]
+                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                                     for a in atom_set3
+                                                                                                     if isinstance(a, dict))]
                                                                      if len(atom_set3) > 1 else atom_set3))
                         set_id = 1
                         for atomSelectionSet, asIsSet in itertools.zip_longest(self.atomSelectionSets, self.asIsSets):
@@ -6992,17 +6997,21 @@ class BasePKParserListener():
                         atom_set2.extend(atomSelectionSet[1])
                         atom_set3.extend(atomSelectionSet[2])
                         atom_set4.extend(atomSelectionSet[3])
-                    common_atom1 = self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                  for a in atom_set1 if isinstance(a, dict))]
+                    common_atom1 = self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                            for a in atom_set1
+                                                                                            if isinstance(a, dict))]
                                                             if len(atom_set1) > 1 else atom_set1)
-                    common_atom2 = self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                  for a in atom_set2 if isinstance(a, dict))]
+                    common_atom2 = self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                            for a in atom_set2
+                                                                                            if isinstance(a, dict))]
                                                             if len(atom_set2) > 1 else atom_set2)
-                    common_atom3 = self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                  for a in atom_set3 if isinstance(a, dict))]
+                    common_atom3 = self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                            for a in atom_set3
+                                                                                            if isinstance(a, dict))]
                                                             if len(atom_set3) > 1 else atom_set3)
-                    common_atom4 = self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                  for a in atom_set4 if isinstance(a, dict))]
+                    common_atom4 = self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                            for a in atom_set4
+                                                                                            if isinstance(a, dict))]
                                                             if len(atom_set4) > 1 else atom_set4)
                     for atomSelectionSet, asIsSet in zip(self.atomSelectionSets, self.asIsSets):
                         ambig_code1 = ambig_code2 = ambig_code3 = ambig_code4 = None
@@ -7194,21 +7203,21 @@ class BasePKParserListener():
                             atom_set3.extend(atomSelectionSet[2])
                             atom_set4.extend(atomSelectionSet[3])
                         common_atoms = []
-                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                           for a in atom_set1
-                                                                                           if isinstance(a, dict))]
+                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                                     for a in atom_set1
+                                                                                                     if isinstance(a, dict))]
                                                                      if len(atom_set1) > 1 else atom_set1))
-                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                           for a in atom_set2
-                                                                                           if isinstance(a, dict))]
+                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                                     for a in atom_set2
+                                                                                                     if isinstance(a, dict))]
                                                                      if len(atom_set2) > 1 else atom_set2))
-                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                           for a in atom_set3
-                                                                                           if isinstance(a, dict))]
+                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                                     for a in atom_set3
+                                                                                                     if isinstance(a, dict))]
                                                                      if len(atom_set3) > 1 else atom_set3))
-                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in set(frozenset(a.items())
-                                                                                           for a in atom_set4
-                                                                                           if isinstance(a, dict))]
+                        common_atoms.append(self.__extractCommonAtom([dict(s) for s in dict.fromkeys(frozenset(a.items())
+                                                                                                     for a in atom_set4
+                                                                                                     if isinstance(a, dict))]
                                                                      if len(atom_set4) > 1 else atom_set4))
                         set_id = 1
                         for atomSelectionSet, asIsSet in itertools.zip_longest(self.atomSelectionSets, self.asIsSets):

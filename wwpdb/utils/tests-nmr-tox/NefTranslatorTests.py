@@ -17,6 +17,8 @@
 # 24-Feb-2022  M. Yokochi - support NefTranslator v3.0.9
 # 16-Dec-2022  M. Yokochi - support NefTranslator v3.3.2
 # 29-Sep-2026  M. Yokochi - add test for handing the entry parsed by validate_file() over to read_input_file() (DAOTHER-10315)
+# 02-Oct-2026  M. Yokochi - import commonsetup before NefTranslator, without which test_get_nef_atom failed
+#                           unless another test module had imported commonsetup first (DAOTHER-7829, 9785)
 ##
 import os
 import shutil
@@ -28,13 +30,15 @@ from packaging import version
 
 import pynmrstar
 
-from wwpdb.utils.nmr.nef.NefTranslator import NefTranslator
-
+# commonsetup mocks ConfigInfo with the test CCD; it must precede the import of NefTranslator, whose ChemCompUtil
+# sets CC_CVS_PATH from ConfigInfo when it is imported
 if __package__ is None or __package__ == "":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from commonsetup import TESTOUTPUT  # noqa: F401, pylint: disable=import-error,unused-import
 else:
     from .commonsetup import TESTOUTPUT  # noqa: F401, pylint: disable=relative-beyond-top-level
+
+from wwpdb.utils.nmr.nef.NefTranslator import NefTranslator
 
 __pynmrstar_v3_4__ = version.parse(pynmrstar.__version__) >= version.parse("3.4.0")
 

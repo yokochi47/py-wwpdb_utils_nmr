@@ -137,6 +137,8 @@
 #                           unchanged large file, instead of parsing it again (DAOTHER-7829, 9785)
 # 01-Oct-2026  M. Yokochi - extract sequences from the distinct rows of a loop in get_nef_seq(), get_star_seq() and
 #                           get_star_auth_seq(), cutting the garbage collections tripled by per-row containers (DAOTHER-7829, 9785)
+# 03-Oct-2026  M. Yokochi - guess ambiguity code 3 of a non-standard residue by ring flip symmetry, isFlippableRingProtonHost(),
+#                           in reference to phenylalanine (DAOTHER-8817)
 ##
 """ Bi-directional translator between NEF and NMR-STAR
     @author: Kumaran Baskaran, Masashi Yokochi
@@ -219,7 +221,8 @@ try:
                                                        translateToStdAtomName,
                                                        translateToStdAtomNameNoRef,
                                                        translateToStdAtomNameWithRef,
-                                                       isLikePheOrTyr)
+                                                       isLikePheOrTyr,
+                                                       isFlippableRingProtonHost)
 except ImportError:
     from nmr.NmrDpConstant import (LEN_LARGE_ASYM_ID,
                                    LOW_SEQ_COVERAGE,
@@ -270,7 +273,8 @@ except ImportError:
                                            translateToStdAtomName,
                                            translateToStdAtomNameNoRef,
                                            translateToStdAtomNameWithRef,
-                                           isLikePheOrTyr)
+                                           isLikePheOrTyr,
+                                           isFlippableRingProtonHost)
 
 
 __package_name__ = 'wwpdb.utils.nmr'
@@ -5523,7 +5527,7 @@ class NefTranslator:
                                     raise LookupError(msg)
 
                 tags = [k['name'] for k in key_items]
-                for data_name in set(data_names) & set(loop.tags):
+                for data_name in [d for d in data_names if d in loop.tags]:
                     tags.append(data_name)
 
                 tag_len = len(tags)
@@ -7836,8 +7840,7 @@ class NefTranslator:
                                 return 2  # methylene/amino
                             if len_v == 1:
                                 if k[0] == 'C' and self.chemCompTopo is not None and comp_id in self.chemCompTopo\
-                                   and any(len(tv) == 2 and tv[0][0] == 'C' and tv[1][0] == 'C'
-                                           for tk, tv in self.chemCompTopo[comp_id].items() if tk == k):
+                                   and isFlippableRingProtonHost(self.chemCompTopo[comp_id], self.chemCompBond[comp_id], k):
                                     return 3  # aromatic opposite
                                 return 1
                 return None
@@ -8738,8 +8741,7 @@ class NefTranslator:
                                     return 2  # methylene/amino
                                 if len_v == 1:
                                     if k[0] == 'C' and self.chemCompTopo is not None and comp_id in self.chemCompTopo\
-                                       and any(len(tv) == 2 and tv[0][0] == 'C' and tv[1][0] == 'C'
-                                               for tk, tv in self.chemCompTopo[comp_id].items() if tk == k):
+                                       and isFlippableRingProtonHost(self.chemCompTopo[comp_id], self.chemCompBond[comp_id], k):
                                         return 3  # aromatic opposite
                                     return 1
                     return None

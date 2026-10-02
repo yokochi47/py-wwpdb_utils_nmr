@@ -5,6 +5,7 @@
 # Updates:
 # 28-Sep-2026  M. Yokochi - collect the cyclic garbage of the previous NMR unified data before validating
 #                           a large one, which otherwise sets the peak memory of 'nmr-str2str-deposit' (DAOTHER-7829, 9785)
+# 02-Oct-2026  M. Yokochi - return the freed heap to the OS after that collection (6x63: 76-91 MB) (DAOTHER-7829, 9785)
 ##
 """ Input source validation and content subtype detection for NMR data validation.
     @author: Masashi Yokochi
@@ -42,7 +43,8 @@ try:
                                                INTNL_ANY_MR_FILE_NAME_PAT,
                                                PDB_MR_FILE_NAME_PAT,
                                                WS_PAT,
-                                               MIN_INPUT_SIZE_FOR_GC)
+                                               MIN_INPUT_SIZE_FOR_GC,
+                                               trim_heap)
     from wwpdb.utils.nmr.NmrDpMrSplitter import (detect_bom,
                                                  convert_codec,
                                                  convert_rtf_to_ascii,
@@ -71,7 +73,8 @@ except ImportError:
                                    INTNL_ANY_MR_FILE_NAME_PAT,
                                    PDB_MR_FILE_NAME_PAT,
                                    WS_PAT,
-                                   MIN_INPUT_SIZE_FOR_GC)
+                                   MIN_INPUT_SIZE_FOR_GC,
+                                   trim_heap)
     from nmr.NmrDpMrSplitter import (detect_bom,
                                      convert_codec,
                                      convert_rtf_to_ascii,
@@ -717,6 +720,7 @@ class NmrDpValidationInput(NmrDpValidationBase):
             # new entry is parsed: on a 32 MB entry that is 450k objects, 1226 MB -> 666 MB (DAOTHER-7829, 9785).
             if os.path.exists(srcPath) and os.path.getsize(srcPath) >= MIN_INPUT_SIZE_FOR_GC:
                 gc.collect(2)
+                trim_heap()
 
             is_valid, message = self._reg.nefT.validate_file(srcPath, 'A')  # 'A' for NMR unified data
 

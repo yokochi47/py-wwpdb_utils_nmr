@@ -7,6 +7,7 @@
 # 18-Sep-2026  M. Yokochi - fix CHARMM topology detection, whose '{Number of atoms} EXT' header test
 #                           compared a single character and so never matched, and name CHARMM rather
 #                           than GROMACS in its content_mismatch message
+# 03-Oct-2026  M. Yokochi - test restraints before chemical shifts in __classifyLightMrCounts() (DAOTHER-7829)
 ##
 """ File splitter for public PDB-MR formatted restraint file.
     @author: Masashi Yokochi
@@ -18,7 +19,6 @@ __license__ = "Apache License 2.0"
 __version__ = "5.4.0"
 
 import codecs
-import hashlib
 import itertools
 import os
 import re
@@ -69,7 +69,8 @@ try:
                                                WEIGHT_RANGE_MIN,
                                                WEIGHT_RANGE_MAX,
                                                KNOWN_ANGLE_NAMES,
-                                               CYANA_MR_FILE_EXTS)
+                                               CYANA_MR_FILE_EXTS,
+                                               text_md5)
     from wwpdb.utils.nmr.NmrDpRegistry import (NmrDpRegistry,
                                                get_next_path,
                                                test_path_with_suffix)
@@ -153,7 +154,8 @@ except ImportError:
                                    WEIGHT_RANGE_MIN,
                                    WEIGHT_RANGE_MAX,
                                    KNOWN_ANGLE_NAMES,
-                                   CYANA_MR_FILE_EXTS)
+                                   CYANA_MR_FILE_EXTS,
+                                   text_md5)
     from nmr.NmrDpRegistry import (NmrDpRegistry,
                                    get_next_path,
                                    test_path_with_suffix)
@@ -292,8 +294,7 @@ def file_md5(fPath: str) -> str:
     """ Return the MD5 digest of the text content of a given file.
     """
 
-    with open(fPath, 'r', encoding='utf-8', errors='ignore') as ifh:
-        return hashlib.md5(ifh.read().encode('utf-8')).hexdigest()
+    return text_md5(fPath)
 
 
 def first_index_map(tokens: List[str]) -> dict:
@@ -2018,16 +2019,21 @@ class NmrDpMrSplitter:
                                 angle_like: bool, cs_range_like: bool, dist_range_like: bool, dihed_range_like: bool,
                                 flags: MrContentFlags) -> None:
         """ Record the content subtype implied by the token counts of a single line.
+            Restraints are tested before chemical shifts: a restraint line can have exactly one chemical shift-like
+            atom name, e.g. 'assign (resid 23 and name O) (resid 27 and name HN) 1.9 0.1 0.1', and its distances
+            and angles lie in CS_RANGE, whereas a chemical shift line normally names a single atom, so it does not
+            match the restraint arms. Over 265 files of tests-nmr as 'nm-res-oth', testing chemical shifts first lost
+            the distance restraints of 8 files and the dihedral angle restraints of 45 (DAOTHER-7829).
         """
 
-        if cs_atom_likes == 1 and cs_range_like:
-            flags.has_chem_shift = True
-
-        elif atom_likes == 2 and dist_range_like:
+        if atom_likes == 2 and dist_range_like:
             flags.has_dist_restraint = True
 
         elif (atom_likes == 4 or (res_like and angle_like)) and dihed_range_like:
             flags.has_dihed_restraint = True
+
+        elif cs_atom_likes == 1 and cs_range_like:
+            flags.has_chem_shift = True
 
     def __scanLightMrAndAuxTop(self, file_path: str, file_type: str, names: MrAtomNames,
                                flags: MrContentFlags) -> None:
@@ -2084,14 +2090,7 @@ class NmrDpMrSplitter:
                         if name not in _names or len(_names) > 1:
                             atom_likes += 1
                             _names.append(name)
-                        # NOTE: '_names' is a list, so this test is never true, which makes
-                        # has_chem_shift unreachable here. Do not "fix" it to the token without
-                        # tightening the predicate below: CS_RANGE (-300..300) contains DIST_RANGE
-                        # (0..101), so 'cs_atom_likes == 1 and cs_range_like' then shadows the
-                        # distance-restraint arm. Measured over tests-nmr/mock-data*: has_chem_shift
-                        # turns on for 982 of 1683 (file, file_type) pairs and 56 pairs lose
-                        # has_dist_restraint. __scanXplorCnsMr() also requires resid_likes == 1.
-                        if _names in cs_atom_like_names:
+                        if name in cs_atom_like_names:
                             cs_atom_likes += 1
 
                     elif name in STD_MON_ONE_LETTER_CODES and name not in atom_like_names_oth:

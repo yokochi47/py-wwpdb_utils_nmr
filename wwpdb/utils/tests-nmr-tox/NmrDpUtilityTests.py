@@ -25,13 +25,14 @@ import unittest
 
 from testfixtures import LogCapture
 
-from wwpdb.utils.nmr.NmrDpUtility import NmrDpUtility
-
+# import commonsetup first: it mocks ConfigInfo, which ChemCompUtil reads when it is imported
 if __package__ is None or __package__ == "":
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from commonsetup import TESTOUTPUT  # noqa:  F401 pylint: disable=import-error,unused-import
 else:
     from .commonsetup import TESTOUTPUT  # noqa: F401 pylint: disable=relative-beyond-top-level
+
+from wwpdb.utils.nmr.NmrDpUtility import NmrDpUtility
 
 skipsome = True
 if os.getenv("FULLTEST") is not None:

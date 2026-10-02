@@ -33,9 +33,16 @@ FULLTEST=1 python -m unittest discover -v -s wwpdb/utils/tests-nmr-tox -p "*Test
 python -m unittest discover -v -s wwpdb/utils/tests-nmr-tox -p "NmrDpUtilityTests.py" -k <test_name>
 ```
 
-- **`FULLTEST=1` matters.** Without it, 20 of the 29 `NmrDpUtilityTests` are
-  skipped, so the default run exercises ~9. Use it for anything non-trivial.
-  `NmrDpUtilityTests` alone takes ~10 min; the whole suite ~10-12 min.
+- **`FULLTEST=1` matters.** The suite has 88 tests. Without `FULLTEST`, 20 of
+  the 29 `NmrDpUtilityTests` and 1 of the 28 `NefTranslatorTests` are skipped,
+  and so is the one test that is always skipped. That leaves 8
+  `NmrDpUtilityTests` running. Use it for anything non-trivial. The tox py39
+  environment also skips the 3 `c_listener_util` tests in
+  `ParserListenerUtilTests`, because it does not build that accelerator: tox
+  reports 25 skipped, and a local run with the accelerator built reports 22.
+  Timings measured Oct 2026 on a heavily loaded 2-core machine: the default run
+  takes ~2 min; with `FULLTEST`, `NmrDpUtilityTests` alone takes ~5 min and the
+  whole suite ~5-6 min.
 - `format_black` is in `tox.ini`'s envlist but **not** wired into CI, and the
   codebase is not black-formatted. Do not run black.
 - Two test directories: `tests-nmr-tox/` (`*Tests.py`) is what CI runs;
@@ -47,17 +54,18 @@ python -m unittest discover -v -s wwpdb/utils/tests-nmr-tox -p "NmrDpUtilityTest
 
 ### Known failures
 
-A green run is **69 ran, 67 ok, 1 failure, 1 skipped**. The one failure predates
-the current work and is not worth chasing:
+There are none. A green `FULLTEST=1` run is **88 ran, OK, 1 skipped**
+(`test_nmr_str2str_deposit_cleaned`, 'Until test corrected'). For the skip
+counts without `FULLTEST`, see above.
 
-- `test_get_nef_atom` — asserts that `get_nef_atom("HEM", ...)` collapses the
-  `HMA/HMAA/HMAB` methyl protons to `HMA%`, but gets
-  `"Unknown non-standard residue HEM found."`. That branch needs
-  `NefTranslator.chemCompAtom` to be populated, which only happens through a
-  setter the test never calls (its third positional argument is `details`, not a
-  chem-comp dict). Nothing to do with the CCD fixtures: `HEM` and `HEB` ship in
-  the mocked `ligand-dict-v3`, and `csStat.getMethylAtoms("HEM")` returns the
-  methyls correctly.
+`test_get_nef_atom` used to fail. The cause was test import order:
+`commonsetup` mocks `wwpdb.utils.config.ConfigInfo` with the test CCD
+(`tests-nmr-tox/data/components`), and `ChemCompUtil` reads `CC_CVS_PATH` from
+`ConfigInfo` when it is imported. A test module that imported `wwpdb.utils.nmr`
+before `commonsetup` therefore bound the real CCD path, and `HEM` became
+`"Unknown non-standard residue HEM found."`. Every module in `tests-nmr-tox/`
+now imports `commonsetup` first. Keep it that way in new test modules,
+or results start depending on which module unittest happens to load first.
 
 Anything else failing is new. flake8 and pylint are both clean at CI's
 invocations.

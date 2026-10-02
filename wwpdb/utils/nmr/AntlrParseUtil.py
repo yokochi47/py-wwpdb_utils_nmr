@@ -5,6 +5,8 @@
 # Updates:
 # 28-Sep-2026  M. Yokochi - call malloc_trim(0) after each C++ parse to return the freed C++ heap to the OS (DAOTHER-7829, 9785)
 # 28-Sep-2026  M. Yokochi - collect the cyclic garbage of the previous parse tree before a large parse (DAOTHER-7829, 9785)
+# 03-Oct-2026  M. Yokochi - give the C++ parsers an input stream without the per-character list of code points, which
+#                           only the pure-Python lexer reads (DAOTHER-7829, 9785)
 ##
 """ A single ANTLR parse driver shared by every *Reader class in this package.
 
@@ -51,6 +53,30 @@ except ImportError:
 # 1.75 M objects of the previous tree were still alive when the third parse began, and that parse
 # sets the peak RSS of the run in both the C++ and the pure-Python path. Inputs this long get a
 # full collection first, see MIN_INPUT_SIZE_FOR_GC (DAOTHER-7829, 9785).
+
+
+class LazyCodePointInputStream(InputStream):
+    """ InputStream for the C++ parsers, which read the input from strdata only. InputStream builds data, the list of
+        the code points of every character, as soon as it is created, which the pure-Python lexer reads but nothing on
+        the C++ path does: 26.7 M list items (213 MB of pointers) for a 26.7 MB XPLOR-NIH file. Here data is built on
+        first access, so that anything that does read it gets the same list (DAOTHER-7829, 9785).
+    """
+
+    __slots__ = ('_codePoints',)
+
+    def __init__(self, data: str):
+        self._codePoints = None
+        super().__init__(data)
+
+    def _loadString(self):
+        self._index = 0
+        self._size = len(self.strdata)
+
+    @property
+    def data(self) -> list:  # pylint: disable=invalid-overridden-method
+        if self._codePoints is None:
+            self._codePoints = [ord(c) for c in self.strdata]
+        return self._codePoints
 
 
 def usingCppParser(saModule) -> bool:
@@ -100,9 +126,9 @@ def parseAntlr(lexerClass, parserClass, entryRuleName: str, inputString: str,
         gc.collect(2)
         trim_heap()
 
-    stream = InputStream(inputString)
-
     if usingCppParser(saModule):
+
+        stream = LazyCodePointInputStream(inputString)
 
         # The C++ lexer and parser both run inside saModule.parse(); their
         # syntax errors are funnelled through a single SA_ErrorListener, which
@@ -120,6 +146,8 @@ def parseAntlr(lexerClass, parserClass, entryRuleName: str, inputString: str,
 
     # Pure-Python fallback. Deliberately not saModule._py_parse(), which neither
     # honors the SLL prediction mode nor reports through the ANTLR listeners.
+    stream = InputStream(inputString)
+
     lexer = lexerClass(stream)
     lexer.removeErrorListeners()
     lexer.addErrorListener(lexerErrorListener)

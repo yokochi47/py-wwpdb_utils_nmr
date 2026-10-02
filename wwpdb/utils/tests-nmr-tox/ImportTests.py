@@ -12,12 +12,7 @@ import os
 import sys
 import unittest
 
-from wwpdb.utils.nmr.BmrbChemShiftStat import BmrbChemShiftStat
-from wwpdb.utils.nmr.NmrDpUtility import NmrDpUtility
-from wwpdb.utils.nmr.NmrDpReport import NmrDpReport
-from wwpdb.utils.nmr.nef.NefTranslator import NefTranslator
-from wwpdb.utils.nmr.rci.RCI import RCI
-
+# import commonsetup first: it mocks ConfigInfo, which ChemCompUtil reads when it is imported
 if __package__ is None or __package__ == "":
     from os import path
 
@@ -25,6 +20,12 @@ if __package__ is None or __package__ == "":
     from commonsetup import TESTOUTPUT  # noqa:  F401 pylint: disable=import-error,unused-import
 else:
     from .commonsetup import TESTOUTPUT  # noqa: F401 pylint: disable=relative-beyond-top-level
+
+from wwpdb.utils.nmr.BmrbChemShiftStat import BmrbChemShiftStat
+from wwpdb.utils.nmr.NmrDpUtility import NmrDpUtility
+from wwpdb.utils.nmr.NmrDpReport import NmrDpReport
+from wwpdb.utils.nmr.nef.NefTranslator import NefTranslator
+from wwpdb.utils.nmr.rci.RCI import RCI
 
 
 class ImportTests(unittest.TestCase):
