@@ -91,7 +91,8 @@ try:
                                                INSTRUCTION_FOR_FULL_SEQUENCE,
                                                COVALENT_RADII,
                                                DEFAULT_COVALENT_RADIUS,
-                                               COVALENT_BOND_TOLERANCE)
+                                               COVALENT_BOND_TOLERANCE,
+                                               LOCAL_OFFSET_ATTEMPT)
     from wwpdb.utils.nmr.AlignUtil import (letterToDigit,
                                            alignPolymerSequence,
                                            assignPolymerSequence,
@@ -144,7 +145,8 @@ except ImportError:
                                    INSTRUCTION_FOR_FULL_SEQUENCE,
                                    COVALENT_RADII,
                                    DEFAULT_COVALENT_RADIUS,
-                                   COVALENT_BOND_TOLERANCE)
+                                   COVALENT_BOND_TOLERANCE,
+                                   LOCAL_OFFSET_ATTEMPT)
     from nmr.AlignUtil import (letterToDigit,
                                alignPolymerSequence,
                                assignPolymerSequence,
@@ -6527,6 +6529,73 @@ def decListIdCounter(mrSubtype: str, listIdCounter: dict, reduced: bool = True,
             listIdCounter[contentSubtype] -= 1
 
     return listIdCounter
+
+
+def trimSfWoLpOf(sfDict: dict, lastSfDict: dict, curSubtype: str, listIdCounter: dict) -> dict:
+    """ Trim the last saveframe of the current restraint subtype if it has no row, and return the list id counter.
+    """
+
+    if curSubtype not in lastSfDict:
+        return listIdCounter
+    if lastSfDict[curSubtype]['index_id'] > 0:
+        return listIdCounter
+    for k, v in sfDict.items():
+        for item in reversed(v):
+            if item is lastSfDict[curSubtype]:
+                v.remove(item)
+                if len(v) == 0:
+                    del sfDict[k]
+                return decListIdCounter(k[0], listIdCounter)
+    return listIdCounter
+
+
+def getSfDictOf(sfDict: dict, listIdCounter: dict) -> Tuple[dict, Optional[dict]]:
+    """ Remove pynmrstar saveframes without any row, and return the list id counter and the remaining saveframes.
+    """
+
+    if len(sfDict) == 0:
+        return listIdCounter, None
+    ign_keys = []
+    for k, v in sfDict.items():
+        for item in reversed(v):
+            if item['index_id'] == 0:
+                v.remove(item)
+                if len(v) == 0:
+                    ign_keys.append(k)
+                listIdCounter = decListIdCounter(k[0], listIdCounter)
+    for k in ign_keys:
+        del sfDict[k]
+    return listIdCounter, None if len(sfDict) == 0 else sfDict
+
+
+def nearestLocalOffset(offset: dict, seqId: int) -> Any:
+    """ Return the sequence offset registered for the sequence code nearest to a given one, within LOCAL_OFFSET_ATTEMPT.
+        @return: the offset, or the offset dictionary as is if no sequence code was found
+    """
+
+    for shift in range(1, LOCAL_OFFSET_ATTEMPT):
+        if seqId + shift in offset:
+            return offset[seqId + shift]
+        if seqId - shift in offset:
+            return offset[seqId - shift]
+    return offset
+
+
+def indexOfAuthSeqIdAcrossGap(ps: dict, seqId: int, offset: int) -> Optional[int]:
+    """ Return the index of the author sequence code for a given sequence code and offset, searching across a gap in
+        the author sequence within LOCAL_OFFSET_ATTEMPT.
+    """
+
+    for shift in range(1, LOCAL_OFFSET_ATTEMPT):
+        if seqId + shift + offset in ps['auth_seq_id']:
+            idx = ps['auth_seq_id'].index(seqId + shift + offset) - shift
+            if 0 <= idx < len(ps['auth_seq_id']):
+                return idx
+        if seqId - shift + offset in ps['auth_seq_id']:
+            idx = ps['auth_seq_id'].index(seqId - shift + offset) + shift
+            if 0 <= idx < len(ps['auth_seq_id']):
+                return idx
+    return None
 
 
 def retrieveOriginalFileName(filePath: str) -> str:

@@ -3,6 +3,10 @@
 # Date: 23-Oct-2025
 #
 # Updates:
+# 08-Oct-2026  M. Yokochi - fix indentation of the gap_in_auth_seq branch in exit()'s global_sequence_offset revision,
+#                           which was unreachable, so that it matches the global_auth_sequence_offset one (DAOTHER-7829)
+# 08-Oct-2026  M. Yokochi - prevent KeyError in exit() after global_auth_sequence_offset gets empty, and drop duplicated
+#                           seq_id_remap (DAOTHER-7829)
 """ ParserLister base class for generic stacked MR files.
     @author: Masashi Yokochi
 """
@@ -42,7 +46,6 @@ try:
                                                REPRESENTATIVE_MODEL_ID,
                                                REPRESENTATIVE_ALT_ID,
                                                MAX_PREF_LABEL_SCHEME_COUNT,
-                                               LOCAL_OFFSET_ATTEMPT,
                                                MIN_EXT_SEQ_FOR_ATOM_SEL_ERR,
                                                THRESHOLD_FOR_CIRCULAR_SHIFT,
                                                PLANE_LIKE_LOWER_LIMIT,
@@ -128,9 +131,8 @@ try:
     from wwpdb.utils.nmr.NmrVrptUtility import (to_np_array,
                                                 distance,
                                                 dist_error,
-                                                angle_target_values,
-                                                dihedral_angle,
-                                                angle_error)
+                                                select_realistic_bond_constraint,
+                                                select_realistic_chi2_angle_constraint)
     from wwpdb.utils.nmr.nef.NefTranslator import NefTranslator
     from wwpdb.utils.nmr.io.CifReader import CifReader
     from wwpdb.utils.nmr.mr.ParserListenerUtil import (toRegEx,
@@ -154,6 +156,10 @@ try:
                                                        guessCompIdFromAtomIdWoLimit,
                                                        incListIdCounter,
                                                        decListIdCounter,
+                                                       getSfDictOf,
+                                                       nearestLocalOffset,
+                                                       indexOfAuthSeqIdAcrossGap,
+                                                       trimSfWoLpOf,
                                                        getSaveframe,
                                                        getLoop)
 except ImportError:
@@ -175,7 +181,6 @@ except ImportError:
                                    REPRESENTATIVE_MODEL_ID,
                                    REPRESENTATIVE_ALT_ID,
                                    MAX_PREF_LABEL_SCHEME_COUNT,
-                                   LOCAL_OFFSET_ATTEMPT,
                                    MIN_EXT_SEQ_FOR_ATOM_SEL_ERR,
                                    THRESHOLD_FOR_CIRCULAR_SHIFT,
                                    PLANE_LIKE_LOWER_LIMIT,
@@ -261,9 +266,8 @@ except ImportError:
     from nmr.NmrVrptUtility import (to_np_array,
                                     distance,
                                     dist_error,
-                                    angle_target_values,
-                                    dihedral_angle,
-                                    angle_error)
+                                    select_realistic_bond_constraint,
+                                    select_realistic_chi2_angle_constraint)
     from nmr.nef.NefTranslator import NefTranslator
     from nmr.io.CifReader import CifReader
     from nmr.mr.ParserListenerUtil import (toRegEx,
@@ -287,6 +291,10 @@ except ImportError:
                                            guessCompIdFromAtomIdWoLimit,
                                            incListIdCounter,
                                            decListIdCounter,
+                                           getSfDictOf,
+                                           nearestLocalOffset,
+                                           indexOfAuthSeqIdAcrossGap,
+                                           trimSfWoLpOf,
                                            getSaveframe,
                                            getLoop)
 
@@ -500,6 +508,7 @@ class BaseStackedMRParserListener():
                  'hbondStatements',
                  'geoStatements',
                  'sfDict',
+                 'lastSfDict',
                  '__polySeqRst',
                  '__polySeqRstValid',
                  '__polySeqRstFailed',
@@ -733,9 +742,6 @@ class BaseStackedMRParserListener():
 
     # default saveframe name for error handling
     __def_err_sf_framecode = None
-
-    # last edited pynmrstar saveframe
-    lastSfDict = {}
 
     __pro_hn_atom_not_found_pat = re.compile(r"^\[Atom not found\] \[Check the \d+th row of [^,]+s.*\] (\S+):(\d+):PRO:[Hh][Nn]? "
                                              r"is not present in the coordinates\.$")
@@ -1050,6 +1056,7 @@ class BaseStackedMRParserListener():
         self.geoStatements = 0       # Harmonic coordinate/NCS restraints
 
         self.sfDict = {}  # dictionary of pynmrstar saveframes
+        self.lastSfDict = {}  # last added pynmrstar saveframe of each restraint subtype
 
         # polymer sequence of MR file
         self.__polySeqRst = []
@@ -1218,65 +1225,204 @@ class BaseStackedMRParserListener():
             if 'local_seq_scheme' in self.reasonsForReParsing:
                 del self.reasonsForReParsing['local_seq_scheme']
 
+        def collect_chain_id_remap(refChainIds: list, chainIdRemap: dict) -> None:
+            """ Collect sequence ID remapping of restraints from the current chain assignments without any conflict.
+            """
+
+            for ca in self.__chainAssign:
+                if ca['conflict'] > 0:
+                    continue
+                ref_chain_id = ca['ref_chain_id']
+                test_chain_id = ca['test_chain_id']
+
+                if ref_chain_id in refChainIds:
+                    continue
+
+                sa = next((sa for sa in self.__seqAlign
+                           if sa['ref_chain_id'] == ref_chain_id
+                           and sa['test_chain_id'] == test_chain_id), None)
+
+                if sa is None:
+                    continue
+
+                if any(seq_id in chainIdRemap for seq_id in sa['test_seq_id']):
+                    continue
+
+                ps = next(ps for ps in self.polySeq if ps['auth_chain_id'] == ref_chain_id)
+                has_gap_in_auth_seq = 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']
+
+                label_seq_scheme = False
+                _ps = next((_ps for _ps in self.__polySeqRstValid if _ps['chain_id'] == ref_chain_id), None)
+                if _ps is not None and all(seq_id in ps['seq_id'] for seq_id in _ps['seq_id']):
+                    label_seq_scheme = True  # 2m3o
+
+                rev_seq_id_mapping = {}
+                if 'ref_auth_seq_id' in sa and sa['ref_auth_seq_id'] == sa['test_seq_id'] and not label_seq_scheme:
+                    pass  # 6f0y
+                else:
+                    for ref_seq_id, test_seq_id in zip(sa['ref_seq_id'], sa['test_seq_id']):
+                        if test_seq_id is not None:
+                            rev_seq_id_mapping[test_seq_id] = ref_seq_id
+
+                if has_gap_in_auth_seq:
+                    for seq_id, auth_seq_id in zip(ps['seq_id'], ps['auth_seq_id']):
+                        if auth_seq_id in EMPTY_VALUE:
+                            continue
+                        if auth_seq_id in rev_seq_id_mapping:
+                            test_seq_id = rev_seq_id_mapping[auth_seq_id]
+                            chainIdRemap[test_seq_id] = {'chain_id': ref_chain_id, 'seq_id': auth_seq_id}
+                        elif seq_id not in chainIdRemap:
+                            chainIdRemap[seq_id] = {'chain_id': ref_chain_id, 'seq_id': auth_seq_id}
+                else:
+                    for auth_seq_id in ps['auth_seq_id']:
+                        if auth_seq_id in EMPTY_VALUE:
+                            continue
+                        if auth_seq_id in rev_seq_id_mapping:
+                            test_seq_id = rev_seq_id_mapping[auth_seq_id]
+                            chainIdRemap[test_seq_id] = {'chain_id': ref_chain_id, 'seq_id': auth_seq_id}
+                        elif auth_seq_id not in chainIdRemap:
+                            chainIdRemap[auth_seq_id] = {'chain_id': ref_chain_id, 'seq_id': auth_seq_id}
+
+                refChainIds.append(ref_chain_id)
+
+        def get_seq_id_mapping(sa: dict, poly_seq_model: dict, poly_seq_rst: dict, ref_chain_id: str,
+                               cyclicPolymer: dict) -> dict:
+            """ Return sequence ID mapping of restraints to the coordinates by a sequence alignment, which is completed
+                by a uniform offset in case of cyclic polymer.
+            """
+
+            seq_id_mapping = {}
+            for ref_seq_id, mid_code, test_seq_id in zip(sa['ref_seq_id'], sa['mid_code'], sa['test_seq_id']):
+                if mid_code == '|' and test_seq_id is not None:
+                    try:
+                        seq_id_mapping[test_seq_id] =\
+                            next(auth_seq_id for auth_seq_id, seq_id
+                                 in zip(poly_seq_model['auth_seq_id'], poly_seq_model['seq_id'])
+                                 if seq_id == ref_seq_id and isinstance(auth_seq_id, int))
+                    except StopIteration:
+                        pass
+
+            if ref_chain_id not in cyclicPolymer:
+                cyclicPolymer[ref_chain_id] =\
+                    isCyclicPolymer(self.cR, self.polySeq, ref_chain_id,
+                                    self.representativeModelId, self.representativeAltId, self.modelNumName)
+
+            if cyclicPolymer[ref_chain_id]:
+
+                poly_seq_model = next(ps for ps in self.polySeq
+                                      if ps['auth_chain_id'] == ref_chain_id)
+
+                offset = None
+                for seq_id, comp_id in zip(poly_seq_rst['seq_id'], poly_seq_rst['comp_id']):
+                    if seq_id is not None and seq_id not in seq_id_mapping:
+                        _seq_id = next((_seq_id for _seq_id, _comp_id
+                                        in zip(poly_seq_model['seq_id'], poly_seq_model['comp_id'])
+                                        if _seq_id not in seq_id_mapping.values() and _comp_id == comp_id), None)
+                        if _seq_id is not None:
+                            offset = seq_id - _seq_id
+                            break
+
+                if offset is not None:
+                    for seq_id in poly_seq_rst['seq_id']:
+                        if seq_id is not None and seq_id not in seq_id_mapping:
+                            seq_id_mapping[seq_id] = seq_id - offset
+
+            return seq_id_mapping
+
+        def resolve_ambig_comp_ids(chainId: str, _ps: dict, _matched: int) -> None:
+            """ Resolve ambiguous residues of the failed restraint polymer sequence by the best sequence alignment.
+            """
+
+            for seqId, compIds in zip(_ps['seq_id'], _ps['comp_ids']):
+                _compId = None
+                for compId in list(compIds):
+                    _polySeqRstFailed = copyPolySeq(self.__polySeqRstFailed)
+                    updatePolySeqRst(_polySeqRstFailed, chainId, seqId, compId)
+                    sortPolySeqRst(_polySeqRstFailed)
+                    _seqAlignFailed, _ = alignPolymerSequence(self.__pA, self.polySeq, _polySeqRstFailed)
+                    _sa = next((_sa for _sa in _seqAlignFailed if _sa['test_chain_id'] == chainId), None)
+                    if _sa is None or _sa['conflict'] > 0:
+                        continue
+                    if _sa['matched'] > _matched:
+                        _matched = _sa['matched']
+                        _compId = compId
+                if _compId is not None:
+                    updatePolySeqRst(self.__polySeqRstFailed, chainId, seqId, _compId)
+                    sortPolySeqRst(self.__polySeqRstFailed)
+
+        def extend_poly_seq_rst_failed(seqAlignFailed: List[dict]) -> None:
+            """ Extend the failed restraint polymer sequence by resolving ambiguous residues.
+            """
+
+            # extend restraint polymer sequence from single match (2joa)
+            if len(seqAlignFailed) == 0 and len(self.__polySeqRstFailed) > 0 and len(self.__polySeqRstFailedAmbig) > 0:
+                for ps in self.__polySeqRstFailed:
+                    chainId = ps['chain_id']
+                    _ps = next((_ps for _ps in self.__polySeqRstFailedAmbig if _ps['chain_id'] == chainId), None)
+                    if _ps is None:
+                        continue
+                    resolve_ambig_comp_ids(chainId, _ps, 0)
+
+            for sa in seqAlignFailed:
+                if sa['conflict'] == 0:
+                    chainId = sa['test_chain_id']
+                    _ps = next((_ps for _ps in self.__polySeqRstFailedAmbig if _ps['chain_id'] == chainId), None)
+                    if _ps is None:
+                        continue
+                    resolve_ambig_comp_ids(chainId, _ps, sa['matched'])
+
+        def revise_label_seq_scheme(seqIdRemapForRemaining: List[dict]) -> None:
+            """ Collect sequence ID remapping for chains without global author sequence offset, drop the offset of chains
+                with gap in author sequence that does not cover failed residues, and drop label sequence scheme if no
+                offset was dropped.
+            """
+
+            # bound once, because the reason may be deleted below once it gets empty
+            globalAuthSeqOffset = self.reasonsForReParsing['global_auth_sequence_offset']
+
+            no_gap = True
+            for ps in self.polySeq:
+                chainId = ps['auth_chain_id']
+                if chainId not in globalAuthSeqOffset:
+                    if 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
+                        offset = next(seq_id - auth_seq_id for seq_id, auth_seq_id in zip(ps['seq_id'], ps['auth_seq_id']))
+                        if any(abs(seq_id - auth_seq_id - offset) > 20
+                               for seq_id, auth_seq_id in zip(ps['seq_id'], ps['auth_seq_id'])):
+                            failed_ps = next((failed_ps for failed_ps in self.__polySeqRstFailed
+                                              if failed_ps['chain_id'] == chainId), None)
+                            if failed_ps is None:
+                                continue
+                            if any(seq_id in ps['seq_id'] and seq_id not in ps['auth_seq_id']
+                                   for seq_id in failed_ps['seq_id']):
+                                seqIdRemapForRemaining.append({'chain_id': chainId,
+                                                               'seq_id_dict': dict(zip(ps['seq_id'], ps['auth_seq_id']))})
+                    elif any(seq_id in ps['seq_id'] and seq_id not in ps['auth_seq_id'] for seq_id in ps['seq_id']):
+                        safe = True
+                        for _ps in self.polySeq:
+                            if _ps['auth_chain_id'] in globalAuthSeqOffset:
+                                if any(seq_id in ps['seq_id'] and seq_id in _ps['auth_seq_id'] for seq_id in ps['seq_id']):
+                                    safe = False
+                                    break
+                        if safe:
+                            seqIdRemapForRemaining.append({'chain_id': chainId,
+                                                           'seq_id_dict': dict(zip(ps['seq_id'], ps['auth_seq_id']))})
+                elif 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
+                    _ps = next((_ps for _ps in self.__polySeqRstFailed if _ps['chain_id'] == chainId), None)
+                    if _ps is None\
+                            or not all(_seq_id in ps['seq_id'] for _seq_id, _comp_id in zip(_ps['seq_id'], _ps['comp_id'])
+                                       if _comp_id not in EMPTY_VALUE):
+                        del globalAuthSeqOffset[chainId]
+                        if len(globalAuthSeqOffset) == 0:
+                            del self.reasonsForReParsing['global_auth_sequence_offset']
+                        no_gap = False
+            if no_gap:
+                del self.reasonsForReParsing['label_seq_scheme']
+
         def chain_id_remap_with_offset(trust_cur_chain_assign=True):
             refChainIds, ovwChainIds = [], []
             chainIdRemap = {}
             if trust_cur_chain_assign:
-                for ca in self.__chainAssign:
-                    if ca['conflict'] > 0:
-                        continue
-                    ref_chain_id = ca['ref_chain_id']
-                    test_chain_id = ca['test_chain_id']
-
-                    if ref_chain_id in refChainIds:
-                        continue
-
-                    sa = next((sa for sa in self.__seqAlign
-                               if sa['ref_chain_id'] == ref_chain_id
-                               and sa['test_chain_id'] == test_chain_id), None)
-
-                    if sa is None:
-                        continue
-
-                    if any(seq_id in chainIdRemap for seq_id in sa['test_seq_id']):
-                        continue
-
-                    ps = next(ps for ps in self.polySeq if ps['auth_chain_id'] == ref_chain_id)
-                    has_gap_in_auth_seq = 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']
-
-                    label_seq_scheme = False
-                    _ps = next((_ps for _ps in self.__polySeqRstValid if _ps['chain_id'] == ref_chain_id), None)
-                    if _ps is not None and all(seq_id in ps['seq_id'] for seq_id in _ps['seq_id']):
-                        label_seq_scheme = True  # 2m3o
-
-                    rev_seq_id_mapping = {}
-                    if 'ref_auth_seq_id' in sa and sa['ref_auth_seq_id'] == sa['test_seq_id'] and not label_seq_scheme:
-                        pass  # 6f0y
-                    else:
-                        for ref_seq_id, test_seq_id in zip(sa['ref_seq_id'], sa['test_seq_id']):
-                            if test_seq_id is not None:
-                                rev_seq_id_mapping[test_seq_id] = ref_seq_id
-
-                    if has_gap_in_auth_seq:
-                        for seq_id, auth_seq_id in zip(ps['seq_id'], ps['auth_seq_id']):
-                            if auth_seq_id in EMPTY_VALUE:
-                                continue
-                            if auth_seq_id in rev_seq_id_mapping:
-                                test_seq_id = rev_seq_id_mapping[auth_seq_id]
-                                chainIdRemap[test_seq_id] = {'chain_id': ref_chain_id, 'seq_id': auth_seq_id}
-                            elif seq_id not in chainIdRemap:
-                                chainIdRemap[seq_id] = {'chain_id': ref_chain_id, 'seq_id': auth_seq_id}
-                    else:
-                        for auth_seq_id in ps['auth_seq_id']:
-                            if auth_seq_id in EMPTY_VALUE:
-                                continue
-                            if auth_seq_id in rev_seq_id_mapping:
-                                test_seq_id = rev_seq_id_mapping[auth_seq_id]
-                                chainIdRemap[test_seq_id] = {'chain_id': ref_chain_id, 'seq_id': auth_seq_id}
-                            elif auth_seq_id not in chainIdRemap:
-                                chainIdRemap[auth_seq_id] = {'chain_id': ref_chain_id, 'seq_id': auth_seq_id}
-
-                    refChainIds.append(ref_chain_id)
+                collect_chain_id_remap(refChainIds, chainIdRemap)
 
             score = {1: 8, 2: 6, 3: 4, 4: 2, 5: 1, 6: 1, 7: 1}
 
@@ -1506,61 +1652,7 @@ class BaseStackedMRParserListener():
         def chain_id_split_with_offset(failed_seq_ids):
             refChainIds = []
             chainIdRemap = {}
-            for ca in self.__chainAssign:
-                if ca['conflict'] > 0:
-                    continue
-                ref_chain_id = ca['ref_chain_id']
-                test_chain_id = ca['test_chain_id']
-
-                if ref_chain_id in refChainIds:
-                    continue
-
-                sa = next((sa for sa in self.__seqAlign
-                           if sa['ref_chain_id'] == ref_chain_id
-                           and sa['test_chain_id'] == test_chain_id), None)
-
-                if sa is None:
-                    continue
-
-                if any(seq_id in chainIdRemap for seq_id in sa['test_seq_id']):
-                    continue
-
-                ps = next(ps for ps in self.polySeq if ps['auth_chain_id'] == ref_chain_id)
-                has_gap_in_auth_seq = 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']
-
-                label_seq_scheme = False
-                _ps = next((_ps for _ps in self.__polySeqRstValid if _ps['chain_id'] == ref_chain_id), None)
-                if _ps is not None and all(seq_id in ps['seq_id'] for seq_id in _ps['seq_id']):
-                    label_seq_scheme = True  # 2m3o
-
-                rev_seq_id_mapping = {}
-                if 'ref_auth_seq_id' in sa and sa['ref_auth_seq_id'] == sa['test_seq_id'] and not label_seq_scheme:
-                    pass  # 6f0y
-                else:
-                    for ref_seq_id, test_seq_id in zip(sa['ref_seq_id'], sa['test_seq_id']):
-                        if test_seq_id is not None:
-                            rev_seq_id_mapping[test_seq_id] = ref_seq_id
-
-                if has_gap_in_auth_seq:
-                    for seq_id, auth_seq_id in zip(ps['seq_id'], ps['auth_seq_id']):
-                        if auth_seq_id in EMPTY_VALUE:
-                            continue
-                        if auth_seq_id in rev_seq_id_mapping:
-                            test_seq_id = rev_seq_id_mapping[auth_seq_id]
-                            chainIdRemap[test_seq_id] = {'chain_id': ref_chain_id, 'seq_id': auth_seq_id}
-                        elif seq_id not in chainIdRemap:
-                            chainIdRemap[seq_id] = {'chain_id': ref_chain_id, 'seq_id': auth_seq_id}
-                else:
-                    for auth_seq_id in ps['auth_seq_id']:
-                        if auth_seq_id in EMPTY_VALUE:
-                            continue
-                        if auth_seq_id in rev_seq_id_mapping:
-                            test_seq_id = rev_seq_id_mapping[auth_seq_id]
-                            chainIdRemap[test_seq_id] = {'chain_id': ref_chain_id, 'seq_id': auth_seq_id}
-                        elif auth_seq_id not in chainIdRemap:
-                            chainIdRemap[auth_seq_id] = {'chain_id': ref_chain_id, 'seq_id': auth_seq_id}
-
-                refChainIds.append(ref_chain_id)
+            collect_chain_id_remap(refChainIds, chainIdRemap)
 
             for ps in self.polySeq:
                 chainId = ps['auth_chain_id']
@@ -1734,41 +1826,7 @@ class BaseStackedMRParserListener():
                             poly_seq_rst = next(ps for ps in self.__polySeqRst
                                                 if ps['chain_id'] == test_chain_id)
 
-                            seq_id_mapping = {}
-                            for ref_seq_id, mid_code, test_seq_id in zip(sa['ref_seq_id'], sa['mid_code'], sa['test_seq_id']):
-                                if mid_code == '|' and test_seq_id is not None:
-                                    try:
-                                        seq_id_mapping[test_seq_id] =\
-                                            next(auth_seq_id for auth_seq_id, seq_id
-                                                 in zip(poly_seq_model['auth_seq_id'], poly_seq_model['seq_id'])
-                                                 if seq_id == ref_seq_id and isinstance(auth_seq_id, int))
-                                    except StopIteration:
-                                        pass
-
-                            if ref_chain_id not in cyclicPolymer:
-                                cyclicPolymer[ref_chain_id] =\
-                                    isCyclicPolymer(self.cR, self.polySeq, ref_chain_id,
-                                                    self.representativeModelId, self.representativeAltId, self.modelNumName)
-
-                            if cyclicPolymer[ref_chain_id]:
-
-                                poly_seq_model = next(ps for ps in self.polySeq
-                                                      if ps['auth_chain_id'] == ref_chain_id)
-
-                                offset = None
-                                for seq_id, comp_id in zip(poly_seq_rst['seq_id'], poly_seq_rst['comp_id']):
-                                    if seq_id is not None and seq_id not in seq_id_mapping:
-                                        _seq_id = next((_seq_id for _seq_id, _comp_id
-                                                        in zip(poly_seq_model['seq_id'], poly_seq_model['comp_id'])
-                                                        if _seq_id not in seq_id_mapping.values() and _comp_id == comp_id), None)
-                                        if _seq_id is not None:
-                                            offset = seq_id - _seq_id
-                                            break
-
-                                if offset is not None:
-                                    for seq_id in poly_seq_rst['seq_id']:
-                                        if seq_id is not None and seq_id not in seq_id_mapping:
-                                            seq_id_mapping[seq_id] = seq_id - offset
+                            seq_id_mapping = get_seq_id_mapping(sa, poly_seq_model, poly_seq_rst, ref_chain_id, cyclicPolymer)
 
                             if any(True for k, v in seq_id_mapping.items() if k != v)\
                                and not any(True for k, v in seq_id_mapping.items()
@@ -1830,55 +1888,7 @@ class BaseStackedMRParserListener():
 
                             seqAlignFailed, _ = alignPolymerSequence(self.__pA, self.polySeq, self.__polySeqRstFailed)
 
-                            # extend restraint polymer sequence from single match (2joa)
-                            if len(seqAlignFailed) == 0 and len(self.__polySeqRstFailed) > 0\
-                               and len(self.__polySeqRstFailedAmbig) > 0:
-                                for ps in self.__polySeqRstFailed:
-                                    chainId = ps['chain_id']
-                                    _ps = next((_ps for _ps in self.__polySeqRstFailedAmbig if _ps['chain_id'] == chainId), None)
-                                    if _ps is None:
-                                        continue
-                                    _matched = 0
-                                    for seqId, compIds in zip(_ps['seq_id'], _ps['comp_ids']):
-                                        _compId = None
-                                        for compId in list(compIds):
-                                            _polySeqRstFailed = copyPolySeq(self.__polySeqRstFailed)
-                                            updatePolySeqRst(_polySeqRstFailed, chainId, seqId, compId)
-                                            sortPolySeqRst(_polySeqRstFailed)
-                                            _seqAlignFailed, _ = alignPolymerSequence(self.__pA, self.polySeq, _polySeqRstFailed)
-                                            _sa = next((_sa for _sa in _seqAlignFailed if _sa['test_chain_id'] == chainId), None)
-                                            if _sa is None or _sa['conflict'] > 0:
-                                                continue
-                                            if _sa['matched'] > _matched:
-                                                _matched = _sa['matched']
-                                                _compId = compId
-                                        if _compId is not None:
-                                            updatePolySeqRst(self.__polySeqRstFailed, chainId, seqId, _compId)
-                                            sortPolySeqRst(self.__polySeqRstFailed)
-
-                            for sa in seqAlignFailed:
-                                if sa['conflict'] == 0:
-                                    chainId = sa['test_chain_id']
-                                    _ps = next((_ps for _ps in self.__polySeqRstFailedAmbig if _ps['chain_id'] == chainId), None)
-                                    if _ps is None:
-                                        continue
-                                    _matched = sa['matched']
-                                    for seqId, compIds in zip(_ps['seq_id'], _ps['comp_ids']):
-                                        _compId = None
-                                        for compId in list(compIds):
-                                            _polySeqRstFailed = copyPolySeq(self.__polySeqRstFailed)
-                                            updatePolySeqRst(_polySeqRstFailed, chainId, seqId, compId)
-                                            sortPolySeqRst(_polySeqRstFailed)
-                                            _seqAlignFailed, _ = alignPolymerSequence(self.__pA, self.polySeq, _polySeqRstFailed)
-                                            _sa = next((_sa for _sa in _seqAlignFailed if _sa['test_chain_id'] == chainId), None)
-                                            if _sa is None or _sa['conflict'] > 0:
-                                                continue
-                                            if _sa['matched'] > _matched:
-                                                _matched = _sa['matched']
-                                                _compId = compId
-                                        if _compId is not None:
-                                            updatePolySeqRst(self.__polySeqRstFailed, chainId, seqId, _compId)
-                                            sortPolySeqRst(self.__polySeqRstFailed)
+                            extend_poly_seq_rst_failed(seqAlignFailed)
 
                             seqAlignFailed, _ = alignPolymerSequence(self.__pA, self.polySeq, self.__polySeqRstFailed)
                             chainAssignFailed, _ = assignPolymerSequence(self.__pA, self.ccU, self.file_type,
@@ -2095,54 +2105,7 @@ class BaseStackedMRParserListener():
 
                         seqAlignFailed, _ = alignPolymerSequence(self.__pA, self.polySeq, self.__polySeqRstFailed)
 
-                        # extend restraint polymer sequence from single match (2joa)
-                        if len(seqAlignFailed) == 0 and len(self.__polySeqRstFailed) > 0 and len(self.__polySeqRstFailedAmbig) > 0:
-                            for ps in self.__polySeqRstFailed:
-                                chainId = ps['chain_id']
-                                _ps = next((_ps for _ps in self.__polySeqRstFailedAmbig if _ps['chain_id'] == chainId), None)
-                                if _ps is None:
-                                    continue
-                                _matched = 0
-                                for seqId, compIds in zip(_ps['seq_id'], _ps['comp_ids']):
-                                    _compId = None
-                                    for compId in list(compIds):
-                                        _polySeqRstFailed = copyPolySeq(self.__polySeqRstFailed)
-                                        updatePolySeqRst(_polySeqRstFailed, chainId, seqId, compId)
-                                        sortPolySeqRst(_polySeqRstFailed)
-                                        _seqAlignFailed, _ = alignPolymerSequence(self.__pA, self.polySeq, _polySeqRstFailed)
-                                        _sa = next((_sa for _sa in _seqAlignFailed if _sa['test_chain_id'] == chainId), None)
-                                        if _sa is None or _sa['conflict'] > 0:
-                                            continue
-                                        if _sa['matched'] > _matched:
-                                            _matched = _sa['matched']
-                                            _compId = compId
-                                    if _compId is not None:
-                                        updatePolySeqRst(self.__polySeqRstFailed, chainId, seqId, _compId)
-                                        sortPolySeqRst(self.__polySeqRstFailed)
-
-                        for sa in seqAlignFailed:
-                            if sa['conflict'] == 0:
-                                chainId = sa['test_chain_id']
-                                _ps = next((_ps for _ps in self.__polySeqRstFailedAmbig if _ps['chain_id'] == chainId), None)
-                                if _ps is None:
-                                    continue
-                                _matched = sa['matched']
-                                for seqId, compIds in zip(_ps['seq_id'], _ps['comp_ids']):
-                                    _compId = None
-                                    for compId in list(compIds):
-                                        _polySeqRstFailed = copyPolySeq(self.__polySeqRstFailed)
-                                        updatePolySeqRst(_polySeqRstFailed, chainId, seqId, compId)
-                                        sortPolySeqRst(_polySeqRstFailed)
-                                        _seqAlignFailed, _ = alignPolymerSequence(self.__pA, self.polySeq, _polySeqRstFailed)
-                                        _sa = next((_sa for _sa in _seqAlignFailed if _sa['test_chain_id'] == chainId), None)
-                                        if _sa is None or _sa['conflict'] > 0:
-                                            continue
-                                        if _sa['matched'] > _matched:
-                                            _matched = _sa['matched']
-                                            _compId = compId
-                                    if _compId is not None:
-                                        updatePolySeqRst(self.__polySeqRstFailed, chainId, seqId, _compId)
-                                        sortPolySeqRst(self.__polySeqRstFailed)
+                        extend_poly_seq_rst_failed(seqAlignFailed)
 
                         seqAlignFailed, _ = alignPolymerSequence(self.__pA, self.polySeq, self.__polySeqRstFailed)
                         chainAssignFailed, _ = assignPolymerSequence(self.__pA, self.ccU, self.file_type,
@@ -2167,42 +2130,7 @@ class BaseStackedMRParserListener():
                                 poly_seq_rst = next(ps for ps in self.__polySeqRstFailed
                                                     if ps['chain_id'] == test_chain_id)
 
-                                seq_id_mapping = {}
-                                for ref_seq_id, mid_code, test_seq_id in zip(sa['ref_seq_id'], sa['mid_code'], sa['test_seq_id']):
-                                    if mid_code == '|' and test_seq_id is not None:
-                                        try:
-                                            seq_id_mapping[test_seq_id] =\
-                                                next(auth_seq_id for auth_seq_id, seq_id
-                                                     in zip(poly_seq_model['auth_seq_id'], poly_seq_model['seq_id'])
-                                                     if seq_id == ref_seq_id and isinstance(auth_seq_id, int))
-                                        except StopIteration:
-                                            pass
-
-                                if ref_chain_id not in cyclicPolymer:
-                                    cyclicPolymer[ref_chain_id] =\
-                                        isCyclicPolymer(self.cR, self.polySeq, ref_chain_id,
-                                                        self.representativeModelId, self.representativeAltId, self.modelNumName)
-
-                                if cyclicPolymer[ref_chain_id]:
-
-                                    poly_seq_model = next(ps for ps in self.polySeq
-                                                          if ps['auth_chain_id'] == ref_chain_id)
-
-                                    offset = None
-                                    for seq_id, comp_id in zip(poly_seq_rst['seq_id'], poly_seq_rst['comp_id']):
-                                        if seq_id is not None and seq_id not in seq_id_mapping:
-                                            _seq_id =\
-                                                next((_seq_id for _seq_id, _comp_id
-                                                      in zip(poly_seq_model['seq_id'], poly_seq_model['comp_id'])
-                                                      if _seq_id not in seq_id_mapping.values() and _comp_id == comp_id), None)
-                                            if _seq_id is not None:
-                                                offset = seq_id - _seq_id
-                                                break
-
-                                    if offset is not None:
-                                        for seq_id in poly_seq_rst['seq_id']:
-                                            if seq_id is not None and seq_id not in seq_id_mapping:
-                                                seq_id_mapping[seq_id] = seq_id - offset
+                                seq_id_mapping = get_seq_id_mapping(sa, poly_seq_model, poly_seq_rst, ref_chain_id, cyclicPolymer)
 
                                 if any(True for k, v in seq_id_mapping.items() if k != v)\
                                    and not any(True for k, v in seq_id_mapping.items()
@@ -2369,43 +2297,7 @@ class BaseStackedMRParserListener():
                     if 'global_auth_sequence_offset' not in self.reasonsForReParsing:
                         self.reasonsForReParsing['global_auth_sequence_offset'] = self.reasonsForReParsing['global_sequence_offset']
                         del self.reasonsForReParsing['global_sequence_offset']
-                    no_gap = True
-                    for ps in self.polySeq:
-                        chainId = ps['auth_chain_id']
-                        if chainId not in self.reasonsForReParsing['global_auth_sequence_offset']:
-                            if 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
-                                offset = next(seq_id - auth_seq_id for seq_id, auth_seq_id in zip(ps['seq_id'], ps['auth_seq_id']))
-                                if any(abs(seq_id - auth_seq_id - offset) > 20
-                                       for seq_id, auth_seq_id in zip(ps['seq_id'], ps['auth_seq_id'])):
-                                    failed_ps = next((failed_ps for failed_ps in self.__polySeqRstFailed
-                                                      if failed_ps['chain_id'] == chainId), None)
-                                    if failed_ps is None:
-                                        continue
-                                    if any(seq_id in ps['seq_id'] and seq_id not in ps['auth_seq_id']
-                                           for seq_id in failed_ps['seq_id']):
-                                        seqIdRemapForRemaining.append({'chain_id': chainId,
-                                                                       'seq_id_dict': dict(zip(ps['seq_id'], ps['auth_seq_id']))})
-                            elif any(seq_id in ps['seq_id'] and seq_id not in ps['auth_seq_id'] for seq_id in ps['seq_id']):
-                                safe = True
-                                for _ps in self.polySeq:
-                                    if _ps['auth_chain_id'] in self.reasonsForReParsing['global_auth_sequence_offset']:
-                                        if any(seq_id in ps['seq_id'] and seq_id in _ps['auth_seq_id'] for seq_id in ps['seq_id']):
-                                            safe = False
-                                            break
-                                if safe:
-                                    seqIdRemapForRemaining.append({'chain_id': chainId,
-                                                                   'seq_id_dict': dict(zip(ps['seq_id'], ps['auth_seq_id']))})
-                            elif 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
-                                _ps = next((_ps for _ps in self.__polySeqRstFailed if _ps['chain_id'] == chainId), None)
-                                if _ps is None\
-                                   or not all(_seq_id in ps['seq_id'] for _seq_id, _comp_id in zip(_ps['seq_id'], _ps['comp_id'])
-                                              if _comp_id not in EMPTY_VALUE):
-                                    del self.reasonsForReParsing['global_auth_sequence_offset'][chainId]
-                                    if len(self.reasonsForReParsing['global_auth_sequence_offset']) == 0:
-                                        del self.reasonsForReParsing['global_auth_sequence_offset']
-                                    no_gap = False
-                    if no_gap:
-                        del self.reasonsForReParsing['label_seq_scheme']
+                    revise_label_seq_scheme(seqIdRemapForRemaining)
                 if 'inhibit_label_seq_scheme' in self.reasonsForReParsing:
                     del self.reasonsForReParsing['inhibit_label_seq_scheme']
                 if 'seq_id_remap' in self.reasonsForReParsing:
@@ -2415,50 +2307,15 @@ class BaseStackedMRParserListener():
                 if 'local_seq_scheme' in self.reasonsForReParsing:
                     del self.reasonsForReParsing['local_seq_scheme']
                 if 'label_seq_scheme' in self.reasonsForReParsing:
-                    no_gap = True
-                    for ps in self.polySeq:
-                        chainId = ps['auth_chain_id']
-                        if chainId not in self.reasonsForReParsing['global_auth_sequence_offset']:
-                            if 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
-                                offset = next(seq_id - auth_seq_id for seq_id, auth_seq_id in zip(ps['seq_id'], ps['auth_seq_id']))
-                                if any(abs(seq_id - auth_seq_id - offset) > 20
-                                       for seq_id, auth_seq_id in zip(ps['seq_id'], ps['auth_seq_id'])):
-                                    failed_ps = next((failed_ps for failed_ps in self.__polySeqRstFailed
-                                                      if failed_ps['chain_id'] == chainId), None)
-                                    if failed_ps is None:
-                                        continue
-                                    if any(seq_id in ps['seq_id'] and seq_id not in ps['auth_seq_id']
-                                           for seq_id in failed_ps['seq_id']):
-                                        seqIdRemapForRemaining.append({'chain_id': chainId,
-                                                                       'seq_id_dict': dict(zip(ps['seq_id'], ps['auth_seq_id']))})
-                            elif any(seq_id in ps['seq_id'] and seq_id not in ps['auth_seq_id'] for seq_id in ps['seq_id']):
-                                safe = True
-                                for _ps in self.polySeq:
-                                    if _ps['auth_chain_id'] in self.reasonsForReParsing['global_auth_sequence_offset']:
-                                        if any(seq_id in ps['seq_id'] and seq_id in _ps['auth_seq_id'] for seq_id in ps['seq_id']):
-                                            safe = False
-                                            break
-                                if safe:
-                                    seqIdRemapForRemaining.append({'chain_id': chainId,
-                                                                   'seq_id_dict': dict(zip(ps['seq_id'], ps['auth_seq_id']))})
-                        elif 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
-                            _ps = next((_ps for _ps in self.__polySeqRstFailed if _ps['chain_id'] == chainId), None)
-                            if _ps is None\
-                                    or not all(_seq_id in ps['seq_id'] for _seq_id, _comp_id in zip(_ps['seq_id'], _ps['comp_id'])
-                                               if _comp_id not in EMPTY_VALUE):
-                                del self.reasonsForReParsing['global_auth_sequence_offset'][chainId]
-                                if len(self.reasonsForReParsing['global_auth_sequence_offset']) == 0:
-                                    del self.reasonsForReParsing['global_auth_sequence_offset']
-                                no_gap = False
-                    if no_gap:
-                        del self.reasonsForReParsing['label_seq_scheme']
+                    revise_label_seq_scheme(seqIdRemapForRemaining)
                 if 'label_seq_offset' in self.reasonsForReParsing:
                     del self.reasonsForReParsing['label_seq_offset']
                 if 'inhibit_label_seq_scheme' in self.reasonsForReParsing:
                     del self.reasonsForReParsing['inhibit_label_seq_scheme']
                 if 'seq_id_remap' in self.reasonsForReParsing:
                     del self.reasonsForReParsing['seq_id_remap']
-                if len(_seqIdRemap) > 0 and 'chain_id_remap' not in self.reasonsForReParsing:
+                if len(_seqIdRemap) > 0 and 'chain_id_remap' not in self.reasonsForReParsing\
+                   and 'global_auth_sequence_offset' in self.reasonsForReParsing:
                     _chainIds = [d['chain_id'] for d in _seqIdRemap]
                     chainIds = [k for k, v in self.reasonsForReParsing['global_auth_sequence_offset'].items() if v is not None]
                     if any(_c in chainIds for _c in _chainIds) and len(chainIds) < len(_chainIds):
@@ -2510,7 +2367,8 @@ class BaseStackedMRParserListener():
                             self.reasonsForReParsing['chain_id_remap'] = chainIdRemap
 
             if len(seqIdRemapForRemaining) > 0:
-                self.reasonsForReParsing['seq_id_remap'] = seqIdRemapForRemaining
+                self.reasonsForReParsing['seq_id_remap'] = [d for i, d in enumerate(seqIdRemapForRemaining)
+                                                            if d not in seqIdRemapForRemaining[:i]]
 
             insuff_dist_atom_sel_in_1st_row_warnings = [f for f in insuff_dist_atom_sel_warnings
                                                         if 'Check the 1th row of distance restraints' in f]
@@ -2759,7 +2617,8 @@ class BaseStackedMRParserListener():
                                                                'seq_id_dict': dict(zip(ps['seq_id'], ps['auth_seq_id']))})
 
                     if len(seqIdRemapForRemaining) > 0:
-                        self.reasonsForReParsing['seq_id_remap'] = seqIdRemapForRemaining
+                        self.reasonsForReParsing['seq_id_remap'] = [d for i, d in enumerate(seqIdRemapForRemaining)
+                                                                    if d not in seqIdRemapForRemaining[:i]]
 
                 if 'chain_id_remap' in self.reasonsForReParsing:
                     stat_chain_ids = set()
@@ -3197,64 +3056,61 @@ class BaseStackedMRParserListener():
 
         return dstFunc
 
-    def validateRdcRange(self, weight: float, misc_dict: dict, target_value: Optional[float],
-                         lower_limit: Optional[float], upper_limit: Optional[float],
-                         lower_linear_limit: Optional[float] = None, upper_linear_limit: Optional[float] = None
-                         ) -> Optional[dict]:
-        """ Validate angle value range.
+    def __validateValueRange(self, dstFunc: dict, target_value: Optional[float],
+                             lower_limit: Optional[float], upper_limit: Optional[float],
+                             lower_linear_limit: Optional[float], upper_linear_limit: Optional[float],
+                             error_min: float, error_max: float, restraint_error: dict,
+                             range_min: float, range_max: float, restraint_range: dict
+                             ) -> Optional[dict]:
+        """ Validate restraint value range against the given error/warning bounds, then fill dstFunc.
         """
 
         validRange = True
-        dstFunc = {'weight': weight}
-
-        if isinstance(misc_dict, dict):
-            for k, v in misc_dict.items():
-                dstFunc[k] = v
 
         if target_value is not None:
-            if RDC_ERROR_MIN < target_value < RDC_ERROR_MAX:
+            if error_min < target_value < error_max:
                 dstFunc['target_value'] = f"{target_value}"
             else:
                 validRange = False
                 self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
                               f"The target value='{target_value}' "
-                              f"must be within range {RDC_RESTRAINT_ERROR}.")
+                              f"must be within range {restraint_error}.")
 
         if lower_limit is not None:
-            if RDC_ERROR_MIN <= lower_limit < RDC_ERROR_MAX:
+            if error_min <= lower_limit < error_max:
                 dstFunc['lower_limit'] = f"{lower_limit:.6f}"
             else:
                 validRange = False
                 self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
                               f"The lower limit value='{lower_limit:.6f}' "
-                              f"must be within range {RDC_RESTRAINT_ERROR}.")
+                              f"must be within range {restraint_error}.")
 
         if upper_limit is not None:
-            if RDC_ERROR_MIN < upper_limit <= RDC_ERROR_MAX:
+            if error_min < upper_limit <= error_max:
                 dstFunc['upper_limit'] = f"{upper_limit:.6f}"
             else:
                 validRange = False
                 self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
                               f"The upper limit value='{upper_limit:.6f}' "
-                              f"must be within range {RDC_RESTRAINT_ERROR}.")
+                              f"must be within range {restraint_error}.")
 
         if lower_linear_limit is not None:
-            if RDC_ERROR_MIN <= lower_linear_limit < RDC_ERROR_MAX:
+            if error_min <= lower_linear_limit < error_max:
                 dstFunc['lower_linear_limit'] = f"{lower_linear_limit:.6f}"
             else:
                 validRange = False
                 self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
                               f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                              f"must be within range {RDC_RESTRAINT_ERROR}.")
+                              f"must be within range {restraint_error}.")
 
         if upper_linear_limit is not None:
-            if RDC_ERROR_MIN < upper_linear_limit <= RDC_ERROR_MAX:
+            if error_min < upper_linear_limit <= error_max:
                 dstFunc['upper_linear_limit'] = f"{upper_linear_limit:.6f}"
             else:
                 validRange = False
                 self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
                               f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                              f"must be within range {RDC_RESTRAINT_ERROR}.")
+                              f"must be within range {restraint_error}.")
 
         if target_value is not None:
 
@@ -3334,50 +3190,68 @@ class BaseStackedMRParserListener():
             return None
 
         if target_value is not None:
-            if RDC_RANGE_MIN <= target_value <= RDC_RANGE_MAX:
+            if range_min <= target_value <= range_max:
                 pass
             else:
                 self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
                               f"The target value='{target_value}' "
-                              f"should be within range {RDC_RESTRAINT_RANGE}.")
+                              f"should be within range {restraint_range}.")
 
         if lower_limit is not None:
-            if RDC_RANGE_MIN <= lower_limit <= RDC_RANGE_MAX:
+            if range_min <= lower_limit <= range_max:
                 pass
             else:
                 self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
                               f"The lower limit value='{lower_limit:.6f}' "
-                              f"should be within range {RDC_RESTRAINT_RANGE}.")
+                              f"should be within range {restraint_range}.")
 
         if upper_limit is not None:
-            if RDC_RANGE_MIN <= upper_limit <= RDC_RANGE_MAX:
+            if range_min <= upper_limit <= range_max:
                 pass
             else:
                 self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
                               f"The upper limit value='{upper_limit:.6f}' "
-                              f"should be within range {RDC_RESTRAINT_RANGE}.")
+                              f"should be within range {restraint_range}.")
 
         if lower_linear_limit is not None:
-            if RDC_RANGE_MIN <= lower_linear_limit <= RDC_RANGE_MAX:
+            if range_min <= lower_linear_limit <= range_max:
                 pass
             else:
                 self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
                               f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                              f"should be within range {RDC_RESTRAINT_RANGE}.")
+                              f"should be within range {restraint_range}.")
 
         if upper_linear_limit is not None:
-            if RDC_RANGE_MIN <= upper_linear_limit <= RDC_RANGE_MAX:
+            if range_min <= upper_linear_limit <= range_max:
                 pass
             else:
                 self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
                               f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                              f"should be within range {RDC_RESTRAINT_RANGE}.")
+                              f"should be within range {restraint_range}.")
 
         if target_value is None and lower_limit is None and upper_limit is None\
            and lower_linear_limit is None and upper_linear_limit is None:
             return None
 
         return dstFunc
+
+    def validateRdcRange(self, weight: float, misc_dict: dict, target_value: Optional[float],
+                         lower_limit: Optional[float], upper_limit: Optional[float],
+                         lower_linear_limit: Optional[float] = None, upper_linear_limit: Optional[float] = None
+                         ) -> Optional[dict]:
+        """ Validate angle value range.
+        """
+
+        dstFunc = {'weight': weight}
+
+        if isinstance(misc_dict, dict):
+            for k, v in misc_dict.items():
+                dstFunc[k] = v
+
+        return self.__validateValueRange(dstFunc, target_value, lower_limit, upper_limit,
+                                         lower_linear_limit, upper_linear_limit,
+                                         RDC_ERROR_MIN, RDC_ERROR_MAX, RDC_RESTRAINT_ERROR,
+                                         RDC_RANGE_MIN, RDC_RANGE_MAX, RDC_RESTRAINT_RANGE)
 
     def validateRdcRange2(self, weight: float, misc_dict: dict,
                           target_value_1: Optional[float], lower_limit_1: Optional[float], upper_limit_1: Optional[float],
@@ -3636,176 +3510,12 @@ class BaseStackedMRParserListener():
         """ Validate T1/T2 value range.
         """
 
-        validRange = True
         dstFunc = {'weight': weight, 'potential': self.potential}
 
-        if target_value is not None:
-            if T1T2_ERROR_MIN < target_value < T1T2_ERROR_MAX:
-                dstFunc['target_value'] = f"{target_value}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The target value='{target_value}' "
-                              f"must be within range {T1T2_RESTRAINT_ERROR}.")
-
-        if lower_limit is not None:
-            if T1T2_ERROR_MIN <= lower_limit < T1T2_ERROR_MAX:
-                dstFunc['lower_limit'] = f"{lower_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The lower limit value='{lower_limit:.6f}' "
-                              f"must be within range {T1T2_RESTRAINT_ERROR}.")
-
-        if upper_limit is not None:
-            if T1T2_ERROR_MIN < upper_limit <= T1T2_ERROR_MAX:
-                dstFunc['upper_limit'] = f"{upper_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The upper limit value='{upper_limit:.6f}' "
-                              f"must be within range {T1T2_RESTRAINT_ERROR}.")
-
-        if lower_linear_limit is not None:
-            if T1T2_ERROR_MIN <= lower_linear_limit < T1T2_ERROR_MAX:
-                dstFunc['lower_linear_limit'] = f"{lower_linear_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                              f"must be within range {T1T2_RESTRAINT_ERROR}.")
-
-        if upper_linear_limit is not None:
-            if T1T2_ERROR_MIN < upper_linear_limit <= T1T2_ERROR_MAX:
-                dstFunc['upper_linear_limit'] = f"{upper_linear_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                              f"must be within range {T1T2_RESTRAINT_ERROR}.")
-
-        if target_value is not None:
-
-            if lower_limit is not None:
-                if lower_limit > target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower limit value='{lower_limit:.6f}' "
-                                  f"must be less than the target value '{target_value}'.")
-
-            if lower_linear_limit is not None:
-                if lower_linear_limit > target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the target value '{target_value}'.")
-
-            if upper_limit is not None:
-                if upper_limit < target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The upper limit value='{upper_limit:.6f}' "
-                                  f"must be greater than the target value '{target_value}'.")
-
-            if upper_linear_limit is not None:
-                if upper_linear_limit < target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                                  f"must be greater than the target value '{target_value}'.")
-
-        else:
-
-            if None not in (lower_limit, upper_limit):
-                if lower_limit > upper_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower limit value='{lower_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_limit:.6f}'.")
-
-            if None not in (lower_linear_limit, upper_limit):
-                if lower_linear_limit > upper_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_limit:.6f}'.")
-
-            if None not in (lower_limit, upper_linear_limit):
-                if lower_limit > upper_linear_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower limit value='{lower_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_linear_limit:.6f}'.")
-
-            if None not in (lower_linear_limit, upper_linear_limit):
-                if lower_linear_limit > upper_linear_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_linear_limit:.6f}'.")
-
-            if None not in (lower_limit, lower_linear_limit):
-                if lower_linear_limit > lower_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the lower limit value '{lower_limit:.6f}'.")
-
-            if None not in (upper_limit, upper_linear_limit):
-                if upper_limit > upper_linear_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The upper limit value='{upper_limit:.6f}' "
-                                  f"must be less than the upper linear limit value '{upper_linear_limit:.6f}'.")
-
-        if not validRange:
-            return None
-
-        if target_value is not None:
-            if T1T2_RANGE_MIN <= target_value <= T1T2_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The target value='{target_value}' "
-                              f"should be within range {T1T2_RESTRAINT_RANGE}.")
-
-        if lower_limit is not None:
-            if T1T2_RANGE_MIN <= lower_limit <= T1T2_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The lower limit value='{lower_limit:.6f}' "
-                              f"should be within range {T1T2_RESTRAINT_RANGE}.")
-
-        if upper_limit is not None:
-            if T1T2_RANGE_MIN <= upper_limit <= T1T2_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The upper limit value='{upper_limit:.6f}' "
-                              f"should be within range {T1T2_RESTRAINT_RANGE}.")
-
-        if lower_linear_limit is not None:
-            if T1T2_RANGE_MIN <= lower_linear_limit <= T1T2_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                              f"should be within range {T1T2_RESTRAINT_RANGE}.")
-
-        if upper_linear_limit is not None:
-            if T1T2_RANGE_MIN <= upper_linear_limit <= T1T2_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                              f"should be within range {T1T2_RESTRAINT_RANGE}.")
-
-        if target_value is None and lower_limit is None and upper_limit is None\
-           and lower_linear_limit is None and upper_linear_limit is None:
-            return None
-
-        return dstFunc
+        return self.__validateValueRange(dstFunc, target_value, lower_limit, upper_limit,
+                                         lower_linear_limit, upper_linear_limit,
+                                         T1T2_ERROR_MIN, T1T2_ERROR_MAX, T1T2_RESTRAINT_ERROR,
+                                         T1T2_RANGE_MIN, T1T2_RANGE_MAX, T1T2_RESTRAINT_RANGE)
 
     def validateCsaRange(self, weight: float, target_value: Optional[float],
                          lower_limit: Optional[float], upper_limit: Optional[float],
@@ -3814,176 +3524,12 @@ class BaseStackedMRParserListener():
         """ Validate CSA value range.
         """
 
-        validRange = True
         dstFunc = {'weight': weight, 'potential': self.potential}
 
-        if target_value is not None:
-            if CSA_ERROR_MIN < target_value < CSA_ERROR_MAX:
-                dstFunc['target_value'] = f"{target_value}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The target value='{target_value}' "
-                              f"must be within range {CSA_RESTRAINT_ERROR}.")
-
-        if lower_limit is not None:
-            if CSA_ERROR_MIN <= lower_limit < CSA_ERROR_MAX:
-                dstFunc['lower_limit'] = f"{lower_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The lower limit value='{lower_limit:.6f}' "
-                              f"must be within range {CSA_RESTRAINT_ERROR}.")
-
-        if upper_limit is not None:
-            if CSA_ERROR_MIN < upper_limit <= CSA_ERROR_MAX:
-                dstFunc['upper_limit'] = f"{upper_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The upper limit value='{upper_limit:.6f}' "
-                              f"must be within range {CSA_RESTRAINT_ERROR}.")
-
-        if lower_linear_limit is not None:
-            if CSA_ERROR_MIN <= lower_linear_limit < CSA_ERROR_MAX:
-                dstFunc['lower_linear_limit'] = f"{lower_linear_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                              f"must be within range {CSA_RESTRAINT_ERROR}.")
-
-        if upper_linear_limit is not None:
-            if CSA_ERROR_MIN < upper_linear_limit <= CSA_ERROR_MAX:
-                dstFunc['upper_linear_limit'] = f"{upper_linear_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                              f"must be within range {CSA_RESTRAINT_ERROR}.")
-
-        if target_value is not None:
-
-            if lower_limit is not None:
-                if lower_limit > target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower limit value='{lower_limit:.6f}' "
-                                  f"must be less than the target value '{target_value}'.")
-
-            if lower_linear_limit is not None:
-                if lower_linear_limit > target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the target value '{target_value}'.")
-
-            if upper_limit is not None:
-                if upper_limit < target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The upper limit value='{upper_limit:.6f}' "
-                                  f"must be greater than the target value '{target_value}'.")
-
-            if upper_linear_limit is not None:
-                if upper_linear_limit < target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                                  f"must be greater than the target value '{target_value}'.")
-
-        else:
-
-            if None not in (lower_limit, upper_limit):
-                if lower_limit > upper_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower limit value='{lower_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_limit:.6f}'.")
-
-            if None not in (lower_linear_limit, upper_limit):
-                if lower_linear_limit > upper_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_limit:.6f}'.")
-
-            if None not in (lower_limit, upper_linear_limit):
-                if lower_limit > upper_linear_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower limit value='{lower_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_linear_limit:.6f}'.")
-
-            if None not in (lower_linear_limit, upper_linear_limit):
-                if lower_linear_limit > upper_linear_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_linear_limit:.6f}'.")
-
-            if None not in (lower_limit, lower_linear_limit):
-                if lower_linear_limit > lower_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the lower limit value '{lower_limit:.6f}'.")
-
-            if None not in (upper_limit, upper_linear_limit):
-                if upper_limit > upper_linear_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The upper limit value='{upper_limit:.6f}' "
-                                  f"must be less than the upper linear limit value '{upper_linear_limit:.6f}'.")
-
-        if not validRange:
-            return None
-
-        if target_value is not None:
-            if CSA_RANGE_MIN <= target_value <= CSA_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The target value='{target_value}' "
-                              f"should be within range {CSA_RESTRAINT_RANGE}.")
-
-        if lower_limit is not None:
-            if CSA_RANGE_MIN <= lower_limit <= CSA_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The lower limit value='{lower_limit:.6f}' "
-                              f"should be within range {CSA_RESTRAINT_RANGE}.")
-
-        if upper_limit is not None:
-            if CSA_RANGE_MIN <= upper_limit <= CSA_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The upper limit value='{upper_limit:.6f}' "
-                              f"should be within range {CSA_RESTRAINT_RANGE}.")
-
-        if lower_linear_limit is not None:
-            if CSA_RANGE_MIN <= lower_linear_limit <= CSA_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                              f"should be within range {CSA_RESTRAINT_RANGE}.")
-
-        if upper_linear_limit is not None:
-            if CSA_RANGE_MIN <= upper_linear_limit <= CSA_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                              f"should be within range {CSA_RESTRAINT_RANGE}.")
-
-        if target_value is None and lower_limit is None and upper_limit is None\
-           and lower_linear_limit is None and upper_linear_limit is None:
-            return None
-
-        return dstFunc
+        return self.__validateValueRange(dstFunc, target_value, lower_limit, upper_limit,
+                                         lower_linear_limit, upper_linear_limit,
+                                         CSA_ERROR_MIN, CSA_ERROR_MAX, CSA_RESTRAINT_ERROR,
+                                         CSA_RANGE_MIN, CSA_RANGE_MAX, CSA_RESTRAINT_RANGE)
 
     def validatePreRange(self, weight: float, target_value: Optional[float],
                          lower_limit: Optional[float], upper_limit: Optional[float],
@@ -3992,176 +3538,12 @@ class BaseStackedMRParserListener():
         """ Validate PRE value range.
         """
 
-        validRange = True
         dstFunc = {'weight': weight, 'potential': self.potential}
 
-        if target_value is not None:
-            if PRE_ERROR_MIN < target_value < PRE_ERROR_MAX:
-                dstFunc['target_value'] = f"{target_value}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The target value='{target_value}' "
-                              f"must be within range {PRE_RESTRAINT_ERROR}.")
-
-        if lower_limit is not None:
-            if PRE_ERROR_MIN <= lower_limit < PRE_ERROR_MAX:
-                dstFunc['lower_limit'] = f"{lower_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The lower limit value='{lower_limit:.6f}' "
-                              f"must be within range {PRE_RESTRAINT_ERROR}.")
-
-        if upper_limit is not None:
-            if PRE_ERROR_MIN < upper_limit <= PRE_ERROR_MAX:
-                dstFunc['upper_limit'] = f"{upper_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The upper limit value='{upper_limit:.6f}' "
-                              f"must be within range {PRE_RESTRAINT_ERROR}.")
-
-        if lower_linear_limit is not None:
-            if PRE_ERROR_MIN <= lower_linear_limit < PRE_ERROR_MAX:
-                dstFunc['lower_linear_limit'] = f"{lower_linear_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                              f"must be within range {PRE_RESTRAINT_ERROR}.")
-
-        if upper_linear_limit is not None:
-            if PRE_ERROR_MIN < upper_linear_limit <= PRE_ERROR_MAX:
-                dstFunc['upper_linear_limit'] = f"{upper_linear_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                              f"must be within range {PRE_RESTRAINT_ERROR}.")
-
-        if target_value is not None:
-
-            if lower_limit is not None:
-                if lower_limit > target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower limit value='{lower_limit:.6f}' "
-                                  f"must be less than the target value '{target_value}'.")
-
-            if lower_linear_limit is not None:
-                if lower_linear_limit > target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the target value '{target_value}'.")
-
-            if upper_limit is not None:
-                if upper_limit < target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The upper limit value='{upper_limit:.6f}' "
-                                  f"must be greater than the target value '{target_value}'.")
-
-            if upper_linear_limit is not None:
-                if upper_linear_limit < target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                                  f"must be greater than the target value '{target_value}'.")
-
-        else:
-
-            if None not in (lower_limit, upper_limit):
-                if lower_limit > upper_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower limit value='{lower_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_limit:.6f}'.")
-
-            if None not in (lower_linear_limit, upper_limit):
-                if lower_linear_limit > upper_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_limit:.6f}'.")
-
-            if None not in (lower_limit, upper_linear_limit):
-                if lower_limit > upper_linear_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower limit value='{lower_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_linear_limit:.6f}'.")
-
-            if None not in (lower_linear_limit, upper_linear_limit):
-                if lower_linear_limit > upper_linear_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_linear_limit:.6f}'.")
-
-            if None not in (lower_limit, lower_linear_limit):
-                if lower_linear_limit > lower_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the lower limit value '{lower_limit:.6f}'.")
-
-            if None not in (upper_limit, upper_linear_limit):
-                if upper_limit > upper_linear_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The upper limit value='{upper_limit:.6f}' "
-                                  f"must be less than the upper linear limit value '{upper_linear_limit:.6f}'.")
-
-        if not validRange:
-            return None
-
-        if target_value is not None:
-            if PRE_RANGE_MIN <= target_value <= PRE_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The target value='{target_value}' "
-                              f"should be within range {PRE_RESTRAINT_RANGE}.")
-
-        if lower_limit is not None:
-            if PRE_RANGE_MIN <= lower_limit <= PRE_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The lower limit value='{lower_limit:.6f}' "
-                              f"should be within range {PRE_RESTRAINT_RANGE}.")
-
-        if upper_limit is not None:
-            if PRE_RANGE_MIN <= upper_limit <= PRE_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The upper limit value='{upper_limit:.6f}' "
-                              f"should be within range {PRE_RESTRAINT_RANGE}.")
-
-        if lower_linear_limit is not None:
-            if PRE_RANGE_MIN <= lower_linear_limit <= PRE_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                              f"should be within range {PRE_RESTRAINT_RANGE}.")
-
-        if upper_linear_limit is not None:
-            if PRE_RANGE_MIN <= upper_linear_limit <= PRE_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                              f"should be within range {PRE_RESTRAINT_RANGE}.")
-
-        if target_value is None and lower_limit is None and upper_limit is None\
-           and lower_linear_limit is None and upper_linear_limit is None:
-            return None
-
-        return dstFunc
+        return self.__validateValueRange(dstFunc, target_value, lower_limit, upper_limit,
+                                         lower_linear_limit, upper_linear_limit,
+                                         PRE_ERROR_MIN, PRE_ERROR_MAX, PRE_RESTRAINT_ERROR,
+                                         PRE_RANGE_MIN, PRE_RANGE_MAX, PRE_RESTRAINT_RANGE)
 
     def validatePcsRange(self, weight: float, target_value: Optional[float],
                          lower_limit: Optional[float], upper_limit: Optional[float],
@@ -4170,176 +3552,12 @@ class BaseStackedMRParserListener():
         """ Validate PCS value range.
         """
 
-        validRange = True
         dstFunc = {'weight': weight}
 
-        if target_value is not None:
-            if PCS_ERROR_MIN < target_value < PCS_ERROR_MAX:
-                dstFunc['target_value'] = f"{target_value}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The target value='{target_value}' "
-                              f"must be within range {PCS_RESTRAINT_ERROR}.")
-
-        if lower_limit is not None:
-            if PCS_ERROR_MIN <= lower_limit < PCS_ERROR_MAX:
-                dstFunc['lower_limit'] = f"{lower_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The lower limit value='{lower_limit:.6f}' "
-                              f"must be within range {PCS_RESTRAINT_ERROR}.")
-
-        if upper_limit is not None:
-            if PCS_ERROR_MIN < upper_limit <= PCS_ERROR_MAX:
-                dstFunc['upper_limit'] = f"{upper_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The upper limit value='{upper_limit:.6f}' "
-                              f"must be within range {PCS_RESTRAINT_ERROR}.")
-
-        if lower_linear_limit is not None:
-            if PCS_ERROR_MIN <= lower_linear_limit < PCS_ERROR_MAX:
-                dstFunc['lower_linear_limit'] = f"{lower_linear_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                              f"must be within range {PCS_RESTRAINT_ERROR}.")
-
-        if upper_linear_limit is not None:
-            if PCS_ERROR_MIN < upper_linear_limit <= PCS_ERROR_MAX:
-                dstFunc['upper_linear_limit'] = f"{upper_linear_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                              f"must be within range {PCS_RESTRAINT_ERROR}.")
-
-        if target_value is not None:
-
-            if lower_limit is not None:
-                if lower_limit > target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower limit value='{lower_limit:.6f}' "
-                                  f"must be less than the target value '{target_value}'.")
-
-            if lower_linear_limit is not None:
-                if lower_linear_limit > target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the target value '{target_value}'.")
-
-            if upper_limit is not None:
-                if upper_limit < target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The upper limit value='{upper_limit:.6f}' "
-                                  f"must be greater than the target value '{target_value}'.")
-
-            if upper_linear_limit is not None:
-                if upper_linear_limit < target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                                  f"must be greater than the target value '{target_value}'.")
-
-        else:
-
-            if None not in (lower_limit, upper_limit):
-                if lower_limit > upper_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower limit value='{lower_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_limit:.6f}'.")
-
-            if None not in (lower_linear_limit, upper_limit):
-                if lower_linear_limit > upper_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_limit:.6f}'.")
-
-            if None not in (lower_limit, upper_linear_limit):
-                if lower_limit > upper_linear_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower limit value='{lower_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_linear_limit:.6f}'.")
-
-            if None not in (lower_linear_limit, upper_linear_limit):
-                if lower_linear_limit > upper_linear_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_linear_limit:.6f}'.")
-
-            if None not in (lower_limit, lower_linear_limit):
-                if lower_linear_limit > lower_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the lower limit value '{lower_limit:.6f}'.")
-
-            if None not in (upper_limit, upper_linear_limit):
-                if upper_limit > upper_linear_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The upper limit value='{upper_limit:.6f}' "
-                                  f"must be less than the upper linear limit value '{upper_linear_limit:.6f}'.")
-
-        if not validRange:
-            return None
-
-        if target_value is not None:
-            if PCS_RANGE_MIN <= target_value <= PCS_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The target value='{target_value}' "
-                              f"should be within range {PCS_RESTRAINT_RANGE}.")
-
-        if lower_limit is not None:
-            if PCS_RANGE_MIN <= lower_limit <= PCS_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The lower limit value='{lower_limit:.6f}' "
-                              f"should be within range {PCS_RESTRAINT_RANGE}.")
-
-        if upper_limit is not None:
-            if PCS_RANGE_MIN <= upper_limit <= PCS_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The upper limit value='{upper_limit:.6f}' "
-                              f"should be within range {PCS_RESTRAINT_RANGE}.")
-
-        if lower_linear_limit is not None:
-            if PCS_RANGE_MIN <= lower_linear_limit <= PCS_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                              f"should be within range {PCS_RESTRAINT_RANGE}.")
-
-        if upper_linear_limit is not None:
-            if PCS_RANGE_MIN <= upper_linear_limit <= PCS_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                              f"should be within range {PCS_RESTRAINT_RANGE}.")
-
-        if target_value is None and lower_limit is None and upper_limit is None\
-           and lower_linear_limit is None and upper_linear_limit is None:
-            return None
-
-        return dstFunc
+        return self.__validateValueRange(dstFunc, target_value, lower_limit, upper_limit,
+                                         lower_linear_limit, upper_linear_limit,
+                                         PCS_ERROR_MIN, PCS_ERROR_MAX, PCS_RESTRAINT_ERROR,
+                                         PCS_RANGE_MIN, PCS_RANGE_MAX, PCS_RESTRAINT_RANGE)
 
     def validateCcrRange(self, weight: float, target_value: Optional[float],
                          lower_limit: Optional[float], upper_limit: Optional[float],
@@ -4348,176 +3566,12 @@ class BaseStackedMRParserListener():
         """ Validate CCR value range.
         """
 
-        validRange = True
         dstFunc = {'weight': weight, 'potential': self.potential}
 
-        if target_value is not None:
-            if CCR_ERROR_MIN < target_value < CCR_ERROR_MAX:
-                dstFunc['target_value'] = f"{target_value}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The target value='{target_value}' "
-                              f"must be within range {CCR_RESTRAINT_ERROR}.")
-
-        if lower_limit is not None:
-            if CCR_ERROR_MIN <= lower_limit < CCR_ERROR_MAX:
-                dstFunc['lower_limit'] = f"{lower_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The lower limit value='{lower_limit:.6f}' "
-                              f"must be within range {CCR_RESTRAINT_ERROR}.")
-
-        if upper_limit is not None:
-            if CCR_ERROR_MIN < upper_limit <= CCR_ERROR_MAX:
-                dstFunc['upper_limit'] = f"{upper_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The upper limit value='{upper_limit:.6f}' "
-                              f"must be within range {CCR_RESTRAINT_ERROR}.")
-
-        if lower_linear_limit is not None:
-            if CCR_ERROR_MIN <= lower_linear_limit < CCR_ERROR_MAX:
-                dstFunc['lower_linear_limit'] = f"{lower_linear_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                              f"must be within range {CCR_RESTRAINT_ERROR}.")
-
-        if upper_linear_limit is not None:
-            if CCR_ERROR_MIN < upper_linear_limit <= CCR_ERROR_MAX:
-                dstFunc['upper_linear_limit'] = f"{upper_linear_limit:.6f}"
-            else:
-                validRange = False
-                self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                              f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                              f"must be within range {CCR_RESTRAINT_ERROR}.")
-
-        if target_value is not None:
-
-            if lower_limit is not None:
-                if lower_limit > target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower limit value='{lower_limit:.6f}' "
-                                  f"must be less than the target value '{target_value}'.")
-
-            if lower_linear_limit is not None:
-                if lower_linear_limit > target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the target value '{target_value}'.")
-
-            if upper_limit is not None:
-                if upper_limit < target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The upper limit value='{upper_limit:.6f}' "
-                                  f"must be greater than the target value '{target_value}'.")
-
-            if upper_linear_limit is not None:
-                if upper_linear_limit < target_value:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                                  f"must be greater than the target value '{target_value}'.")
-
-        else:
-
-            if None not in (lower_limit, upper_limit):
-                if lower_limit > upper_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower limit value='{lower_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_limit:.6f}'.")
-
-            if None not in (lower_linear_limit, upper_limit):
-                if lower_linear_limit > upper_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_limit:.6f}'.")
-
-            if None not in (lower_limit, upper_linear_limit):
-                if lower_limit > upper_linear_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower limit value='{lower_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_linear_limit:.6f}'.")
-
-            if None not in (lower_linear_limit, upper_linear_limit):
-                if lower_linear_limit > upper_linear_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the upper limit value '{upper_linear_limit:.6f}'.")
-
-            if None not in (lower_limit, lower_linear_limit):
-                if lower_linear_limit > lower_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                                  f"must be less than the lower limit value '{lower_limit:.6f}'.")
-
-            if None not in (upper_limit, upper_linear_limit):
-                if upper_limit > upper_linear_limit:
-                    validRange = False
-                    self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"The upper limit value='{upper_limit:.6f}' "
-                                  f"must be less than the upper linear limit value '{upper_linear_limit:.6f}'.")
-
-        if not validRange:
-            return None
-
-        if target_value is not None:
-            if CCR_RANGE_MIN <= target_value <= CCR_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The target value='{target_value}' "
-                              f"should be within range {CCR_RESTRAINT_RANGE}.")
-
-        if lower_limit is not None:
-            if CCR_RANGE_MIN <= lower_limit <= CCR_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The lower limit value='{lower_limit:.6f}' "
-                              f"should be within range {CCR_RESTRAINT_RANGE}.")
-
-        if upper_limit is not None:
-            if CCR_RANGE_MIN <= upper_limit <= CCR_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The upper limit value='{upper_limit:.6f}' "
-                              f"should be within range {CCR_RESTRAINT_RANGE}.")
-
-        if lower_linear_limit is not None:
-            if CCR_RANGE_MIN <= lower_linear_limit <= CCR_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The lower linear limit value='{lower_linear_limit:.6f}' "
-                              f"should be within range {CCR_RESTRAINT_RANGE}.")
-
-        if upper_linear_limit is not None:
-            if CCR_RANGE_MIN <= upper_linear_limit <= CCR_RANGE_MAX:
-                pass
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
-                              f"The upper linear limit value='{upper_linear_limit:.6f}' "
-                              f"should be within range {CCR_RESTRAINT_RANGE}.")
-
-        if target_value is None and lower_limit is None and upper_limit is None\
-           and lower_linear_limit is None and upper_linear_limit is None:
-            return None
-
-        return dstFunc
+        return self.__validateValueRange(dstFunc, target_value, lower_limit, upper_limit,
+                                         lower_linear_limit, upper_linear_limit,
+                                         CCR_ERROR_MIN, CCR_ERROR_MAX, CCR_RESTRAINT_ERROR,
+                                         CCR_RANGE_MIN, CCR_RANGE_MAX, CCR_RESTRAINT_RANGE)
 
     def areUniqueCoordAtoms(self, subtype_name: str, skip_col: List[int] = None,
                             allow_ambig: bool = False, allow_ambig_warn_title: str = '') -> bool:
@@ -4757,14 +3811,26 @@ class BaseStackedMRParserListener():
 
         self.__lenAtomSelectionSet = len(self.atomSelectionSet)  # pylint: disable=attribute-defined-outside-init
 
-        if self.file_type == 'nm-res-cha' and 'atom_num' in _factor and 'atom_id' not in _factor:
+        def match_comp_id(realCompId: str, origCompId: str) -> bool:
+            """ Return whether a residue matches _factor['comp_id'], which is translated to standard residue names if so.
+            """
+
+            _compIdList = [translateToStdResName(_compId, realCompId, self.ccU) for _compId in _factor['comp_id']]
+            if realCompId not in _compIdList and origCompId not in _compIdList:
+                return False
+            if set(_factor['comp_id']) != set(_compIdList):
+                _factor['alt_comp_id'] = _factor['comp_id']
+                _factor['comp_id'] = _compIdList
+            return True
+
+        if self.file_type == 'nm-res-cha':
             g = None
             if self.lastComment is not None:
                 if self.cur_subtype == 'dist':
                     if self.__dist_comment_pat.match(self.lastComment):
                         g = self.__dist_comment_pat.search(self.lastComment).groups()
                         offset = self.__lenAtomSelectionSet * 3
-                        if g[offset] in STD_MON_DICT:  # 2n6c unit test
+                        if any(g[offset] in ps['comp_id'] for ps in self.fullPolySeq):  # 2n6c
                             _factor['comp_id'] = [g[offset]]
                         _factor['seq_id'] = [int(g[offset + 1])]
                         _factor['atom_id'] = [g[offset + 2]]
@@ -4781,7 +3847,7 @@ class BaseStackedMRParserListener():
                         g = self.__dist_comment_pat2.search(self.lastComment).groups()
                         offset = self.__lenAtomSelectionSet * 4
                         _factor['chain_id'] = [g[offset]]
-                        if g[offset] in STD_MON_DICT:  # 2n6c unit test
+                        if any(g[offset] in ps['comp_id'] for ps in self.fullPolySeq):  # 2n6c
                             _factor['comp_id'] = [g[offset + 1]]
                         _factor['seq_id'] = [int(g[offset + 2])]
                         _factor['atom_id'] = [g[offset + 3]]
@@ -4789,7 +3855,7 @@ class BaseStackedMRParserListener():
                     if self.__dihed_comment_pat.match(self.lastComment):
                         g = self.__dihed_comment_pat.search(self.lastComment).groups()
                         offset = self.__lenAtomSelectionSet * 3
-                        if g[offset] in STD_MON_DICT:  # 2n6c unit test
+                        if any(g[offset] in ps['comp_id'] for ps in self.fullPolySeq):  # 2n6c
                             _factor['comp_id'] = [g[offset]]
                         _factor['seq_id'] = [int(g[offset + 1])]
                         _factor['atom_id'] = [g[offset + 2]]
@@ -4802,7 +3868,8 @@ class BaseStackedMRParserListener():
                                     _factor['chain_id'].append(_chainId)
                         if len(_factor['chain_id']) == 0:
                             del _factor['chain_id']
-            if g is None:
+
+            if g is None and 'atom_num' in _factor and 'atom_id' not in _factor:
                 _factor['atom_id'] = [None]
                 if 'chain_id' in _factor:
                     del _factor['chain_id']
@@ -4972,13 +4039,8 @@ class BaseStackedMRParserListener():
                         if 'comp_id' in _factor and len(_factor['comp_id']) > 0:
                             idx = ps['auth_seq_id'].index(realSeqId)
                             realCompId = self.getRealCompId(ps['comp_id'][idx])
-                            origCompId = ps['auth_comp_id'][idx]
-                            _compIdList = [translateToStdResName(_compId, realCompId, self.ccU) for _compId in _factor['comp_id']]
-                            if realCompId not in _compIdList and origCompId not in _compIdList:
+                            if not match_comp_id(realCompId, ps['auth_comp_id'][idx]):
                                 continue
-                            if set(_factor['comp_id']) != set(_compIdList):
-                                _factor['alt_comp_id'] = _factor['comp_id']
-                                _factor['comp_id'] = _compIdList
                         if re.match(seqId_ex, str(realSeqId)):
                             seqIds.append(realSeqId)
                             found = True
@@ -4989,14 +4051,8 @@ class BaseStackedMRParserListener():
                             if 'comp_id' in _factor and len(_factor['comp_id']) > 0:
                                 idx = ps['auth_seq_id'].index(realSeqId)
                                 realCompId = self.getRealCompId(ps['comp_id'][idx])
-                                origCompId = ps['auth_comp_id'][idx]
-                                _compIdList = [translateToStdResName(_compId, realCompId, self.ccU)
-                                               for _compId in _factor['comp_id']]
-                                if realCompId not in _compIdList and origCompId not in _compIdList:
+                                if not match_comp_id(realCompId, ps['auth_comp_id'][idx]):
                                     continue
-                                if set(_factor['comp_id']) != set(_compIdList):
-                                    _factor['alt_comp_id'] = _factor['comp_id']
-                                    _factor['comp_id'] = _compIdList
                             seqKey = (chainId, realSeqId)
                             if seqKey in self.authToLabelSeq:
                                 _, realSeqId = self.authToLabelSeq[seqKey]
@@ -5016,13 +4072,8 @@ class BaseStackedMRParserListener():
                         if 'comp_id' in _factor and len(_factor['comp_id']) > 0:
                             idx = ps['auth_seq_id'].index(realSeqId)
                             realCompId = self.getRealCompId(ps['comp_id'][idx])
-                            origCompId = ps['auth_comp_id'][idx]
-                            _compIdList = [translateToStdResName(_compId, realCompId, self.ccU) for _compId in _factor['comp_id']]
-                            if realCompId not in _compIdList and origCompId not in _compIdList:
+                            if not match_comp_id(realCompId, ps['auth_comp_id'][idx]):
                                 continue
-                            if set(_factor['comp_id']) != set(_compIdList):
-                                _factor['alt_comp_id'] = _factor['comp_id']
-                                _factor['comp_id'] = _compIdList
                         seqIds.append(realSeqId)
             _factor['seq_id'] = list(set(seqIds))
 
@@ -5103,27 +4154,15 @@ class BaseStackedMRParserListener():
                     if real_seq_id in offset:
                         offset = offset[real_seq_id]
                     else:
-                        for shift in range(1, LOCAL_OFFSET_ATTEMPT):
-                            if real_seq_id + shift in offset:
-                                offset = offset[real_seq_id + shift]
-                                break
-                            if real_seq_id - shift in offset:
-                                offset = offset[real_seq_id - shift]
-                                break
+                        offset = nearestLocalOffset(offset, real_seq_id)
                         if isinstance(offset, dict):
                             return None
                 if real_seq_id + offset in ps['auth_seq_id']:
                     return real_seq_id + offset
                 if offset != 0 and 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
-                    for shift in range(1, LOCAL_OFFSET_ATTEMPT):
-                        if real_seq_id + shift + offset in ps['auth_seq_id']:
-                            idx = ps['auth_seq_id'].index(real_seq_id + shift + offset) - shift
-                            if 0 <= idx < len(ps['auth_seq_id']):
-                                return ps['auth_seq_id'][idx]
-                        if real_seq_id - shift + offset in ps['auth_seq_id']:
-                            idx = ps['auth_seq_id'].index(real_seq_id - shift + offset) + shift
-                            if 0 <= idx < len(ps['auth_seq_id']):
-                                return ps['auth_seq_id'][idx]
+                    idx = indexOfAuthSeqIdAcrossGap(ps, real_seq_id, offset)
+                    if idx is not None:
+                        return ps['auth_seq_id'][idx]
 
             elif 'global_sequence_offset' in self.reasons\
                     and chain_id in self.reasons['global_sequence_offset']:
@@ -5171,6 +4210,80 @@ class BaseStackedMRParserListener():
 
             return True
 
+        def select_comp_ids(trackNstd: bool) -> Tuple[set, dict, list]:
+            """ Return residue types matching the atom selection, representative instances of non-standard residues
+                (trackNstd), and matching non-polymer instances (trackNstd); non-polymer types go to the first otherwise.
+            """
+            nonlocal _seqId, _seqKey, chainId, idx, np, npList, ps, ptnr, realCompId, realSeqId
+
+            _compIdSelect = set()
+            _repNstdResidueInstance = {}
+            _nonPolyCompIdSelect = []
+            for chainId in _factor['chain_id']:
+                ps = next((ps for ps in self.polySeq if ps['auth_chain_id'] == chainId), None)
+                if ps is not None:
+                    for realSeqId in ps['auth_seq_id']:
+                        if realSeqId is None:
+                            continue
+                        if 'seq_id' in _factor and len(_factor['seq_id']) > 0:
+                            _seqId = self.getOrigSeqId(ps, realSeqId)
+                            if self.reasons is None and not self.preferAuthSeq:
+                                _seqKey = (chainId, _seqId)
+                                if _seqKey in self.authToLabelSeq:
+                                    _seqId = self.authToLabelSeq[_seqKey][1]
+                            if _seqId not in _factor['seq_id']:
+                                if self.reasons is None:
+                                    continue
+                                realSeqId = get_real_seq_id(ps, realSeqId)
+                                if realSeqId is None:
+                                    continue
+                        idx = ps['auth_seq_id'].index(realSeqId)
+                        realCompId = ps['comp_id'][idx]
+                        if 'comp_id' in _factor and len(_factor['comp_id']) > 0:
+                            if not match_comp_id(realCompId, ps['auth_comp_id'][idx]):
+                                continue
+                        _compIdSelect.add(realCompId)
+                        if trackNstd and realCompId not in STD_MON_DICT:
+                            _repNstdResidueInstance[realCompId] = (chainId, realSeqId)
+            if self.hasNonPolySeq:
+                for chainId in _factor['chain_id']:
+                    npList = [np for np in self.nonPolySeq if np['auth_chain_id'] == chainId]
+                    for np in npList:
+                        for realSeqId in np['auth_seq_id']:
+                            if realSeqId is None:
+                                continue
+                            if 'seq_id' in _factor and len(_factor['seq_id']) > 0:
+                                _seqId = self.getOrigSeqId(np, realSeqId, False)
+                                if not self.preferAuthSeq and not np_chain_not_specified:
+                                    if self.reasons is None:
+                                        _seqKey = (chainId, _seqId)
+                                        if _seqKey in self.authToLabelSeq:
+                                            _seqId = self.authToLabelSeq[_seqKey][1]
+                                    elif 'alt_auth_seq_id' in np\
+                                            and np['alt_auth_seq_id'][np['auth_seq_id'].index(_seqId)] in _factor['seq_id']:
+                                        _seqId = np['alt_auth_seq_id'][np['auth_seq_id'].index(_seqId)]
+                                if _seqId not in _factor['seq_id']:
+                                    if self.reasons is not None\
+                                       and (self.preferAuthSeq or _seqId != realSeqId) and realSeqId in np['auth_seq_id']:
+                                        pass
+                                    else:
+                                        ptnr = getStructConnPtnr(self.cR, chainId, realSeqId)
+                                        if ptnr is None:
+                                            continue
+                            idx = np['auth_seq_id'].index(realSeqId)
+                            realCompId = self.getRealCompId(np['comp_id'][idx])
+                            if 'comp_id' in _factor and len(_factor['comp_id']) > 0:
+                                if not match_comp_id(realCompId, np['auth_comp_id'][idx]):
+                                    continue
+                            if trackNstd:
+                                _nonPolyCompIdSelect.append({'chain_id': chainId,
+                                                             'seq_id': realSeqId,
+                                                             'comp_id': realCompId})
+                            else:
+                                _compIdSelect.add(realCompId)
+
+            return _compIdSelect, _repNstdResidueInstance, _nonPolyCompIdSelect
+
         if 'atom_ids' in _factor and len(_factor['atom_ids']) > 0\
            and ('atom_id' not in _factor or len(_factor['atom_id']) == 0):
             lenAtomIds = len(_factor['atom_ids'])
@@ -5191,13 +4304,8 @@ class BaseStackedMRParserListener():
                         idx = ps['auth_seq_id'].index(realSeqId)
                         realCompId = self.getRealCompId(ps['comp_id'][idx])
                         if 'comp_id' in _factor and len(_factor['comp_id']) > 0:
-                            origCompId = ps['auth_comp_id'][idx]
-                            _compIdList = [translateToStdResName(_compId, realCompId, self.ccU) for _compId in _factor['comp_id']]
-                            if realCompId not in _compIdList and origCompId not in _compIdList:
+                            if not match_comp_id(realCompId, ps['auth_comp_id'][idx]):
                                 continue
-                            if set(_factor['comp_id']) != set(_compIdList):
-                                _factor['alt_comp_id'] = _factor['comp_id']
-                                _factor['comp_id'] = _compIdList
                         _compIdSelect.add(realCompId)
 
             if len(_compIdSelect) == 0 and self.reasons is None:
@@ -5212,14 +4320,8 @@ class BaseStackedMRParserListener():
                             if realCompId in ('ACE', 'NH2'):
                                 continue
                             if 'comp_id' in _factor and len(_factor['comp_id']) > 0:
-                                origCompId = ps['auth_comp_id'][idx]
-                                _compIdList = [translateToStdResName(_compId, realCompId, self.ccU)
-                                               for _compId in _factor['comp_id']]
-                                if realCompId not in _compIdList and origCompId not in _compIdList:
+                                if not match_comp_id(realCompId, ps['auth_comp_id'][idx]):
                                     continue
-                                if set(_factor['comp_id']) != set(_compIdList):
-                                    _factor['alt_comp_id'] = _factor['comp_id']
-                                    _factor['comp_id'] = _compIdList
                             _compIdSelect.add(realCompId)
 
                         wcPtnrChainIds = getWatsonCrickPtnr(self.cR, chainId)
@@ -5242,14 +4344,8 @@ class BaseStackedMRParserListener():
                                         idx = wc['auth_seq_id'].index(realSeqId)
                                         realCompId = wc['comp_id'][idx]
                                         if 'comp_id' in _factor and len(_factor['comp_id']) > 0:
-                                            origCompId = wc['auth_comp_id'][idx]
-                                            _compIdList = [translateToStdResName(_compId, realCompId, self.ccU)
-                                                           for _compId in _factor['comp_id']]
-                                            if realCompId not in _compIdList and origCompId not in _compIdList:
+                                            if not match_comp_id(realCompId, wc['auth_comp_id'][idx]):
                                                 continue
-                                            if set(_factor['comp_id']) != set(_compIdList):
-                                                _factor['alt_comp_id'] = _factor['comp_id']
-                                                _factor['comp_id'] = _compIdList
                                         _compIdSelect.add(realCompId)
                                         _factor['chain_id'].append(wcChainId)
                                         if chainId in _factor['chain_id']:
@@ -5428,74 +4524,7 @@ class BaseStackedMRParserListener():
                 if self.reasons is None:
                     self.preferAuthSeq = not self.preferAuthSeq
 
-                _compIdSelect = set()
-                for chainId in _factor['chain_id']:
-                    ps = next((ps for ps in self.polySeq if ps['auth_chain_id'] == chainId), None)
-                    if ps is not None:
-                        for realSeqId in ps['auth_seq_id']:
-                            if realSeqId is None:
-                                continue
-                            if 'seq_id' in _factor and len(_factor['seq_id']) > 0:
-                                _seqId = self.getOrigSeqId(ps, realSeqId)
-                                if self.reasons is None and not self.preferAuthSeq:
-                                    _seqKey = (chainId, _seqId)
-                                    if _seqKey in self.authToLabelSeq:
-                                        _seqId = self.authToLabelSeq[_seqKey][1]
-                                if _seqId not in _factor['seq_id']:
-                                    if self.reasons is None:
-                                        continue
-                                    realSeqId = get_real_seq_id(ps, realSeqId)
-                                    if realSeqId is None:
-                                        continue
-                            idx = ps['auth_seq_id'].index(realSeqId)
-                            realCompId = ps['comp_id'][idx]
-                            if 'comp_id' in _factor and len(_factor['comp_id']) > 0:
-                                origCompId = ps['auth_comp_id'][idx]
-                                _compIdList = [translateToStdResName(_compId, realCompId, self.ccU)
-                                               for _compId in _factor['comp_id']]
-                                if realCompId not in _compIdList and origCompId not in _compIdList:
-                                    continue
-                                if set(_factor['comp_id']) != set(_compIdList):
-                                    _factor['alt_comp_id'] = _factor['comp_id']
-                                    _factor['comp_id'] = _compIdList
-                            _compIdSelect.add(realCompId)
-                if self.hasNonPolySeq:
-                    for chainId in _factor['chain_id']:
-                        npList = [np for np in self.nonPolySeq if np['auth_chain_id'] == chainId]
-                        for np in npList:
-                            for realSeqId in np['auth_seq_id']:
-                                if realSeqId is None:
-                                    continue
-                                if 'seq_id' in _factor and len(_factor['seq_id']) > 0:
-                                    _seqId = self.getOrigSeqId(np, realSeqId, False)
-                                    if not self.preferAuthSeq and not np_chain_not_specified:
-                                        if self.reasons is None:
-                                            _seqKey = (chainId, _seqId)
-                                            if _seqKey in self.authToLabelSeq:
-                                                _seqId = self.authToLabelSeq[_seqKey][1]
-                                        elif 'alt_auth_seq_id' in np\
-                                                and np['alt_auth_seq_id'][np['auth_seq_id'].index(_seqId)] in _factor['seq_id']:
-                                            _seqId = np['alt_auth_seq_id'][np['auth_seq_id'].index(_seqId)]
-                                    if _seqId not in _factor['seq_id']:
-                                        if self.reasons is not None\
-                                           and (self.preferAuthSeq or _seqId != realSeqId) and realSeqId in np['auth_seq_id']:
-                                            pass
-                                        else:
-                                            ptnr = getStructConnPtnr(self.cR, chainId, realSeqId)
-                                            if ptnr is None:
-                                                continue
-                                idx = np['auth_seq_id'].index(realSeqId)
-                                realCompId = self.getRealCompId(np['comp_id'][idx])
-                                if 'comp_id' in _factor and len(_factor['comp_id']) > 0:
-                                    origCompId = np['auth_comp_id'][idx]
-                                    _compIdList = [translateToStdResName(_compId, realCompId, self.ccU)
-                                                   for _compId in _factor['comp_id']]
-                                    if realCompId not in _compIdList and origCompId not in _compIdList:
-                                        continue
-                                    if set(_factor['comp_id']) != set(_compIdList):
-                                        _factor['alt_comp_id'] = _factor['comp_id']
-                                        _factor['comp_id'] = _compIdList
-                                _compIdSelect.add(realCompId)
+                _compIdSelect = select_comp_ids(False)[0]
 
                 _atomIdSelect = set()
                 for compId in _compIdSelect:
@@ -5580,13 +4609,8 @@ class BaseStackedMRParserListener():
                         idx = ps['auth_seq_id'].index(realSeqId)
                         realCompId = ps['comp_id'][idx]
                         if 'comp_id' in _factor and len(_factor['comp_id']) > 0:
-                            origCompId = ps['auth_comp_id'][idx]
-                            _compIdList = [translateToStdResName(_compId, realCompId, self.ccU) for _compId in _factor['comp_id']]
-                            if realCompId not in _compIdList and origCompId not in _compIdList:
+                            if not match_comp_id(realCompId, ps['auth_comp_id'][idx]):
                                 continue
-                            if set(_factor['comp_id']) != set(_compIdList):
-                                _factor['alt_comp_id'] = _factor['comp_id']
-                                _factor['comp_id'] = _compIdList
                         _compIdSelect.add(realCompId)
                         if realCompId not in STD_MON_DICT:
                             _repNstdResidueInstance[realCompId] = (chainId, realSeqId)
@@ -5606,14 +4630,8 @@ class BaseStackedMRParserListener():
                             idx = np['auth_seq_id'].index(realSeqId)
                             realCompId = self.getRealCompId(np['comp_id'][idx])
                             if 'comp_id' in _factor and len(_factor['comp_id']) > 0:
-                                origCompId = np['auth_comp_id'][idx]
-                                _compIdList = [translateToStdResName(_compId, realCompId, self.ccU)
-                                               for _compId in _factor['comp_id']]
-                                if realCompId not in _compIdList and origCompId not in _compIdList:
+                                if not match_comp_id(realCompId, np['auth_comp_id'][idx]):
                                     continue
-                                if set(_factor['comp_id']) != set(_compIdList):
-                                    _factor['alt_comp_id'] = _factor['comp_id']
-                                    _factor['comp_id'] = _compIdList
                             _nonPolyCompIdSelect.append({'chain_id': chainId,
                                                          'seq_id': realSeqId,
                                                          'comp_id': realCompId})
@@ -5667,80 +4685,7 @@ class BaseStackedMRParserListener():
                 if self.reasons is None:
                     self.preferAuthSeq = not self.preferAuthSeq
 
-                _compIdSelect = set()
-                _repNstdResidueInstance = {}
-                _nonPolyCompIdSelect = []
-                for chainId in _factor['chain_id']:
-                    ps = next((ps for ps in self.polySeq if ps['auth_chain_id'] == chainId), None)
-                    if ps is not None:
-                        for realSeqId in ps['auth_seq_id']:
-                            if realSeqId is None:
-                                continue
-                            if 'seq_id' in _factor and len(_factor['seq_id']) > 0:
-                                _seqId = self.getOrigSeqId(ps, realSeqId)
-                                if self.reasons is None and not self.preferAuthSeq:
-                                    _seqKey = (chainId, _seqId)
-                                    if _seqKey in self.authToLabelSeq:
-                                        _seqId = self.authToLabelSeq[_seqKey][1]
-                                if _seqId not in _factor['seq_id']:
-                                    if self.reasons is None:
-                                        continue
-                                    realSeqId = get_real_seq_id(ps, realSeqId)
-                                    if realSeqId is None:
-                                        continue
-                            idx = ps['auth_seq_id'].index(realSeqId)
-                            realCompId = ps['comp_id'][idx]
-                            if 'comp_id' in _factor and len(_factor['comp_id']) > 0:
-                                origCompId = ps['auth_comp_id'][idx]
-                                _compIdList = [translateToStdResName(_compId, realCompId, self.ccU)
-                                               for _compId in _factor['comp_id']]
-                                if realCompId not in _compIdList and origCompId not in _compIdList:
-                                    continue
-                                if set(_factor['comp_id']) != set(_compIdList):
-                                    _factor['alt_comp_id'] = _factor['comp_id']
-                                    _factor['comp_id'] = _compIdList
-                            _compIdSelect.add(realCompId)
-                            if realCompId not in STD_MON_DICT:
-                                _repNstdResidueInstance[realCompId] = (chainId, realSeqId)
-                if self.hasNonPolySeq:
-                    for chainId in _factor['chain_id']:
-                        npList = [np for np in self.nonPolySeq if np['auth_chain_id'] == chainId]
-                        for np in npList:
-                            for realSeqId in np['auth_seq_id']:
-                                if realSeqId is None:
-                                    continue
-                                if 'seq_id' in _factor and len(_factor['seq_id']) > 0:
-                                    _seqId = self.getOrigSeqId(np, realSeqId, False)
-                                    if not self.preferAuthSeq and not np_chain_not_specified:
-                                        if self.reasons is None:
-                                            _seqKey = (chainId, _seqId)
-                                            if _seqKey in self.authToLabelSeq:
-                                                _seqId = self.authToLabelSeq[_seqKey][1]
-                                        elif 'alt_auth_seq_id' in np\
-                                                and np['alt_auth_seq_id'][np['auth_seq_id'].index(_seqId)] in _factor['seq_id']:
-                                            _seqId = np['alt_auth_seq_id'][np['auth_seq_id'].index(_seqId)]
-                                    if _seqId not in _factor['seq_id']:
-                                        if self.reasons is not None\
-                                           and (self.preferAuthSeq or _seqId != realSeqId) and realSeqId in np['auth_seq_id']:
-                                            pass
-                                        else:
-                                            ptnr = getStructConnPtnr(self.cR, chainId, realSeqId)
-                                            if ptnr is None:
-                                                continue
-                                idx = np['auth_seq_id'].index(realSeqId)
-                                realCompId = self.getRealCompId(np['comp_id'][idx])
-                                if 'comp_id' in _factor and len(_factor['comp_id']) > 0:
-                                    origCompId = np['auth_comp_id'][idx]
-                                    _compIdList = [translateToStdResName(_compId, realCompId, self.ccU)
-                                                   for _compId in _factor['comp_id']]
-                                    if realCompId not in _compIdList and origCompId not in _compIdList:
-                                        continue
-                                    if set(_factor['comp_id']) != set(_compIdList):
-                                        _factor['alt_comp_id'] = _factor['comp_id']
-                                        _factor['comp_id'] = _compIdList
-                                _nonPolyCompIdSelect.append({'chain_id': chainId,
-                                                             'seq_id': realSeqId,
-                                                             'comp_id': realCompId})
+                _compIdSelect, _repNstdResidueInstance, _nonPolyCompIdSelect = select_comp_ids(True)
 
                 _atomIdSelect = set()
                 for compId in _compIdSelect:
@@ -5813,13 +4758,8 @@ class BaseStackedMRParserListener():
                                     continue
                         idx = ps['auth_seq_id'].index(realSeqId)
                         realCompId = ps['comp_id'][idx]
-                        origCompId = ps['auth_comp_id'][idx]
-                        _compIdList = [translateToStdResName(_compId, realCompId, self.ccU) for _compId in _factor['comp_id']]
-                        if realCompId not in _compIdList and origCompId not in _compIdList:
+                        if not match_comp_id(realCompId, ps['auth_comp_id'][idx]):
                             continue
-                        if set(_factor['comp_id']) != set(_compIdList):
-                            _factor['alt_comp_id'] = _factor['comp_id']
-                            _factor['comp_id'] = _compIdList
             if self.hasNonPolySeq:
                 for chainId in _factor['chain_id']:
                     npList = [np for np in self.nonPolySeq if np['auth_chain_id'] == chainId]
@@ -5835,13 +4775,8 @@ class BaseStackedMRParserListener():
                                     realSeqId = np['auth_seq_id'][np['seq_id'].index(seqId)]
                             idx = np['auth_seq_id'].index(realSeqId)
                             realCompId = self.getRealCompId(np['comp_id'][idx])
-                            origCompId = np['auth_comp_id'][idx]
-                            _compIdList = [translateToStdResName(_compId, realCompId, self.ccU) for _compId in _factor['comp_id']]
-                            if realCompId not in _compIdList and origCompId not in _compIdList:
+                            if not match_comp_id(realCompId, np['auth_comp_id'][idx]):
                                 continue
-                            if set(_factor['comp_id']) != set(_compIdList):
-                                _factor['alt_comp_id'] = _factor['comp_id']
-                                _factor['comp_id'] = _compIdList
 
         if self.reasons is not None and 'np_atom_id_remap' in self.reasons\
            and len(_factor['atom_id']) == 1 and _factor['atom_id'][0] is not None:
@@ -7701,27 +6636,15 @@ class BaseStackedMRParserListener():
                     if seqId in offset:
                         offset = offset[seqId]
                     else:
-                        for shift in range(1, LOCAL_OFFSET_ATTEMPT):
-                            if seqId + shift in offset:
-                                offset = offset[seqId + shift]
-                                break
-                            if seqId - shift in offset:
-                                offset = offset[seqId - shift]
-                                break
+                        offset = nearestLocalOffset(offset, seqId)
                         if isinstance(offset, dict):
                             return None
                 if seqId + offset in ps['auth_seq_id']:
                     return seqId + offset
                 if offset != 0 and 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
-                    for shift in range(1, LOCAL_OFFSET_ATTEMPT):
-                        if seqId + shift + offset in ps['auth_seq_id']:
-                            idx = ps['auth_seq_id'].index(seqId + shift + offset) - shift
-                            if 0 <= idx < len(ps['auth_seq_id']):
-                                return ps['auth_seq_id'][idx]
-                        if seqId - shift + offset in ps['auth_seq_id']:
-                            idx = ps['auth_seq_id'].index(seqId - shift + offset) + shift
-                            if 0 <= idx < len(ps['auth_seq_id']):
-                                return ps['auth_seq_id'][idx]
+                    idx = indexOfAuthSeqIdAcrossGap(ps, seqId, offset)
+                    if idx is not None:
+                        return ps['auth_seq_id'][idx]
             seqKey = (ps['chain_id' if isPolySeq else 'auth_chain_id'], seqId + offset)
             if seqKey in self.__labelToAuthSeq:
                 _, _seqId = self.__labelToAuthSeq[seqKey]
@@ -7739,27 +6662,15 @@ class BaseStackedMRParserListener():
                     if seqId in offset:
                         offset = offset[seqId]
                     else:
-                        for shift in range(1, LOCAL_OFFSET_ATTEMPT):
-                            if seqId + shift in offset:
-                                offset = offset[seqId + shift]
-                                break
-                            if seqId - shift in offset:
-                                offset = offset[seqId - shift]
-                                break
+                        offset = nearestLocalOffset(offset, seqId)
                         if isinstance(offset, dict):
                             return None
         if seqId + offset in ps['auth_seq_id']:
             return seqId + offset
         if offset != 0 and 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
-            for shift in range(1, LOCAL_OFFSET_ATTEMPT):
-                if seqId + shift + offset in ps['auth_seq_id']:
-                    idx = ps['auth_seq_id'].index(seqId + shift + offset) - shift
-                    if 0 <= idx < len(ps['auth_seq_id']):
-                        return ps['auth_seq_id'][idx]
-                if seqId - shift + offset in ps['auth_seq_id']:
-                    idx = ps['auth_seq_id'].index(seqId - shift + offset) + shift
-                    if 0 <= idx < len(ps['auth_seq_id']):
-                        return ps['auth_seq_id'][idx]
+            idx = indexOfAuthSeqIdAcrossGap(ps, seqId, offset)
+            if idx is not None:
+                return ps['auth_seq_id'][idx]
         return seqId
 
     def getRealSeqId(self, ps: dict, seqId: int, isPolySeq: bool = True
@@ -7795,27 +6706,15 @@ class BaseStackedMRParserListener():
                     if seqId in offset:
                         offset = offset[seqId]
                     else:
-                        for shift in range(1, LOCAL_OFFSET_ATTEMPT):
-                            if seqId + shift in offset:
-                                offset = offset[seqId + shift]
-                                break
-                            if seqId - shift in offset:
-                                offset = offset[seqId - shift]
-                                break
+                        offset = nearestLocalOffset(offset, seqId)
                         if isinstance(offset, dict):
                             return None, None, False
                 if seqId + offset in ps['auth_seq_id']:
                     return seqId + offset, ps['comp_id'][ps['auth_seq_id'].index(seqId + offset)], False
                 if offset != 0 and 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
-                    for shift in range(1, LOCAL_OFFSET_ATTEMPT):
-                        if seqId + shift + offset in ps['auth_seq_id']:
-                            idx = ps['auth_seq_id'].index(seqId + shift + offset) - shift
-                            if 0 <= idx < len(ps['auth_seq_id']):
-                                return ps['auth_seq_id'][idx], ps['comp_id'][idx], False
-                        if seqId - shift + offset in ps['auth_seq_id']:
-                            idx = ps['auth_seq_id'].index(seqId - shift + offset) + shift
-                            if 0 <= idx < len(ps['auth_seq_id']):
-                                return ps['auth_seq_id'][idx], ps['comp_id'][idx], False
+                    idx = indexOfAuthSeqIdAcrossGap(ps, seqId, offset)
+                    if idx is not None:
+                        return ps['auth_seq_id'][idx], ps['comp_id'][idx], False
             seqKey = (ps['chain_id' if isPolySeq else 'auth_chain_id'], seqId + offset)
             if seqKey in self.__labelToAuthSeq:
                 _, _seqId = self.__labelToAuthSeq[seqKey]
@@ -7837,13 +6736,7 @@ class BaseStackedMRParserListener():
                     if seqId in offset:
                         offset = offset[seqId]
                     else:
-                        for shift in range(1, LOCAL_OFFSET_ATTEMPT):
-                            if seqId + shift in offset:
-                                offset = offset[seqId + shift]
-                                break
-                            if seqId - shift in offset:
-                                offset = offset[seqId - shift]
-                                break
+                        offset = nearestLocalOffset(offset, seqId)
                         if isinstance(offset, dict):
                             return None, None, False
         if seqId + offset in ps['auth_seq_id']:
@@ -7854,15 +6747,9 @@ class BaseStackedMRParserListener():
                 if seqId + offset in _ps['seq_id']:
                     return seqId + offset, _ps['comp_id'][_ps['seq_id'].index(seqId + offset)], True
         if offset != 0 and 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
-            for shift in range(1, LOCAL_OFFSET_ATTEMPT):
-                if seqId + shift + offset in ps['auth_seq_id']:
-                    idx = ps['auth_seq_id'].index(seqId + shift + offset) - shift
-                    if 0 <= idx < len(ps['auth_seq_id']):
-                        return ps['auth_seq_id'][idx], ps['comp_id'][idx], False
-                if seqId - shift + offset in ps['auth_seq_id']:
-                    idx = ps['auth_seq_id'].index(seqId - shift + offset) + shift
-                    if 0 <= idx < len(ps['auth_seq_id']):
-                        return ps['auth_seq_id'][idx], ps['comp_id'][idx], False
+            idx = indexOfAuthSeqIdAcrossGap(ps, seqId, offset)
+            if idx is not None:
+                return ps['auth_seq_id'][idx], ps['comp_id'][idx], False
         return seqId, None, False
 
     @functools.lru_cache(maxsize=128)
@@ -8109,282 +6996,16 @@ class BaseStackedMRParserListener():
         """ Return realistic bond constraint taking into account the current coordinates.
         """
 
-        if not self.hasCoord:
-            return atom1, atom2
-
-        try:
-
-            _p1 =\
-                self.cR.getDictListWithFilter('atom_site',
-                                              CARTN_DATA_ITEMS,
-                                              [{'name': self.authAsymId, 'type': 'str', 'value': atom1['chain_id']},
-                                               {'name': self.authSeqId, 'type': 'int', 'value': atom1['seq_id']},
-                                               {'name': self.authAtomId, 'type': 'str', 'value': atom1['atom_id']},
-                                               {'name': self.modelNumName, 'type': 'int',
-                                                'value': self.representativeModelId},
-                                               {'name': 'label_alt_id', 'type': 'enum',
-                                                'enum': (self.representativeAltId,)}
-                                               ])
-
-            if len(_p1) != 1:
-                return atom1, atom2
-
-            p1 = to_np_array(_p1[0])
-
-            _p2 =\
-                self.cR.getDictListWithFilter('atom_site',
-                                              CARTN_DATA_ITEMS,
-                                              [{'name': self.authAsymId, 'type': 'str', 'value': atom2['chain_id']},
-                                               {'name': self.authSeqId, 'type': 'int', 'value': atom2['seq_id']},
-                                               {'name': self.authAtomId, 'type': 'str', 'value': atom2['atom_id']},
-                                               {'name': self.modelNumName, 'type': 'int',
-                                                'value': self.representativeModelId},
-                                               {'name': 'label_alt_id', 'type': 'enum',
-                                                'enum': (self.representativeAltId,)}
-                                               ])
-
-            if len(_p2) != 1:
-                return atom1, atom2
-
-            p2 = to_np_array(_p2[0])
-
-            d_org = distance(p1, p2)
-
-            lower_limit = dst_func.get('lower_limit')
-            if lower_limit is not None:
-                lower_limit = float(lower_limit)
-            upper_limit = dst_func.get('upper_limit')
-            if upper_limit is not None:
-                upper_limit = float(upper_limit)
-
-            if alt_atom_id1 is not None:
-
-                _p1 =\
-                    self.cR.getDictListWithFilter('atom_site',
-                                                  CARTN_DATA_ITEMS,
-                                                  [{'name': self.authAsymId, 'type': 'str', 'value': atom1['chain_id']},
-                                                   {'name': self.authSeqId, 'type': 'int', 'value': atom1['seq_id']},
-                                                   {'name': self.authAtomId, 'type': 'str', 'value': alt_atom_id1},
-                                                   {'name': self.modelNumName, 'type': 'int',
-                                                    'value': self.representativeModelId},
-                                                   {'name': 'label_alt_id', 'type': 'enum',
-                                                    'enum': (self.representativeAltId,)}
-                                                   ])
-
-                if len(_p1) != 1:
-                    return atom1, atom2
-
-                p1_alt = to_np_array(_p1[0])
-
-                d_alt = distance(p1_alt, p2)
-
-                if dist_error(lower_limit, upper_limit, d_org) > dist_error(lower_limit, upper_limit, d_alt):
-                    if 'auth_atom_id' not in atom1:
-                        atom1['auth_atom_id'] = atom1['atom_id']
-                    atom1['atom_id'] = alt_atom_id1
-
-            elif alt_atom_id2 is not None:
-
-                _p2 =\
-                    self.cR.getDictListWithFilter('atom_site',
-                                                  CARTN_DATA_ITEMS,
-                                                  [{'name': self.authAsymId, 'type': 'str', 'value': atom2['chain_id']},
-                                                   {'name': self.authSeqId, 'type': 'int', 'value': atom2['seq_id']},
-                                                   {'name': self.authAtomId, 'type': 'str', 'value': alt_atom_id2},
-                                                   {'name': self.modelNumName, 'type': 'int',
-                                                    'value': self.representativeModelId},
-                                                   {'name': 'label_alt_id', 'type': 'enum',
-                                                    'enum': (self.representativeAltId,)}
-                                                   ])
-
-                if len(_p2) != 1:
-                    return atom1, atom2
-
-                p2_alt = to_np_array(_p2[0])
-
-                d_alt = distance(p1, p2_alt)
-
-                if dist_error(lower_limit, upper_limit, d_org) > dist_error(lower_limit, upper_limit, d_alt):
-                    if 'auth_atom_id' not in atom2:
-                        atom2['auth_atom_id'] = atom2['atom_id']
-                    atom2['atom_id'] = alt_atom_id2
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            if self.__verbose:
-                self.__log.write(f"+{self.__class_name__}.selectRealisticBondConstraint() ++ Error  - {str(e)}")
-
-        return atom1, atom2
+        return select_realistic_bond_constraint(self, atom1, atom2, alt_atom_id1, alt_atom_id2, dst_func,
+                                                self.__verbose, self.__log)
 
     def selectRealisticChi2AngleConstraint(self, atom1: str, atom2: str, atom3: str, atom4: str, dst_func: dict
                                            ) -> dict:
         """ Return realistic chi2 angle constraint taking into account the current coordinates.
         """
 
-        if not self.hasCoord:
-            return dst_func
-
-        try:
-
-            _p1 =\
-                self.cR.getDictListWithFilter('atom_site',
-                                              CARTN_DATA_ITEMS,
-                                              [{'name': self.authAsymId, 'type': 'str', 'value': atom1['chain_id']},
-                                               {'name': self.authSeqId, 'type': 'int', 'value': atom1['seq_id']},
-                                               {'name': self.authAtomId, 'type': 'str', 'value': atom1['atom_id']},
-                                               {'name': self.modelNumName, 'type': 'int',
-                                                'value': self.representativeModelId},
-                                               {'name': 'label_alt_id', 'type': 'enum',
-                                                'enum': (self.representativeAltId,)}
-                                               ])
-
-            if len(_p1) != 1:
-                return dst_func
-
-            p1 = to_np_array(_p1[0])
-
-            _p2 =\
-                self.cR.getDictListWithFilter('atom_site',
-                                              CARTN_DATA_ITEMS,
-                                              [{'name': self.authAsymId, 'type': 'str', 'value': atom2['chain_id']},
-                                               {'name': self.authSeqId, 'type': 'int', 'value': atom2['seq_id']},
-                                               {'name': self.authAtomId, 'type': 'str', 'value': atom2['atom_id']},
-                                               {'name': self.modelNumName, 'type': 'int',
-                                                'value': self.representativeModelId},
-                                               {'name': 'label_alt_id', 'type': 'enum',
-                                                'enum': (self.representativeAltId,)}
-                                               ])
-
-            if len(_p2) != 1:
-                return dst_func
-
-            p2 = to_np_array(_p2[0])
-
-            _p3 =\
-                self.cR.getDictListWithFilter('atom_site',
-                                              CARTN_DATA_ITEMS,
-                                              [{'name': self.authAsymId, 'type': 'str', 'value': atom3['chain_id']},
-                                               {'name': self.authSeqId, 'type': 'int', 'value': atom3['seq_id']},
-                                               {'name': self.authAtomId, 'type': 'str', 'value': atom3['atom_id']},
-                                               {'name': self.modelNumName, 'type': 'int',
-                                                'value': self.representativeModelId},
-                                               {'name': 'label_alt_id', 'type': 'enum',
-                                                'enum': (self.representativeAltId,)}
-                                               ])
-
-            if len(_p3) != 1:
-                return dst_func
-
-            p3 = to_np_array(_p3[0])
-
-            _p4 =\
-                self.cR.getDictListWithFilter('atom_site',
-                                              CARTN_DATA_ITEMS,
-                                              [{'name': self.authAsymId, 'type': 'str', 'value': atom4['chain_id']},
-                                               {'name': self.authSeqId, 'type': 'int', 'value': atom4['seq_id']},
-                                               {'name': self.authAtomId, 'type': 'str', 'value': 'CD1'},
-                                               {'name': self.modelNumName, 'type': 'int',
-                                                'value': self.representativeModelId},
-                                               {'name': 'label_alt_id', 'type': 'enum',
-                                                'enum': (self.representativeAltId,)}
-                                               ])
-
-            if len(_p4) != 1:
-                return dst_func
-
-            p4 = to_np_array(_p4[0])
-
-            chi2 = dihedral_angle(p1, p2, p3, p4)
-
-            _p4 =\
-                self.cR.getDictListWithFilter('atom_site',
-                                              CARTN_DATA_ITEMS,
-                                              [{'name': self.authAsymId, 'type': 'str', 'value': atom4['chain_id']},
-                                               {'name': self.authSeqId, 'type': 'int', 'value': atom4['seq_id']},
-                                               {'name': self.authAtomId, 'type': 'str', 'value': 'CD2'},
-                                               {'name': self.modelNumName, 'type': 'int',
-                                                'value': self.representativeModelId},
-                                               {'name': 'label_alt_id', 'type': 'enum',
-                                                'enum': (self.representativeAltId,)}
-                                               ])
-
-            if len(_p4) != 1:
-                return dst_func
-
-            alt_p4 = to_np_array(_p4[0])
-
-            alt_chi2 = dihedral_angle(p1, p2, p3, alt_p4)
-
-            target_value = dst_func.get('target_value')
-            if target_value is not None:
-                target_value = float(target_value)
-            target_value_uncertainty = dst_func.get('target_value_uncertainty')
-            if target_value_uncertainty is not None:
-                target_value_uncertainty = float(target_value_uncertainty)
-
-            lower_limit = dst_func.get('lower_limit')
-            if lower_limit is not None:
-                lower_limit = float(lower_limit)
-            upper_limit = dst_func.get('upper_limit')
-            if upper_limit is not None:
-                upper_limit = float(upper_limit)
-
-            lower_linear_limit = dst_func.get('lower_linear_limit')
-            if lower_linear_limit is not None:
-                lower_linear_limit = float(lower_linear_limit)
-            upper_linear_limit = dst_func.get('upper_linear_limit')
-            if upper_linear_limit is not None:
-                upper_linear_limit = float(upper_linear_limit)
-
-            target_value, lower_bound, upper_bound =\
-                angle_target_values(target_value, target_value_uncertainty,
-                                    lower_limit, upper_limit,
-                                    lower_linear_limit, upper_linear_limit)
-
-            if target_value is None:
-                return dst_func
-
-            if angle_error(lower_bound, upper_bound, target_value, chi2) >\
-               angle_error(lower_bound, upper_bound, target_value, alt_chi2):
-                target_value = dst_func.get('target_value')
-                if target_value is not None:
-                    target_value = float(target_value) + 180.0
-                lower_limit = dst_func.get('lower_limit')
-                if lower_limit is not None:
-                    lower_limit = float(lower_limit) + 180.0
-                upper_limit = dst_func.get('upper_limit')
-                if upper_limit is not None:
-                    upper_limit = float(upper_limit) + 180.0
-
-                if lower_linear_limit is not None:
-                    lower_linear_limit += 180.0
-                if upper_linear_limit is not None:
-                    upper_linear_limit += 180.0
-
-                _array = numpy.array([target_value, lower_limit, upper_limit, lower_linear_limit, upper_linear_limit],
-                                     dtype=float)
-
-                shift = 0.0
-                if self.__correctCircularShift:
-                    if numpy.nanmin(_array) >= THRESHOLD_FOR_CIRCULAR_SHIFT:
-                        shift = -(numpy.nanmax(_array) // 360) * 360
-                    elif numpy.nanmax(_array) <= -THRESHOLD_FOR_CIRCULAR_SHIFT:
-                        shift = -(numpy.nanmin(_array) // 360) * 360
-                if target_value is not None:
-                    dst_func['target_value'] = str(target_value + shift)
-                if lower_limit is not None:
-                    dst_func['lower_limit'] = str(lower_limit + shift)
-                if upper_limit is not None:
-                    dst_func['upper_limit'] = str(upper_limit + shift)
-                if lower_linear_limit is not None:
-                    dst_func['lower_linear_limit'] = str(lower_linear_limit + shift)
-                if upper_linear_limit is not None:
-                    dst_func['upper_linear_limit'] = str(upper_linear_limit + shift)
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            if self.__verbose:
-                self.__log.write(f"+{self.__class_name__}.selectRealisticChi2AngleConstraint() ++ Error  - {str(e)}")
-
-        return dst_func
+        return select_realistic_chi2_angle_constraint(self, atom1, atom2, atom3, atom4, dst_func,
+                                                      self.__verbose, self.__log, self.__correctCircularShift)
 
     def isRealisticDistanceRestraint(self, atom1: str, atom2: str, dst_func: dict) -> bool:
         """ Return whether a given distance restraint is realistic in the assembly.
@@ -8876,18 +7497,7 @@ class BaseStackedMRParserListener():
         """ Trim saveframe(s) without any loop.
         """
 
-        if self.cur_subtype not in self.lastSfDict:
-            return
-        if self.lastSfDict[self.cur_subtype]['index_id'] > 0:
-            return
-        for k, v in self.sfDict.items():
-            for item in reversed(v):
-                if item == self.lastSfDict:
-                    v.remove(item)
-                    if len(v) == 0:
-                        del self.sfDict[k]
-                    self.__listIdCounter = decListIdCounter(k[0], self.__listIdCounter)
-                    return
+        self.__listIdCounter = trimSfWoLpOf(self.sfDict, self.lastSfDict, self.cur_subtype, self.__listIdCounter)
 
     def getContentSubtype(self) -> dict:
         """ Return content subtype of the MR file.
@@ -9023,16 +7633,5 @@ class BaseStackedMRParserListener():
         """ Return a dictionary of pynmrstar saveframes.
         """
 
-        if len(self.sfDict) == 0:
-            return self.__listIdCounter, None
-        ign_keys = []
-        for k, v in self.sfDict.items():
-            for item in reversed(v):
-                if item['index_id'] == 0:
-                    v.remove(item)
-                    if len(v) == 0:
-                        ign_keys.append(k)
-                    self.__listIdCounter = decListIdCounter(k[0], self.__listIdCounter)
-        for k in ign_keys:
-            del self.sfDict[k]
-        return self.__listIdCounter, None if len(self.sfDict) == 0 else self.sfDict
+        self.__listIdCounter, sfDict = getSfDictOf(self.sfDict, self.__listIdCounter)
+        return self.__listIdCounter, sfDict

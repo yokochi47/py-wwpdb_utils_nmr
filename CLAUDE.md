@@ -33,7 +33,7 @@ FULLTEST=1 python -m unittest discover -v -s wwpdb/utils/tests-nmr-tox -p "*Test
 python -m unittest discover -v -s wwpdb/utils/tests-nmr-tox -p "NmrDpUtilityTests.py" -k <test_name>
 ```
 
-- **`FULLTEST=1` matters.** The suite has 93 tests. Without `FULLTEST`, 20 of
+- **`FULLTEST=1` matters.** The suite has 105 tests. Without `FULLTEST`, 20 of
   the 29 `NmrDpUtilityTests` and 1 of the 28 `NefTranslatorTests` are skipped,
   and so is the one test that is always skipped. That leaves 8
   `NmrDpUtilityTests` running. Use it for anything non-trivial. The tox py39
@@ -54,7 +54,7 @@ python -m unittest discover -v -s wwpdb/utils/tests-nmr-tox -p "NmrDpUtilityTest
 
 ### Known failures
 
-There are none. A green `FULLTEST=1` run is **93 ran, OK, 1 skipped**
+There are none. A green `FULLTEST=1` run is **105 ran, OK, 1 skipped**
 (`test_nmr_str2str_deposit_cleaned`, 'Until test corrected'). For the skip
 counts without `FULLTEST`, see above.
 

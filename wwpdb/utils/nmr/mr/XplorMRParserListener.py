@@ -344,9 +344,9 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
         if self.createSfDict:
             if ctx.VeAngle() or ctx.Anisotropy():
                 self.cur_subtype = 'dihed'
-                if self.createSfDict and self.cur_subtype not in self.lastSfDict and self.lastSfDict[self.cur_subtype]['id'] == 0:
+                if self.createSfDict and self.cur_subtype in self.lastSfDict and self.lastSfDict[self.cur_subtype]['id'] == 0:
                     self.trimSfWoLp()
-                    self.cur_subtype = 'rdc'
+                self.cur_subtype = 'rdc'
             else:
                 self.trimSfWoLp()
 

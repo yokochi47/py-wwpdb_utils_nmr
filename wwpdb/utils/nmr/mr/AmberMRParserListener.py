@@ -93,11 +93,9 @@ try:
                                            retrieveAtomIdentFromMRMap,
                                            retrieveRemappedSeqId)
     from wwpdb.utils.nmr.NmrVrptUtility import (to_np_array,
-                                                distance,
-                                                dist_error,
-                                                angle_target_values,
-                                                dihedral_angle,
-                                                angle_error)
+                                                select_realistic_bond_constraint,
+                                                select_realistic_chi2_angle_constraint,
+                                                distance)
     from wwpdb.utils.nmr.nef.NefTranslator import NefTranslator
     from wwpdb.utils.nmr.io.CifReader import CifReader
     from wwpdb.utils.nmr.mr.AmberMRParser import AmberMRParser
@@ -122,6 +120,8 @@ try:
                                                        contentSubtypeOf,
                                                        incListIdCounter,
                                                        decListIdCounter,
+                                                       getSfDictOf,
+                                                       trimSfWoLpOf,
                                                        getSaveframe,
                                                        getLoop,
                                                        getRow,
@@ -197,11 +197,9 @@ except ImportError:
                                retrieveAtomIdentFromMRMap,
                                retrieveRemappedSeqId)
     from nmr.NmrVrptUtility import (to_np_array,
-                                    distance,
-                                    dist_error,
-                                    angle_target_values,
-                                    dihedral_angle,
-                                    angle_error)
+                                    select_realistic_bond_constraint,
+                                    select_realistic_chi2_angle_constraint,
+                                    distance)
     from nmr.nef.NefTranslator import NefTranslator
     from nmr.io.CifReader import CifReader
     from nmr.mr.AmberMRParser import AmberMRParser
@@ -226,6 +224,8 @@ except ImportError:
                                            contentSubtypeOf,
                                            incListIdCounter,
                                            decListIdCounter,
+                                           getSfDictOf,
+                                           trimSfWoLpOf,
                                            getSaveframe,
                                            getLoop,
                                            getRow,
@@ -332,6 +332,7 @@ class AmberMRParserListener(ParseTreeListener):
                  'csaRestraints',
                  'geoRestraints',
                  'sfDict',
+                 '__lastSfDict',
                  '__polySeqRst',
                  '__polySeqRstFailed',
                  '__f',
@@ -520,9 +521,6 @@ class AmberMRParserListener(ParseTreeListener):
 
     # default saveframe name for error handling
     __def_err_sf_framecode = None
-
-    # last edited pynmrstar saveframe
-    __lastSfDict = {}
 
     __dist_sander_pat = re.compile(r'(-?\d+) (\S+) (\S+) '
                                    r'(-?\d+) (\S+) (\S+) ?'
@@ -793,6 +791,7 @@ class AmberMRParserListener(ParseTreeListener):
         self.geoRestraints = 0       # AMBER: Generalized distance restraints
 
         self.sfDict = {}  # dictionary of pynmrstar saveframes
+        self.__lastSfDict = {}  # last added pynmrstar saveframe of each restraint subtype
 
         # polymer sequence of MR file
         self.__polySeqRst = []
@@ -7275,6 +7274,62 @@ class AmberMRParserListener(ParseTreeListener):
 
         return True
 
+    @property
+    def hasCoord(self) -> bool:
+        """ Whether the coordinates are available.
+        """
+
+        return self.__hasCoord
+
+    @property
+    def cR(self) -> CifReader:
+        """ Retrieve the coordinate reader.
+        """
+
+        return self.__cR
+
+    @property
+    def authAsymId(self) -> str:
+        """ Retrieve the atom_site item name for chain ID.
+        """
+
+        return self.__authAsymId
+
+    @property
+    def authSeqId(self) -> str:
+        """ Retrieve the atom_site item name for sequence ID.
+        """
+
+        return self.__authSeqId
+
+    @property
+    def authAtomId(self) -> str:
+        """ Retrieve the atom_site item name for atom ID.
+        """
+
+        return self.__authAtomId
+
+    @property
+    def modelNumName(self) -> str:
+        """ Retrieve the atom_site item name for model number.
+        """
+
+        return self.__modelNumName
+
+    @property
+    def representativeModelId(self) -> int:
+        """ Retrieve the representative model ID.
+        """
+
+        return self.__representativeModelId
+
+    @property
+    def representativeAltId(self) -> str:
+        """ Retrieve the representative alt ID.
+        """
+
+        return self.__representativeAltId
+
     def selectRealisticBondConstraint(self, atom1: str, atom2: str, alt_atom_id1: str, alt_atom_id2: str, dst_func: dict
                                       ) -> Tuple[str, str]:
         """ Return realistic bond constraint taking into account the current coordinates.
@@ -7287,108 +7342,8 @@ class AmberMRParserListener(ParseTreeListener):
             self.__authAsymId = 'auth_asym_id'
             self.__authSeqId = 'auth_seq_id'
 
-        try:
-
-            _p1 =\
-                self.__cR.getDictListWithFilter('atom_site',
-                                                CARTN_DATA_ITEMS,
-                                                [{'name': self.__authAsymId, 'type': 'str', 'value': atom1['chain_id']},
-                                                 {'name': self.__authSeqId, 'type': 'int', 'value': atom1['seq_id']},
-                                                 {'name': self.__authAtomId, 'type': 'str', 'value': atom1['atom_id']},
-                                                 {'name': self.__modelNumName, 'type': 'int',
-                                                  'value': self.__representativeModelId},
-                                                 {'name': 'label_alt_id', 'type': 'enum',
-                                                  'enum': (self.__representativeAltId,)}
-                                                 ])
-
-            if len(_p1) != 1:
-                return atom1, atom2
-
-            p1 = to_np_array(_p1[0])
-
-            _p2 =\
-                self.__cR.getDictListWithFilter('atom_site',
-                                                CARTN_DATA_ITEMS,
-                                                [{'name': self.__authAsymId, 'type': 'str', 'value': atom2['chain_id']},
-                                                 {'name': self.__authSeqId, 'type': 'int', 'value': atom2['seq_id']},
-                                                 {'name': self.__authAtomId, 'type': 'str', 'value': atom2['atom_id']},
-                                                 {'name': self.__modelNumName, 'type': 'int',
-                                                  'value': self.__representativeModelId},
-                                                 {'name': 'label_alt_id', 'type': 'enum',
-                                                  'enum': (self.__representativeAltId,)}
-                                                 ])
-
-            if len(_p2) != 1:
-                return atom1, atom2
-
-            p2 = to_np_array(_p2[0])
-
-            d_org = distance(p1, p2)
-
-            lower_limit = dst_func.get('lower_limit')
-            if lower_limit is not None:
-                lower_limit = float(lower_limit)
-            upper_limit = dst_func.get('upper_limit')
-            if upper_limit is not None:
-                upper_limit = float(upper_limit)
-
-            if alt_atom_id1 is not None:
-
-                _p1 =\
-                    self.__cR.getDictListWithFilter('atom_site',
-                                                    CARTN_DATA_ITEMS,
-                                                    [{'name': self.__authAsymId, 'type': 'str', 'value': atom1['chain_id']},
-                                                     {'name': self.__authSeqId, 'type': 'int', 'value': atom1['seq_id']},
-                                                     {'name': self.__authAtomId, 'type': 'str', 'value': alt_atom_id1},
-                                                     {'name': self.__modelNumName, 'type': 'int',
-                                                      'value': self.__representativeModelId},
-                                                     {'name': 'label_alt_id', 'type': 'enum',
-                                                      'enum': (self.__representativeAltId,)}
-                                                     ])
-
-                if len(_p1) != 1:
-                    return atom1, atom2
-
-                p1_alt = to_np_array(_p1[0])
-
-                d_alt = distance(p1_alt, p2)
-
-                if dist_error(lower_limit, upper_limit, d_org) > dist_error(lower_limit, upper_limit, d_alt):
-                    if 'auth_atom_id' not in atom1:
-                        atom1['auth_atom_id'] = atom1['atom_id']
-                    atom1['atom_id'] = alt_atom_id1
-
-            elif alt_atom_id2 is not None:
-
-                _p2 =\
-                    self.__cR.getDictListWithFilter('atom_site',
-                                                    CARTN_DATA_ITEMS,
-                                                    [{'name': self.__authAsymId, 'type': 'str', 'value': atom2['chain_id']},
-                                                     {'name': self.__authSeqId, 'type': 'int', 'value': atom2['seq_id']},
-                                                     {'name': self.__authAtomId, 'type': 'str', 'value': alt_atom_id2},
-                                                     {'name': self.__modelNumName, 'type': 'int',
-                                                      'value': self.__representativeModelId},
-                                                     {'name': 'label_alt_id', 'type': 'enum',
-                                                      'enum': (self.__representativeAltId,)}
-                                                     ])
-
-                if len(_p2) != 1:
-                    return atom1, atom2
-
-                p2_alt = to_np_array(_p2[0])
-
-                d_alt = distance(p1, p2_alt)
-
-                if dist_error(lower_limit, upper_limit, d_org) > dist_error(lower_limit, upper_limit, d_alt):
-                    if 'auth_atom_id' not in atom2:
-                        atom2['auth_atom_id'] = atom2['atom_id']
-                    atom2['atom_id'] = alt_atom_id2
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            if self.__verbose:
-                self.__log.write(f"+{self.__class_name__}.selectRealisticBondConstraint() ++ Error  - {str(e)}")
-
-        return atom1, atom2
+        return select_realistic_bond_constraint(self, atom1, atom2, alt_atom_id1, alt_atom_id2, dst_func,
+                                                self.__verbose, self.__log)
 
     def selectRealisticChi2AngleConstraint(self, atom1: str, atom2: str, atom3: str, atom4: str, dst_func: dict
                                            ) -> dict:
@@ -7402,168 +7357,8 @@ class AmberMRParserListener(ParseTreeListener):
             self.__authAsymId = 'auth_asym_id'
             self.__authSeqId = 'auth_seq_id'
 
-        try:
-
-            _p1 =\
-                self.__cR.getDictListWithFilter('atom_site',
-                                                CARTN_DATA_ITEMS,
-                                                [{'name': self.__authAsymId, 'type': 'str', 'value': atom1['chain_id']},
-                                                 {'name': self.__authSeqId, 'type': 'int', 'value': atom1['seq_id']},
-                                                 {'name': self.__authAtomId, 'type': 'str', 'value': atom1['atom_id']},
-                                                 {'name': self.__modelNumName, 'type': 'int',
-                                                  'value': self.__representativeModelId},
-                                                 {'name': 'label_alt_id', 'type': 'enum',
-                                                  'enum': (self.__representativeAltId,)}
-                                                 ])
-
-            if len(_p1) != 1:
-                return dst_func
-
-            p1 = to_np_array(_p1[0])
-
-            _p2 =\
-                self.__cR.getDictListWithFilter('atom_site',
-                                                CARTN_DATA_ITEMS,
-                                                [{'name': self.__authAsymId, 'type': 'str', 'value': atom2['chain_id']},
-                                                 {'name': self.__authSeqId, 'type': 'int', 'value': atom2['seq_id']},
-                                                 {'name': self.__authAtomId, 'type': 'str', 'value': atom2['atom_id']},
-                                                 {'name': self.__modelNumName, 'type': 'int',
-                                                  'value': self.__representativeModelId},
-                                                 {'name': 'label_alt_id', 'type': 'enum',
-                                                  'enum': (self.__representativeAltId,)}
-                                                 ])
-
-            if len(_p2) != 1:
-                return dst_func
-
-            p2 = to_np_array(_p2[0])
-
-            _p3 =\
-                self.__cR.getDictListWithFilter('atom_site',
-                                                CARTN_DATA_ITEMS,
-                                                [{'name': self.__authAsymId, 'type': 'str', 'value': atom3['chain_id']},
-                                                 {'name': self.__authSeqId, 'type': 'int', 'value': atom3['seq_id']},
-                                                 {'name': self.__authAtomId, 'type': 'str', 'value': atom3['atom_id']},
-                                                 {'name': self.__modelNumName, 'type': 'int',
-                                                  'value': self.__representativeModelId},
-                                                 {'name': 'label_alt_id', 'type': 'enum',
-                                                  'enum': (self.__representativeAltId,)}
-                                                 ])
-
-            if len(_p3) != 1:
-                return dst_func
-
-            p3 = to_np_array(_p3[0])
-
-            _p4 =\
-                self.__cR.getDictListWithFilter('atom_site',
-                                                CARTN_DATA_ITEMS,
-                                                [{'name': self.__authAsymId, 'type': 'str', 'value': atom4['chain_id']},
-                                                 {'name': self.__authSeqId, 'type': 'int', 'value': atom4['seq_id']},
-                                                 {'name': self.__authAtomId, 'type': 'str', 'value': 'CD1'},
-                                                 {'name': self.__modelNumName, 'type': 'int',
-                                                  'value': self.__representativeModelId},
-                                                 {'name': 'label_alt_id', 'type': 'enum',
-                                                  'enum': (self.__representativeAltId,)}
-                                                 ])
-
-            if len(_p4) != 1:
-                return dst_func
-
-            p4 = to_np_array(_p4[0])
-
-            chi2 = dihedral_angle(p1, p2, p3, p4)
-
-            _p4 =\
-                self.__cR.getDictListWithFilter('atom_site',
-                                                CARTN_DATA_ITEMS,
-                                                [{'name': self.__authAsymId, 'type': 'str', 'value': atom4['chain_id']},
-                                                 {'name': self.__authSeqId, 'type': 'int', 'value': atom4['seq_id']},
-                                                 {'name': self.__authAtomId, 'type': 'str', 'value': 'CD2'},
-                                                 {'name': self.__modelNumName, 'type': 'int',
-                                                  'value': self.__representativeModelId},
-                                                 {'name': 'label_alt_id', 'type': 'enum',
-                                                  'enum': (self.__representativeAltId,)}
-                                                 ])
-
-            if len(_p4) != 1:
-                return dst_func
-
-            alt_p4 = to_np_array(_p4[0])
-
-            alt_chi2 = dihedral_angle(p1, p2, p3, alt_p4)
-
-            target_value = dst_func.get('target_value')
-            if target_value is not None:
-                target_value = float(target_value)
-            target_value_uncertainty = dst_func.get('target_value_uncertainty')
-            if target_value_uncertainty is not None:
-                target_value_uncertainty = float(target_value_uncertainty)
-
-            lower_limit = dst_func.get('lower_limit')
-            if lower_limit is not None:
-                lower_limit = float(lower_limit)
-            upper_limit = dst_func.get('upper_limit')
-            if upper_limit is not None:
-                upper_limit = float(upper_limit)
-
-            lower_linear_limit = dst_func.get('lower_linear_limit')
-            if lower_linear_limit is not None:
-                lower_linear_limit = float(lower_linear_limit)
-            upper_linear_limit = dst_func.get('upper_linear_limit')
-            if upper_linear_limit is not None:
-                upper_linear_limit = float(upper_linear_limit)
-
-            target_value, lower_bound, upper_bound =\
-                angle_target_values(target_value, target_value_uncertainty,
-                                    lower_limit, upper_limit,
-                                    lower_linear_limit, upper_linear_limit)
-
-            if target_value is None:
-                return dst_func
-
-            if angle_error(lower_bound, upper_bound, target_value, chi2) >\
-               angle_error(lower_bound, upper_bound, target_value, alt_chi2):
-                target_value = dst_func.get('target_value')
-                if target_value is not None:
-                    target_value = float(target_value) + 180.0
-                lower_limit = dst_func.get('lower_limit')
-                if lower_limit is not None:
-                    lower_limit = float(lower_limit) + 180.0
-                upper_limit = dst_func.get('upper_limit')
-                if upper_limit is not None:
-                    upper_limit = float(upper_limit) + 180.0
-
-                if lower_linear_limit is not None:
-                    lower_linear_limit += 180.0
-                if upper_linear_limit is not None:
-                    upper_linear_limit += 180.0
-
-                _array = numpy.array([target_value, lower_limit, upper_limit, lower_linear_limit, upper_linear_limit],
-                                     dtype=float)
-
-                shift = 0.0
-                if self.__correctCircularShift:
-                    if numpy.nanmin(_array) >= THRESHOLD_FOR_CIRCULAR_SHIFT:
-                        shift = -(numpy.nanmax(_array) // 360) * 360
-                    elif numpy.nanmax(_array) <= -THRESHOLD_FOR_CIRCULAR_SHIFT:
-                        shift = -(numpy.nanmin(_array) // 360) * 360
-                if target_value is not None:
-                    dst_func['target_value'] = str(target_value + shift)
-                if lower_limit is not None:
-                    dst_func['lower_limit'] = str(lower_limit + shift)
-                if upper_limit is not None:
-                    dst_func['upper_limit'] = str(upper_limit + shift)
-                if lower_linear_limit is not None:
-                    dst_func['lower_linear_limit'] = str(lower_linear_limit + shift)
-                if upper_linear_limit is not None:
-                    dst_func['upper_linear_limit'] = str(upper_linear_limit + shift)
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            if self.__verbose:
-                self.__log.write(f"+{self.__class_name__}.selectRealisticChi2AngleConstraint() ++ Error  - {str(e)}")
-
-        return dst_func
+        return select_realistic_chi2_angle_constraint(self, atom1, atom2, atom3, atom4, dst_func,
+                                                      self.__verbose, self.__log, self.__correctCircularShift)
 
     def getNeighborCandidateAtom(self, factor: dict, src_atom: dict, around: float
                                  ) -> Optional[dict]:
@@ -11712,18 +11507,7 @@ class AmberMRParserListener(ParseTreeListener):
         """ Trim saveframe(s) without any loop.
         """
 
-        if self.__cur_subtype not in self.__lastSfDict:
-            return
-        if self.__lastSfDict[self.__cur_subtype]['index_id'] > 0:
-            return
-        for k, v in self.sfDict.items():
-            for item in reversed(v):
-                if item == self.__lastSfDict:
-                    v.remove(item)
-                    if len(v) == 0:
-                        del self.sfDict[k]
-                    self.__listIdCounter = decListIdCounter(k[0], self.__listIdCounter)
-                    return
+        self.__listIdCounter = trimSfWoLpOf(self.sfDict, self.__lastSfDict, self.__cur_subtype, self.__listIdCounter)
 
     def getContentSubtype(self) -> dict:
         """ Return content subtype of AMBER MR file.
@@ -11789,16 +11573,5 @@ class AmberMRParserListener(ParseTreeListener):
         """ Return a dictionary of pynmrstar saveframes.
         """
 
-        if len(self.sfDict) == 0:
-            return self.__listIdCounter, None
-        ign_keys = []
-        for k, v in self.sfDict.items():
-            for item in reversed(v):
-                if item['index_id'] == 0:
-                    v.remove(item)
-                    if len(v) == 0:
-                        ign_keys.append(k)
-                    self.__listIdCounter = decListIdCounter(k[0], self.__listIdCounter)
-        for k in ign_keys:
-            del self.sfDict[k]
-        return self.__listIdCounter, None if len(self.sfDict) == 0 else self.sfDict
+        self.__listIdCounter, sfDict = getSfDictOf(self.sfDict, self.__listIdCounter)
+        return self.__listIdCounter, sfDict

@@ -3,6 +3,15 @@
 # Date: 20-Oct-2025
 #
 # Updates:
+# 07-Oct-2026  M. Yokochi - keep the restraint's chain id in assignCoordPolymerSequenceWithChainIdWithoutCompId()
+#                           when a sequence remap lookup misses, instead of None, which assigned the
+#                           restraint to every chain with that residue number (DAOTHER-7829)
+# 08-Oct-2026  M. Yokochi - keep the chain id fixed by chain_id_remap/chain_id_clone/branched_remap in
+#                           assignCoordPolymerSequenceWithoutCompId() instead of overwriting it with in-loop sequence
+#                           remap lookups, which assigned the restraint to every chain with that residue number (DAOTHER-7829)
+# 08-Oct-2026  M. Yokochi - merge assignCoordPolymerSequenceWithChainIdWithoutCompId() into
+#                           assignCoordPolymerSequenceWithoutCompId(fixedChainId=...); a None chain id no longer records
+#                           the restraint under chain None nor reports 'None:' in messages (DAOTHER-7829)
 """ ParserLister base class for generic linear MR files.
     @author: Masashi Yokochi
 """
@@ -69,7 +78,6 @@ try:
                                                PCS_ERROR_MIN,
                                                PCS_ERROR_MAX,
                                                CYANA_MR_FILE_EXTS,
-                                               CARTN_DATA_ITEMS,
                                                HEME_LIKE_RES_NAMES,
                                                INSTRUCTION_FOR_FULL_SEQUENCE)
     from wwpdb.utils.nmr.AlignUtil import (updatePolySeqRst,
@@ -92,12 +100,8 @@ try:
                                            retrieveRemappedNonPoly,
                                            splitPolySeqRstForBranched,
                                            retrieveOriginalSeqIdFromMRMap)
-    from wwpdb.utils.nmr.NmrVrptUtility import (to_np_array,
-                                                distance,
-                                                dist_error,
-                                                angle_target_values,
-                                                dihedral_angle,
-                                                angle_error)
+    from wwpdb.utils.nmr.NmrVrptUtility import (select_realistic_bond_constraint,
+                                                select_realistic_chi2_angle_constraint)
     from wwpdb.utils.nmr.nef.NefTranslator import NefTranslator
     from wwpdb.utils.nmr.io.CifReader import CifReader
     from wwpdb.utils.nmr.mr.ParserListenerUtil import (coordAssemblyChecker,
@@ -116,6 +120,8 @@ try:
                                                        contentSubtypeOf,
                                                        incListIdCounter,
                                                        decListIdCounter,
+                                                       getSfDictOf,
+                                                       trimSfWoLpOf,
                                                        getSaveframe,
                                                        getLoop)
 except ImportError:
@@ -165,7 +171,6 @@ except ImportError:
                                    PCS_ERROR_MIN,
                                    PCS_ERROR_MAX,
                                    CYANA_MR_FILE_EXTS,
-                                   CARTN_DATA_ITEMS,
                                    HEME_LIKE_RES_NAMES,
                                    INSTRUCTION_FOR_FULL_SEQUENCE)
     from nmr.AlignUtil import (updatePolySeqRst,
@@ -188,12 +193,8 @@ except ImportError:
                                retrieveRemappedNonPoly,
                                splitPolySeqRstForBranched,
                                retrieveOriginalSeqIdFromMRMap)
-    from nmr.NmrVrptUtility import (to_np_array,
-                                    distance,
-                                    dist_error,
-                                    angle_target_values,
-                                    dihedral_angle,
-                                    angle_error)
+    from nmr.NmrVrptUtility import (select_realistic_bond_constraint,
+                                    select_realistic_chi2_angle_constraint)
     from nmr.nef.NefTranslator import NefTranslator
     from nmr.io.CifReader import CifReader
     from nmr.mr.ParserListenerUtil import (coordAssemblyChecker,
@@ -212,6 +213,8 @@ except ImportError:
                                            contentSubtypeOf,
                                            incListIdCounter,
                                            decListIdCounter,
+                                           getSfDictOf,
+                                           trimSfWoLpOf,
                                            getSaveframe,
                                            getLoop)
 
@@ -291,6 +294,7 @@ class BaseLinearMRParserListener():
                  'ssbondRestraints',
                  'fchiralRestraints',
                  'sfDict',
+                 '__lastSfDict',
                  '__cachedDictForStarAtom',
                  '__chainNumberDict',
                  'extResKey',
@@ -421,9 +425,6 @@ class BaseLinearMRParserListener():
 
     # default saveframe name for error handling
     __def_err_sf_framecode = None
-
-    # last edited pynmrstar saveframe
-    __lastSfDict = {}
 
     def __init__(self, verbose: bool = True, log: IO = sys.stdout,
                  representativeModelId: int = REPRESENTATIVE_MODEL_ID,
@@ -639,6 +640,7 @@ class BaseLinearMRParserListener():
         self.fchiralRestraints = 0   # Floating chiral stereo assignments
 
         self.sfDict = {}  # dictionary of pynmrstar saveframes
+        self.__lastSfDict = {}  # last added pynmrstar saveframe of each restraint subtype
 
         self.__cachedDictForStarAtom = {}
 
@@ -2921,15 +2923,16 @@ class BaseLinearMRParserListener():
 
         return list(chainAssign), asis
 
-    def assignCoordPolymerSequenceWithoutCompId(self, seqId: int, atomId: Optional[str] = None
+    def assignCoordPolymerSequenceWithoutCompId(self, seqId: int, atomId: Optional[str] = None, fixedChainId: Optional[str] = None
                                                 ) -> List[Tuple[str, int, str, bool]]:
-        """ Assign polymer sequences of the coordinates.
+        """ Assign polymer sequences of the coordinates, restricted to a given chain (fixedChainId) if any.
         """
 
         chainAssign = set()
         _seqId = seqId
 
-        fixedChainId = fixedSeqId = fixedCompId = None
+        _refChainId = fixedChainId
+        fixedSeqId = fixedCompId = None
 
         self.allow_ext_seq = False
 
@@ -2944,11 +2947,15 @@ class BaseLinearMRParserListener():
                 fixedChainId, fixedSeqId = retrieveRemappedChainId(self.reasons['chain_id_clone'], seqId)
                 if seqId not in self.reasons['chain_id_clone']:
                     self.allow_ext_seq = True
+            if fixedChainId is None:
+                fixedChainId = _refChainId
             if fixedSeqId is not None:
                 seqId = _seqId = fixedSeqId
 
         for ps in self.polySeq:
             chainId, seqId, cifCompId = self.getRealChainSeqId(ps, _seqId, None)
+            if fixedChainId is not None and chainId != fixedChainId:
+                continue
             if self.reasons is not None:
                 if 'seq_id_remap' not in self.reasons\
                    and 'chain_seq_id_remap' not in self.reasons\
@@ -2957,16 +2964,16 @@ class BaseLinearMRParserListener():
                         continue
                 else:
                     if 'ext_chain_seq_id_remap' in self.reasons:
-                        fixedChainId, fixedSeqId, fixedCompId =\
+                        remapChainId, fixedSeqId, fixedCompId =\
                             retrieveRemappedSeqIdAndCompId(self.reasons['ext_chain_seq_id_remap'], chainId, seqId)
-                        if fixedChainId is not None and fixedChainId != chainId:
+                        if remapChainId is not None and remapChainId != chainId:
                             continue
                         if fixedSeqId is not None:
                             self.allow_ext_seq = fixedCompId is not None
                             seqId = _seqId = fixedSeqId
                     if fixedSeqId is None and 'chain_seq_id_remap' in self.reasons:
-                        fixedChainId, fixedSeqId = retrieveRemappedSeqId(self.reasons['chain_seq_id_remap'], chainId, seqId)
-                        if fixedChainId is not None and fixedChainId != chainId:
+                        remapChainId, fixedSeqId = retrieveRemappedSeqId(self.reasons['chain_seq_id_remap'], chainId, seqId)
+                        if remapChainId is not None and remapChainId != chainId:
                             continue
                         if fixedSeqId is not None:
                             seqId = _seqId = fixedSeqId
@@ -2991,11 +2998,11 @@ class BaseLinearMRParserListener():
                 if self.reasons is not None:
                     if 'non_poly_remap' in self.reasons and cifCompId in self.reasons['non_poly_remap']\
                        and seqId in self.reasons['non_poly_remap'][cifCompId]:
-                        fixedChainId, fixedSeqId = retrieveRemappedNonPoly(self.reasons['non_poly_remap'], None,
+                        remapChainId, fixedSeqId = retrieveRemappedNonPoly(self.reasons['non_poly_remap'], None,
                                                                            chainId, seqId, cifCompId)
                         if fixedSeqId is not None:
                             seqId = _seqId = fixedSeqId
-                        if (fixedChainId is not None and fixedChainId != chainId) or seqId not in ps['auth_seq_id']:
+                        if (remapChainId is not None and remapChainId != chainId) or seqId not in ps['auth_seq_id']:
                             continue
                 updatePolySeqRst(self.__polySeqRst, chainId, _seqId, cifCompId)
                 if atomId is None or len(self.nefT.get_valid_star_atom(cifCompId, atomId)[0]) > 0:
@@ -3031,14 +3038,16 @@ class BaseLinearMRParserListener():
         if self.hasNonPolySeq:
             for np in self.__nonPolySeq:
                 chainId, seqId, cifCompId = self.getRealChainSeqId(np, _seqId, None, False)
+                if fixedChainId is not None and chainId != fixedChainId:
+                    continue
                 if self.reasons is not None:
                     if 'seq_id_remap' not in self.reasons and 'chain_seq_id_remap' not in self.reasons:
                         if fixedChainId is not None and fixedChainId != chainId:
                             continue
                     else:
                         if 'chain_seq_id_remap' in self.reasons:
-                            fixedChainId, fixedSeqId = retrieveRemappedSeqId(self.reasons['chain_seq_id_remap'], chainId, seqId)
-                            if fixedChainId is not None and fixedChainId != chainId:
+                            remapChainId, fixedSeqId = retrieveRemappedSeqId(self.reasons['chain_seq_id_remap'], chainId, seqId)
+                            if remapChainId is not None and remapChainId != chainId:
                                 continue
                             if fixedSeqId is not None:
                                 seqId = _seqId = fixedSeqId
@@ -3113,12 +3122,13 @@ class BaseLinearMRParserListener():
                             self.__setLocalSeqScheme()
 
         if len(chainAssign) == 0:
+            _chainId_ = '' if _refChainId is None else f'{fixedChainId}:'  # prefix of the restraint's chain if given
             if seqId == 1 or (chainId if fixedChainId is None else fixedChainId, seqId - 1) in self.__coordUnobsRes:
                 if atomId is not None and atomId in AMINO_PROTON_CODE and atomId != 'H1':
-                    return self.assignCoordPolymerSequenceWithoutCompId(seqId, 'H1')
+                    return self.assignCoordPolymerSequenceWithoutCompId(seqId, 'H1', None if _refChainId is None else fixedChainId)
             if atomId is not None and (('-' in atomId and ':' in atomId) or '.' in atomId):
                 self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
-                              f"{_seqId}:?:{atomId} is not present in the coordinates. "
+                              f"{_chainId_}{_seqId}:?:{atomId} is not present in the coordinates. "
                               "Please attach ambiguous atom name mapping information generated "
                               f"by 'makeDIST_RST' to the {self.software_name} restraint file.")
             elif atomId is not None:
@@ -3130,7 +3140,7 @@ class BaseLinearMRParserListener():
                                   f"of chain {refChainId} of the coordinates. {INSTRUCTION_FOR_FULL_SEQUENCE}")
                 else:
                     self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
-                                  f"{_seqId}:{atomId} is not present in the coordinates.")
+                                  f"{_chainId_}{_seqId}:{atomId} is not present in the coordinates.")
                     compIds = guessCompIdFromAtomId([atomId], self.polySeq, self.nefT)
                     if compIds is not None:
                         chainId = fixedChainId
@@ -3146,226 +3156,10 @@ class BaseLinearMRParserListener():
 
     def assignCoordPolymerSequenceWithChainIdWithoutCompId(self, fixedChainId: Optional[str], seqId: int, atomId: str
                                                            ) -> List[Tuple[str, int, str, bool]]:
-        """ Assign polymer sequences of the coordinates.
+        """ Assign polymer sequences of the coordinates of a given chain.
         """
 
-        chainAssign = set()
-        _seqId = seqId
-
-        fixedSeqId = fixedCompId = None
-
-        self.allow_ext_seq = False
-
-        if self.reasons is not None:
-            if 'branched_remap' in self.reasons and seqId in self.reasons['branched_remap']:
-                fixedChainId, fixedSeqId = retrieveRemappedChainId(self.reasons['branched_remap'], seqId)
-            if 'chain_id_remap' in self.reasons:  # and seqId in self.reasons['chain_id_remap']:
-                fixedChainId, fixedSeqId = retrieveRemappedChainId(self.reasons['chain_id_remap'], seqId)
-                if seqId not in self.reasons['chain_id_remap']:
-                    self.allow_ext_seq = True
-            elif 'chain_id_clone' in self.reasons:  # and seqId in self.reasons['chain_id_clone']:
-                fixedChainId, fixedSeqId = retrieveRemappedChainId(self.reasons['chain_id_clone'], seqId)
-                if seqId not in self.reasons['chain_id_clone']:
-                    self.allow_ext_seq = True
-            if fixedSeqId is not None:
-                seqId = _seqId = fixedSeqId
-
-        for ps in self.polySeq:
-            chainId, seqId, cifCompId = self.getRealChainSeqId(ps, _seqId, None)
-            if fixedChainId is not None and chainId != fixedChainId:
-                continue
-            if self.reasons is not None:
-                if 'seq_id_remap' not in self.reasons\
-                   and 'chain_seq_id_remap' not in self.reasons\
-                   and 'ext_chain_seq_id_remap' not in self.reasons:
-                    if fixedChainId is not None and fixedChainId != chainId:
-                        continue
-                else:
-                    if 'ext_chain_seq_id_remap' in self.reasons:
-                        fixedChainId, fixedSeqId, fixedCompId =\
-                            retrieveRemappedSeqIdAndCompId(self.reasons['ext_chain_seq_id_remap'], chainId, seqId)
-                        if fixedChainId is not None and fixedChainId != chainId:
-                            continue
-                        if fixedSeqId is not None:
-                            self.allow_ext_seq = fixedCompId is not None
-                            seqId = _seqId = fixedSeqId
-                    if fixedSeqId is None and 'chain_seq_id_remap' in self.reasons:
-                        fixedChainId, fixedSeqId = retrieveRemappedSeqId(self.reasons['chain_seq_id_remap'], chainId, seqId)
-                        if fixedChainId is not None and fixedChainId != chainId:
-                            continue
-                        if fixedSeqId is not None:
-                            seqId = _seqId = fixedSeqId
-                    if fixedSeqId is None and 'seq_id_remap' in self.reasons:
-                        _, fixedSeqId = retrieveRemappedSeqId(self.reasons['seq_id_remap'], None, seqId)
-                        if fixedSeqId is not None:
-                            seqId = _seqId = fixedSeqId
-            if seqId in ps['auth_seq_id'] or fixedCompId is not None:
-                if fixedCompId is not None:
-                    cifCompId = fixedCompId
-                else:
-                    if cifCompId is not None:
-                        if seqId not in ps['auth_seq_id'] and seqId in ps['seq_id']:
-                            seqId = ps['auth_seq_id'][ps['seq_id'].index(seqId)]
-                        if seqId not in ps['auth_seq_id']:
-                            continue
-                        idx = next((_idx for _idx, (_seqId_, _cifCompId_) in enumerate(zip(ps['auth_seq_id'], ps['comp_id']))
-                                    if _seqId_ == seqId and _cifCompId_ == cifCompId), ps['auth_seq_id'].index(seqId))
-                    else:
-                        idx = ps['auth_seq_id'].index(seqId) if seqId in ps['auth_seq_id'] else ps['seq_id'].index(seqId)
-                    cifCompId = ps['comp_id'][idx]
-                if self.reasons is not None:
-                    if 'non_poly_remap' in self.reasons and cifCompId in self.reasons['non_poly_remap']\
-                       and seqId in self.reasons['non_poly_remap'][cifCompId]:
-                        fixedChainId, fixedSeqId = retrieveRemappedNonPoly(self.reasons['non_poly_remap'], None,
-                                                                           chainId, seqId, cifCompId)
-                        if fixedSeqId is not None:
-                            seqId = _seqId = fixedSeqId
-                        if (fixedChainId is not None and fixedChainId != chainId) or seqId not in ps['auth_seq_id']:
-                            continue
-                updatePolySeqRst(self.__polySeqRst, fixedChainId, _seqId, cifCompId)
-                if len(self.nefT.get_valid_star_atom(cifCompId, atomId)[0]) > 0:
-                    chainAssign.add((chainId, seqId, cifCompId, True))
-            elif 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
-                auth_seq_id_list = list(filter(None, ps['auth_seq_id']))
-                if len(auth_seq_id_list) > 0:
-                    min_auth_seq_id = min(auth_seq_id_list)
-                    max_auth_seq_id = max(auth_seq_id_list)
-                    if min_auth_seq_id <= seqId <= max_auth_seq_id:
-                        _seqId_ = seqId + 1
-                        while _seqId_ <= max_auth_seq_id:
-                            if _seqId_ in ps['auth_seq_id']:
-                                break
-                            _seqId_ += 1
-                        if _seqId_ not in ps['auth_seq_id']:
-                            _seqId_ = seqId - 1
-                            while _seqId_ >= min_auth_seq_id:
-                                if _seqId_ in ps['auth_seq_id']:
-                                    break
-                                _seqId_ -= 1
-                        if _seqId_ in ps['auth_seq_id']:
-                            idx = ps['auth_seq_id'].index(_seqId_) - (_seqId_ - seqId)
-                            try:
-                                seqId_ = ps['auth_seq_id'][idx]
-                                cifCompId = ps['comp_id'][idx]
-                                updatePolySeqRst(self.__polySeqRst, fixedChainId, _seqId, cifCompId)
-                                if len(self.nefT.get_valid_star_atom(cifCompId, atomId)[0]) > 0:
-                                    chainAssign.add((chainId, seqId_, cifCompId, True))
-                            except IndexError:
-                                pass
-
-        if self.hasNonPolySeq:
-            for np in self.__nonPolySeq:
-                chainId, seqId, cifCompId = self.getRealChainSeqId(np, _seqId, None, False)
-                if fixedChainId is not None and chainId != fixedChainId:
-                    continue
-                if self.reasons is not None:
-                    if 'seq_id_remap' not in self.reasons and 'chain_seq_id_remap' not in self.reasons:
-                        if fixedChainId is not None and fixedChainId != chainId:
-                            continue
-                    else:
-                        if 'chain_seq_id_remap' in self.reasons:
-                            fixedChainId, fixedSeqId = retrieveRemappedSeqId(self.reasons['chain_seq_id_remap'], chainId, seqId)
-                            if fixedChainId is not None and fixedChainId != chainId:
-                                continue
-                            if fixedSeqId is not None:
-                                seqId = _seqId = fixedSeqId
-                        if fixedSeqId is None and 'seq_id_remap' in self.reasons:
-                            _, fixedSeqId = retrieveRemappedSeqId(self.reasons['seq_id_remap'], None, seqId)
-                            if fixedSeqId is not None:
-                                seqId = _seqId = fixedSeqId
-                if seqId in np['auth_seq_id']:
-                    if cifCompId is not None:
-                        idx = next((_idx for _idx, (_seqId_, _cifCompId_) in enumerate(zip(np['auth_seq_id'], np['comp_id']))
-                                    if _seqId_ == seqId and _cifCompId_ == cifCompId), np['auth_seq_id'].index(seqId))
-                    else:
-                        idx = np['auth_seq_id'].index(seqId) if seqId in np['auth_seq_id'] else np['seq_id'].index(seqId)
-                    cifCompId = np['comp_id'][idx]
-                    updatePolySeqRst(self.__polySeqRst, fixedChainId, _seqId, cifCompId)
-                    if len(self.nefT.get_valid_star_atom(cifCompId, atomId)[0]) > 0:
-                        chainAssign.add((chainId, seqId, cifCompId, False))
-
-        if len(chainAssign) == 0:
-            for ps in self.polySeq:
-                chainId = ps['chain_id']
-                if fixedChainId is not None and chainId != fixedChainId:
-                    continue
-                seqKey = (chainId, _seqId)
-                if seqKey in self.authToLabelSeq:
-                    _, seqId = self.authToLabelSeq[seqKey]
-                    if seqId in ps['seq_id']:
-                        cifCompId = ps['comp_id'][ps['seq_id'].index(seqId)]
-                        updatePolySeqRst(self.__polySeqRst, fixedChainId, _seqId, cifCompId)
-                        if len(self.nefT.get_valid_star_atom(cifCompId, atomId)[0]) > 0:
-                            chainAssign.add((ps['auth_chain_id'], _seqId, cifCompId, True))
-
-            if self.hasNonPolySeq:
-                for np in self.__nonPolySeq:
-                    chainId = np['auth_chain_id']
-                    if fixedChainId is not None and chainId != fixedChainId:
-                        continue
-                    seqKey = (chainId, _seqId)
-                    if seqKey in self.authToLabelSeq:
-                        _, seqId = self.authToLabelSeq[seqKey]
-                        if seqId in np['seq_id']:
-                            cifCompId = np['comp_id'][np['seq_id'].index(seqId)]
-                            updatePolySeqRst(self.__polySeqRst, fixedChainId, _seqId, cifCompId)
-                            if len(self.nefT.get_valid_star_atom(cifCompId, atomId)[0]) > 0:
-                                chainAssign.add((np['auth_chain_id'], _seqId, cifCompId, False))
-
-        if len(chainAssign) == 0 and self.__altPolySeq is not None:
-            for ps in self.__altPolySeq:
-                chainId = ps['auth_chain_id']
-                if fixedChainId is not None and chainId != fixedChainId:
-                    continue
-                if _seqId in ps['auth_seq_id']:
-                    cifCompId = ps['comp_id'][ps['auth_seq_id'].index(_seqId)]
-                    updatePolySeqRst(self.__polySeqRst, fixedChainId, _seqId, cifCompId)
-                    chainAssign.add((chainId, _seqId, cifCompId, True))
-
-        if len(chainAssign) == 0 and (self.__preferAuthSeqCount - self.__preferLabelSeqCount < MAX_PREF_LABEL_SCHEME_COUNT
-                                      or self.__multiPolymer):
-            for ps in self.polySeq:
-                chainId = ps['chain_id']
-                if fixedChainId is not None and chainId != fixedChainId:
-                    continue
-                seqKey = (chainId, _seqId)
-                if seqKey in self.__labelToAuthSeq:
-                    _, seqId = self.__labelToAuthSeq[seqKey]
-                    if seqId in ps['auth_seq_id']:
-                        cifCompId = ps['comp_id'][ps['auth_seq_id'].index(seqId)]
-                        updatePolySeqRst(self.__polySeqRst, fixedChainId, seqId, cifCompId)
-                        if len(self.nefT.get_valid_star_atom(cifCompId, atomId)[0]) > 0:
-                            chainAssign.add((ps['auth_chain_id'], seqId, cifCompId, True))
-                            self.authSeqId = 'label_seq_id'
-                            self.__setLocalSeqScheme()
-
-        if len(chainAssign) == 0:
-            if seqId == 1 or (fixedChainId, seqId - 1) in self.__coordUnobsRes:
-                if atomId in AMINO_PROTON_CODE and atomId != 'H1':
-                    return self.assignCoordPolymerSequenceWithChainIdWithoutCompId(fixedChainId, seqId, 'H1')
-            if (('-' in atomId and ':' in atomId) or '.' in atomId):
-                self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
-                              f"{fixedChainId}:{_seqId}:?:{atomId} is not present in the coordinates. "
-                              "Please attach ambiguous atom name mapping information generated "
-                              f"by 'makeDIST_RST' to the {self.software_name} restraint file.")
-            else:
-                if self.__monoPolymer and seqId < 1:
-                    refChainId = self.polySeq[0]['auth_chain_id']
-                    self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
-                                  f"{_seqId}:?:{atomId} is not present in the coordinates. "
-                                  f"The residue number '{_seqId}' is not present in polymer sequence "
-                                  f"of chain {refChainId} of the coordinates. {INSTRUCTION_FOR_FULL_SEQUENCE}")
-                else:
-                    self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
-                                  f"{fixedChainId}:{_seqId}:{atomId} is not present in the coordinates.")
-                    compIds = guessCompIdFromAtomId([atomId], self.polySeq, self.nefT)
-                    if compIds is not None:
-                        if len(compIds) == 1:
-                            updatePolySeqRst(self.__polySeqRstFailed, fixedChainId, seqId, compIds[0])
-                        else:
-                            updatePolySeqRstAmbig(self.__polySeqRstFailedAmbig, fixedChainId, seqId, compIds)
-
-        return list(chainAssign)
+        return self.assignCoordPolymerSequenceWithoutCompId(seqId, atomId, fixedChainId)
 
     def assignCoordPolymerSequenceWithIndex(self, refChainId: str, seqId: int, compId: str, atomId: str,
                                             index: Optional[int] = None, group: Optional[int] = None
@@ -5330,282 +5124,16 @@ class BaseLinearMRParserListener():
         """ Return realistic bond constraint taking into account the current coordinates.
         """
 
-        if not self.hasCoord:
-            return atom1, atom2
-
-        try:
-
-            _p1 =\
-                self.cR.getDictListWithFilter('atom_site',
-                                              CARTN_DATA_ITEMS,
-                                              [{'name': self.authAsymId, 'type': 'str', 'value': atom1['chain_id']},
-                                               {'name': self.authSeqId, 'type': 'int', 'value': atom1['seq_id']},
-                                               {'name': self.authAtomId, 'type': 'str', 'value': atom1['atom_id']},
-                                               {'name': self.modelNumName, 'type': 'int',
-                                                'value': self.representativeModelId},
-                                               {'name': 'label_alt_id', 'type': 'enum',
-                                                'enum': (self.representativeAltId,)}
-                                               ])
-
-            if len(_p1) != 1:
-                return atom1, atom2
-
-            p1 = to_np_array(_p1[0])
-
-            _p2 =\
-                self.cR.getDictListWithFilter('atom_site',
-                                              CARTN_DATA_ITEMS,
-                                              [{'name': self.authAsymId, 'type': 'str', 'value': atom2['chain_id']},
-                                               {'name': self.authSeqId, 'type': 'int', 'value': atom2['seq_id']},
-                                               {'name': self.authAtomId, 'type': 'str', 'value': atom2['atom_id']},
-                                               {'name': self.modelNumName, 'type': 'int',
-                                                'value': self.representativeModelId},
-                                               {'name': 'label_alt_id', 'type': 'enum',
-                                                'enum': (self.representativeAltId,)}
-                                               ])
-
-            if len(_p2) != 1:
-                return atom1, atom2
-
-            p2 = to_np_array(_p2[0])
-
-            d_org = distance(p1, p2)
-
-            lower_limit = dst_func.get('lower_limit')
-            if lower_limit is not None:
-                lower_limit = float(lower_limit)
-            upper_limit = dst_func.get('upper_limit')
-            if upper_limit is not None:
-                upper_limit = float(upper_limit)
-
-            if alt_atom_id1 is not None:
-
-                _p1 =\
-                    self.cR.getDictListWithFilter('atom_site',
-                                                  CARTN_DATA_ITEMS,
-                                                  [{'name': self.authAsymId, 'type': 'str', 'value': atom1['chain_id']},
-                                                   {'name': self.authSeqId, 'type': 'int', 'value': atom1['seq_id']},
-                                                   {'name': self.authAtomId, 'type': 'str', 'value': alt_atom_id1},
-                                                   {'name': self.modelNumName, 'type': 'int',
-                                                    'value': self.representativeModelId},
-                                                   {'name': 'label_alt_id', 'type': 'enum',
-                                                    'enum': (self.representativeAltId,)}
-                                                   ])
-
-                if len(_p1) != 1:
-                    return atom1, atom2
-
-                p1_alt = to_np_array(_p1[0])
-
-                d_alt = distance(p1_alt, p2)
-
-                if dist_error(lower_limit, upper_limit, d_org) > dist_error(lower_limit, upper_limit, d_alt):
-                    if 'auth_atom_id' not in atom1:
-                        atom1['auth_atom_id'] = atom1['atom_id']
-                    atom1['atom_id'] = alt_atom_id1
-
-            elif alt_atom_id2 is not None:
-
-                _p2 =\
-                    self.cR.getDictListWithFilter('atom_site',
-                                                  CARTN_DATA_ITEMS,
-                                                  [{'name': self.authAsymId, 'type': 'str', 'value': atom2['chain_id']},
-                                                   {'name': self.authSeqId, 'type': 'int', 'value': atom2['seq_id']},
-                                                   {'name': self.authAtomId, 'type': 'str', 'value': alt_atom_id2},
-                                                   {'name': self.modelNumName, 'type': 'int',
-                                                    'value': self.representativeModelId},
-                                                   {'name': 'label_alt_id', 'type': 'enum',
-                                                    'enum': (self.representativeAltId,)}
-                                                   ])
-
-                if len(_p2) != 1:
-                    return atom1, atom2
-
-                p2_alt = to_np_array(_p2[0])
-
-                d_alt = distance(p1, p2_alt)
-
-                if dist_error(lower_limit, upper_limit, d_org) > dist_error(lower_limit, upper_limit, d_alt):
-                    if 'auth_atom_id' not in atom2:
-                        atom2['auth_atom_id'] = atom2['atom_id']
-                    atom2['atom_id'] = alt_atom_id2
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            if self.__verbose:
-                self.__log.write(f"+{self.__class_name__}.selectRealisticBondConstraint() ++ Error  - {str(e)}")
-
-        return atom1, atom2
+        return select_realistic_bond_constraint(self, atom1, atom2, alt_atom_id1, alt_atom_id2, dst_func,
+                                                self.__verbose, self.__log)
 
     def selectRealisticChi2AngleConstraint(self, atom1: str, atom2: str, atom3: str, atom4: str, dst_func: dict
                                            ) -> dict:
         """ Return realistic chi2 angle constraint taking into account the current coordinates.
         """
 
-        if not self.hasCoord:
-            return dst_func
-
-        try:
-
-            _p1 =\
-                self.cR.getDictListWithFilter('atom_site',
-                                              CARTN_DATA_ITEMS,
-                                              [{'name': self.authAsymId, 'type': 'str', 'value': atom1['chain_id']},
-                                               {'name': self.authSeqId, 'type': 'int', 'value': atom1['seq_id']},
-                                               {'name': self.authAtomId, 'type': 'str', 'value': atom1['atom_id']},
-                                               {'name': self.modelNumName, 'type': 'int',
-                                                'value': self.representativeModelId},
-                                               {'name': 'label_alt_id', 'type': 'enum',
-                                                'enum': (self.representativeAltId,)}
-                                               ])
-
-            if len(_p1) != 1:
-                return dst_func
-
-            p1 = to_np_array(_p1[0])
-
-            _p2 =\
-                self.cR.getDictListWithFilter('atom_site',
-                                              CARTN_DATA_ITEMS,
-                                              [{'name': self.authAsymId, 'type': 'str', 'value': atom2['chain_id']},
-                                               {'name': self.authSeqId, 'type': 'int', 'value': atom2['seq_id']},
-                                               {'name': self.authAtomId, 'type': 'str', 'value': atom2['atom_id']},
-                                               {'name': self.modelNumName, 'type': 'int',
-                                                'value': self.representativeModelId},
-                                               {'name': 'label_alt_id', 'type': 'enum',
-                                                'enum': (self.representativeAltId,)}
-                                               ])
-
-            if len(_p2) != 1:
-                return dst_func
-
-            p2 = to_np_array(_p2[0])
-
-            _p3 =\
-                self.cR.getDictListWithFilter('atom_site',
-                                              CARTN_DATA_ITEMS,
-                                              [{'name': self.authAsymId, 'type': 'str', 'value': atom3['chain_id']},
-                                               {'name': self.authSeqId, 'type': 'int', 'value': atom3['seq_id']},
-                                               {'name': self.authAtomId, 'type': 'str', 'value': atom3['atom_id']},
-                                               {'name': self.modelNumName, 'type': 'int',
-                                                'value': self.representativeModelId},
-                                               {'name': 'label_alt_id', 'type': 'enum',
-                                                'enum': (self.representativeAltId,)}
-                                               ])
-
-            if len(_p3) != 1:
-                return dst_func
-
-            p3 = to_np_array(_p3[0])
-
-            _p4 =\
-                self.cR.getDictListWithFilter('atom_site',
-                                              CARTN_DATA_ITEMS,
-                                              [{'name': self.authAsymId, 'type': 'str', 'value': atom4['chain_id']},
-                                               {'name': self.authSeqId, 'type': 'int', 'value': atom4['seq_id']},
-                                               {'name': self.authAtomId, 'type': 'str', 'value': 'CD1'},
-                                               {'name': self.modelNumName, 'type': 'int',
-                                                'value': self.representativeModelId},
-                                               {'name': 'label_alt_id', 'type': 'enum',
-                                                'enum': (self.representativeAltId,)}
-                                               ])
-
-            if len(_p4) != 1:
-                return dst_func
-
-            p4 = to_np_array(_p4[0])
-
-            chi2 = dihedral_angle(p1, p2, p3, p4)
-
-            _p4 =\
-                self.cR.getDictListWithFilter('atom_site',
-                                              CARTN_DATA_ITEMS,
-                                              [{'name': self.authAsymId, 'type': 'str', 'value': atom4['chain_id']},
-                                               {'name': self.authSeqId, 'type': 'int', 'value': atom4['seq_id']},
-                                               {'name': self.authAtomId, 'type': 'str', 'value': 'CD2'},
-                                               {'name': self.modelNumName, 'type': 'int',
-                                                'value': self.representativeModelId},
-                                               {'name': 'label_alt_id', 'type': 'enum',
-                                                'enum': (self.representativeAltId,)}
-                                               ])
-
-            if len(_p4) != 1:
-                return dst_func
-
-            alt_p4 = to_np_array(_p4[0])
-
-            alt_chi2 = dihedral_angle(p1, p2, p3, alt_p4)
-
-            target_value = dst_func.get('target_value')
-            if target_value is not None:
-                target_value = float(target_value)
-            target_value_uncertainty = dst_func.get('target_value_uncertainty')
-            if target_value_uncertainty is not None:
-                target_value_uncertainty = float(target_value_uncertainty)
-
-            lower_limit = dst_func.get('lower_limit')
-            if lower_limit is not None:
-                lower_limit = float(lower_limit)
-            upper_limit = dst_func.get('upper_limit')
-            if upper_limit is not None:
-                upper_limit = float(upper_limit)
-
-            lower_linear_limit = dst_func.get('lower_linear_limit')
-            if lower_linear_limit is not None:
-                lower_linear_limit = float(lower_linear_limit)
-            upper_linear_limit = dst_func.get('upper_linear_limit')
-            if upper_linear_limit is not None:
-                upper_linear_limit = float(upper_linear_limit)
-
-            target_value, lower_bound, upper_bound =\
-                angle_target_values(target_value, target_value_uncertainty,
-                                    lower_limit, upper_limit,
-                                    lower_linear_limit, upper_linear_limit)
-
-            if target_value is None:
-                return dst_func
-
-            if angle_error(lower_bound, upper_bound, target_value, chi2) >\
-               angle_error(lower_bound, upper_bound, target_value, alt_chi2):
-                target_value = dst_func.get('target_value')
-                if target_value is not None:
-                    target_value = float(target_value) + 180.0
-                lower_limit = dst_func.get('lower_limit')
-                if lower_limit is not None:
-                    lower_limit = float(lower_limit) + 180.0
-                upper_limit = dst_func.get('upper_limit')
-                if upper_limit is not None:
-                    upper_limit = float(upper_limit) + 180.0
-
-                if lower_linear_limit is not None:
-                    lower_linear_limit += 180.0
-                if upper_linear_limit is not None:
-                    upper_linear_limit += 180.0
-
-                _array = numpy.array([target_value, lower_limit, upper_limit, lower_linear_limit, upper_linear_limit],
-                                     dtype=float)
-
-                shift = 0.0
-                if self.__correctCircularShift:
-                    if numpy.nanmin(_array) >= THRESHOLD_FOR_CIRCULAR_SHIFT:
-                        shift = -(numpy.nanmax(_array) // 360) * 360
-                    elif numpy.nanmax(_array) <= -THRESHOLD_FOR_CIRCULAR_SHIFT:
-                        shift = -(numpy.nanmin(_array) // 360) * 360
-                if target_value is not None:
-                    dst_func['target_value'] = str(target_value + shift)
-                if lower_limit is not None:
-                    dst_func['lower_limit'] = str(lower_limit + shift)
-                if upper_limit is not None:
-                    dst_func['upper_limit'] = str(upper_limit + shift)
-                if lower_linear_limit is not None:
-                    dst_func['lower_linear_limit'] = str(lower_linear_limit + shift)
-                if upper_linear_limit is not None:
-                    dst_func['upper_linear_limit'] = str(upper_linear_limit + shift)
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            if self.__verbose:
-                self.__log.write(f"+{self.__class_name__}.selectRealisticChi2AngleConstraint() ++ Error  - {str(e)}")
-
-        return dst_func
+        return select_realistic_chi2_angle_constraint(self, atom1, atom2, atom3, atom4, dst_func,
+                                                      self.__verbose, self.__log, self.__correctCircularShift)
 
     def getCoordAtomSiteOf(self, chainId: str, seqId: int, compId: Optional[str] = None, cifCheck: bool = True, asis: bool = True
                            ) -> Tuple[Tuple[str, int], Optional[dict]]:
@@ -6648,18 +6176,7 @@ class BaseLinearMRParserListener():
         """ Trim saveframe(s) without any loop.
         """
 
-        if self.cur_subtype not in self.__lastSfDict:
-            return
-        if self.__lastSfDict[self.cur_subtype]['index_id'] > 0:
-            return
-        for k, v in self.sfDict.items():
-            for item in reversed(v):
-                if item == self.__lastSfDict:
-                    v.remove(item)
-                    if len(v) == 0:
-                        del self.sfDict[k]
-                    self.__listIdCounter = decListIdCounter(k[0], self.__listIdCounter)
-                    return
+        self.__listIdCounter = trimSfWoLpOf(self.sfDict, self.__lastSfDict, self.cur_subtype, self.__listIdCounter)
 
     def getContentSubtype(self) -> dict:
         """ Return content subtype of MR file.
@@ -6744,16 +6261,5 @@ class BaseLinearMRParserListener():
         """ Return a dictionary of pynmrstar saveframes.
         """
 
-        if len(self.sfDict) == 0:
-            return self.__listIdCounter, None
-        ign_keys = []
-        for k, v in self.sfDict.items():
-            for item in reversed(v):
-                if item['index_id'] == 0:
-                    v.remove(item)
-                    if len(v) == 0:
-                        ign_keys.append(k)
-                    self.__listIdCounter = decListIdCounter(k[0], self.__listIdCounter)
-        for k in ign_keys:
-            del self.sfDict[k]
-        return self.__listIdCounter, None if len(self.sfDict) == 0 else self.sfDict
+        self.__listIdCounter, sfDict = getSfDictOf(self.sfDict, self.__listIdCounter)
+        return self.__listIdCounter, sfDict

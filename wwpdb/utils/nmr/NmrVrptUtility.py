@@ -83,6 +83,8 @@ try:
                                                REPRESENTATIVE_MODEL_ID,
                                                REPRESENTATIVE_ALT_ID,
                                                REPRESENTATIVE_ASYM_ID,
+                                               CARTN_DATA_ITEMS,
+                                               THRESHOLD_FOR_CIRCULAR_SHIFT,
                                                DIST_ERROR_MAX,
                                                ANGLE_ERROR_MAX,
                                                RDC_ERROR_MAX,
@@ -133,6 +135,8 @@ except ImportError:
                                    REPRESENTATIVE_MODEL_ID,
                                    REPRESENTATIVE_ALT_ID,
                                    REPRESENTATIVE_ASYM_ID,
+                                   CARTN_DATA_ITEMS,
+                                   THRESHOLD_FOR_CIRCULAR_SHIFT,
                                    DIST_ERROR_MAX,
                                    ANGLE_ERROR_MAX,
                                    RDC_ERROR_MAX,
@@ -542,6 +546,304 @@ def angle_error(lower_bound: Optional[float], upper_bound: Optional[float], targ
         return 0.0
 
     return min(angle_diff(upper_bound, angle), angle_diff(lower_bound, angle))
+
+
+def select_realistic_bond_constraint(listener: Any, atom1: dict, atom2: dict,
+                                     alt_atom_id1: Optional[str], alt_atom_id2: Optional[str], dst_func: dict,
+                                     verbose: bool, log: IO) -> Tuple[dict, dict]:
+    """ Return realistic bond constraint taking into account the current coordinates.
+        @param listener: MR parser listener providing hasCoord, cR and the atom_site item names
+    """
+
+    if not listener.hasCoord:
+        return atom1, atom2
+
+    try:
+
+        cR = listener.cR
+        authAsymId, authSeqId, authAtomId = listener.authAsymId, listener.authSeqId, listener.authAtomId
+        modelNumName = listener.modelNumName
+        representativeModelId, representativeAltId = listener.representativeModelId, listener.representativeAltId
+
+        _p1 =\
+            cR.getDictListWithFilter('atom_site',
+                                     CARTN_DATA_ITEMS,
+                                     [{'name': authAsymId, 'type': 'str', 'value': atom1['chain_id']},
+                                      {'name': authSeqId, 'type': 'int', 'value': atom1['seq_id']},
+                                      {'name': authAtomId, 'type': 'str', 'value': atom1['atom_id']},
+                                      {'name': modelNumName, 'type': 'int',
+                                       'value': representativeModelId},
+                                      {'name': 'label_alt_id', 'type': 'enum',
+                                       'enum': (representativeAltId,)}
+                                      ])
+
+        if len(_p1) != 1:
+            return atom1, atom2
+
+        p1 = to_np_array(_p1[0])
+
+        _p2 =\
+            cR.getDictListWithFilter('atom_site',
+                                     CARTN_DATA_ITEMS,
+                                     [{'name': authAsymId, 'type': 'str', 'value': atom2['chain_id']},
+                                      {'name': authSeqId, 'type': 'int', 'value': atom2['seq_id']},
+                                      {'name': authAtomId, 'type': 'str', 'value': atom2['atom_id']},
+                                      {'name': modelNumName, 'type': 'int',
+                                       'value': representativeModelId},
+                                      {'name': 'label_alt_id', 'type': 'enum',
+                                       'enum': (representativeAltId,)}
+                                      ])
+
+        if len(_p2) != 1:
+            return atom1, atom2
+
+        p2 = to_np_array(_p2[0])
+
+        d_org = distance(p1, p2)
+
+        lower_limit = dst_func.get('lower_limit')
+        if lower_limit is not None:
+            lower_limit = float(lower_limit)
+        upper_limit = dst_func.get('upper_limit')
+        if upper_limit is not None:
+            upper_limit = float(upper_limit)
+
+        if alt_atom_id1 is not None:
+
+            _p1 =\
+                cR.getDictListWithFilter('atom_site',
+                                         CARTN_DATA_ITEMS,
+                                         [{'name': authAsymId, 'type': 'str', 'value': atom1['chain_id']},
+                                          {'name': authSeqId, 'type': 'int', 'value': atom1['seq_id']},
+                                          {'name': authAtomId, 'type': 'str', 'value': alt_atom_id1},
+                                          {'name': modelNumName, 'type': 'int',
+                                           'value': representativeModelId},
+                                          {'name': 'label_alt_id', 'type': 'enum',
+                                           'enum': (representativeAltId,)}
+                                          ])
+
+            if len(_p1) != 1:
+                return atom1, atom2
+
+            p1_alt = to_np_array(_p1[0])
+
+            d_alt = distance(p1_alt, p2)
+
+            if dist_error(lower_limit, upper_limit, d_org) > dist_error(lower_limit, upper_limit, d_alt):
+                if 'auth_atom_id' not in atom1:
+                    atom1['auth_atom_id'] = atom1['atom_id']
+                atom1['atom_id'] = alt_atom_id1
+
+        elif alt_atom_id2 is not None:
+
+            _p2 =\
+                cR.getDictListWithFilter('atom_site',
+                                         CARTN_DATA_ITEMS,
+                                         [{'name': authAsymId, 'type': 'str', 'value': atom2['chain_id']},
+                                          {'name': authSeqId, 'type': 'int', 'value': atom2['seq_id']},
+                                          {'name': authAtomId, 'type': 'str', 'value': alt_atom_id2},
+                                          {'name': modelNumName, 'type': 'int',
+                                           'value': representativeModelId},
+                                          {'name': 'label_alt_id', 'type': 'enum',
+                                           'enum': (representativeAltId,)}
+                                          ])
+
+            if len(_p2) != 1:
+                return atom1, atom2
+
+            p2_alt = to_np_array(_p2[0])
+
+            d_alt = distance(p1, p2_alt)
+
+            if dist_error(lower_limit, upper_limit, d_org) > dist_error(lower_limit, upper_limit, d_alt):
+                if 'auth_atom_id' not in atom2:
+                    atom2['auth_atom_id'] = atom2['atom_id']
+                atom2['atom_id'] = alt_atom_id2
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        if verbose:
+            log.write(f"+{listener.__class_name__}.selectRealisticBondConstraint() ++ Error  - {str(e)}")
+
+    return atom1, atom2
+
+
+def select_realistic_chi2_angle_constraint(listener: Any, atom1: dict, atom2: dict, atom3: dict, atom4: dict,
+                                           dst_func: dict, verbose: bool, log: IO,
+                                           correct_circular_shift: bool = True) -> dict:
+    """ Return realistic chi2 angle constraint taking into account the current coordinates.
+        @param listener: MR parser listener providing hasCoord, cR and the atom_site item names
+    """
+
+    if not listener.hasCoord:
+        return dst_func
+
+    try:
+
+        cR = listener.cR
+        authAsymId, authSeqId, authAtomId = listener.authAsymId, listener.authSeqId, listener.authAtomId
+        modelNumName = listener.modelNumName
+        representativeModelId, representativeAltId = listener.representativeModelId, listener.representativeAltId
+
+        _p1 =\
+            cR.getDictListWithFilter('atom_site',
+                                     CARTN_DATA_ITEMS,
+                                     [{'name': authAsymId, 'type': 'str', 'value': atom1['chain_id']},
+                                      {'name': authSeqId, 'type': 'int', 'value': atom1['seq_id']},
+                                      {'name': authAtomId, 'type': 'str', 'value': atom1['atom_id']},
+                                      {'name': modelNumName, 'type': 'int',
+                                       'value': representativeModelId},
+                                      {'name': 'label_alt_id', 'type': 'enum',
+                                       'enum': (representativeAltId,)}
+                                      ])
+
+        if len(_p1) != 1:
+            return dst_func
+
+        p1 = to_np_array(_p1[0])
+
+        _p2 =\
+            cR.getDictListWithFilter('atom_site',
+                                     CARTN_DATA_ITEMS,
+                                     [{'name': authAsymId, 'type': 'str', 'value': atom2['chain_id']},
+                                      {'name': authSeqId, 'type': 'int', 'value': atom2['seq_id']},
+                                      {'name': authAtomId, 'type': 'str', 'value': atom2['atom_id']},
+                                      {'name': modelNumName, 'type': 'int',
+                                       'value': representativeModelId},
+                                      {'name': 'label_alt_id', 'type': 'enum',
+                                       'enum': (representativeAltId,)}
+                                      ])
+
+        if len(_p2) != 1:
+            return dst_func
+
+        p2 = to_np_array(_p2[0])
+
+        _p3 =\
+            cR.getDictListWithFilter('atom_site',
+                                     CARTN_DATA_ITEMS,
+                                     [{'name': authAsymId, 'type': 'str', 'value': atom3['chain_id']},
+                                      {'name': authSeqId, 'type': 'int', 'value': atom3['seq_id']},
+                                      {'name': authAtomId, 'type': 'str', 'value': atom3['atom_id']},
+                                      {'name': modelNumName, 'type': 'int',
+                                       'value': representativeModelId},
+                                      {'name': 'label_alt_id', 'type': 'enum',
+                                       'enum': (representativeAltId,)}
+                                      ])
+
+        if len(_p3) != 1:
+            return dst_func
+
+        p3 = to_np_array(_p3[0])
+
+        _p4 =\
+            cR.getDictListWithFilter('atom_site',
+                                     CARTN_DATA_ITEMS,
+                                     [{'name': authAsymId, 'type': 'str', 'value': atom4['chain_id']},
+                                      {'name': authSeqId, 'type': 'int', 'value': atom4['seq_id']},
+                                      {'name': authAtomId, 'type': 'str', 'value': 'CD1'},
+                                      {'name': modelNumName, 'type': 'int',
+                                       'value': representativeModelId},
+                                      {'name': 'label_alt_id', 'type': 'enum',
+                                       'enum': (representativeAltId,)}
+                                      ])
+
+        if len(_p4) != 1:
+            return dst_func
+
+        p4 = to_np_array(_p4[0])
+
+        chi2 = dihedral_angle(p1, p2, p3, p4)
+
+        _p4 =\
+            cR.getDictListWithFilter('atom_site',
+                                     CARTN_DATA_ITEMS,
+                                     [{'name': authAsymId, 'type': 'str', 'value': atom4['chain_id']},
+                                      {'name': authSeqId, 'type': 'int', 'value': atom4['seq_id']},
+                                      {'name': authAtomId, 'type': 'str', 'value': 'CD2'},
+                                      {'name': modelNumName, 'type': 'int',
+                                       'value': representativeModelId},
+                                      {'name': 'label_alt_id', 'type': 'enum',
+                                       'enum': (representativeAltId,)}
+                                      ])
+
+        if len(_p4) != 1:
+            return dst_func
+
+        alt_p4 = to_np_array(_p4[0])
+
+        alt_chi2 = dihedral_angle(p1, p2, p3, alt_p4)
+
+        target_value = dst_func.get('target_value')
+        if target_value is not None:
+            target_value = float(target_value)
+        target_value_uncertainty = dst_func.get('target_value_uncertainty')
+        if target_value_uncertainty is not None:
+            target_value_uncertainty = float(target_value_uncertainty)
+
+        lower_limit = dst_func.get('lower_limit')
+        if lower_limit is not None:
+            lower_limit = float(lower_limit)
+        upper_limit = dst_func.get('upper_limit')
+        if upper_limit is not None:
+            upper_limit = float(upper_limit)
+
+        lower_linear_limit = dst_func.get('lower_linear_limit')
+        if lower_linear_limit is not None:
+            lower_linear_limit = float(lower_linear_limit)
+        upper_linear_limit = dst_func.get('upper_linear_limit')
+        if upper_linear_limit is not None:
+            upper_linear_limit = float(upper_linear_limit)
+
+        target_value, lower_bound, upper_bound =\
+            angle_target_values(target_value, target_value_uncertainty,
+                                lower_limit, upper_limit,
+                                lower_linear_limit, upper_linear_limit)
+
+        if target_value is None:
+            return dst_func
+
+        if angle_error(lower_bound, upper_bound, target_value, chi2) >\
+           angle_error(lower_bound, upper_bound, target_value, alt_chi2):
+            target_value = dst_func.get('target_value')
+            if target_value is not None:
+                target_value = float(target_value) + 180.0
+            lower_limit = dst_func.get('lower_limit')
+            if lower_limit is not None:
+                lower_limit = float(lower_limit) + 180.0
+            upper_limit = dst_func.get('upper_limit')
+            if upper_limit is not None:
+                upper_limit = float(upper_limit) + 180.0
+
+            if lower_linear_limit is not None:
+                lower_linear_limit += 180.0
+            if upper_linear_limit is not None:
+                upper_linear_limit += 180.0
+
+            _array = numpy.array([target_value, lower_limit, upper_limit, lower_linear_limit, upper_linear_limit],
+                                 dtype=float)
+
+            shift = 0.0
+            if correct_circular_shift:
+                if numpy.nanmin(_array) >= THRESHOLD_FOR_CIRCULAR_SHIFT:
+                    shift = -(numpy.nanmax(_array) // 360) * 360
+                elif numpy.nanmax(_array) <= -THRESHOLD_FOR_CIRCULAR_SHIFT:
+                    shift = -(numpy.nanmin(_array) // 360) * 360
+            if target_value is not None:
+                dst_func['target_value'] = str(target_value + shift)
+            if lower_limit is not None:
+                dst_func['lower_limit'] = str(lower_limit + shift)
+            if upper_limit is not None:
+                dst_func['upper_limit'] = str(upper_limit + shift)
+            if lower_linear_limit is not None:
+                dst_func['lower_linear_limit'] = str(lower_linear_limit + shift)
+            if upper_linear_limit is not None:
+                dst_func['upper_linear_limit'] = str(upper_linear_limit + shift)
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        if verbose:
+            log.write(f"+{listener.__class_name__}.selectRealisticChi2AngleConstraint() ++ Error  - {str(e)}")
+
+    return dst_func
 
 
 def rdc_dmax(atom_type_1: str, atom_type_2: str, bond_distance: float, hz_unit: bool = True):

@@ -3,6 +3,7 @@
 # Date:  24-Sep-2026  M. Yokochi
 #
 # Updates:
+# 08-Oct-2026  M. Yokochi - add tests for trimSfWoLpOf() (DAOTHER-7829)
 ##
 """Test cases for the minimal-copy helpers of ParserListenerUtil and their optional C accelerator.
 
@@ -27,7 +28,8 @@ from wwpdb.utils.nmr.mr.ParserListenerUtil import (USE_C_IMPLEMENTATION,
                                                    atomKey, atomKeyPy,
                                                    copyFactor, copyFactorPy,
                                                    copyPolySeq, copyPolySeqPy,
-                                                   factorKey, factorKeyPy)
+                                                   factorKey, factorKeyPy,
+                                                   trimSfWoLpOf)
 
 SCALARS = ["A", "HB2", 12, -3, 0, True, False, None, 1.25, "", "*"]
 
@@ -188,6 +190,39 @@ class ParserListenerUtilTests(unittest.TestCase):
             copyPolySeq([factor])
 
         self.assertEqual([sys.getrefcount(o) for o in watched], before)
+
+
+class TrimSfWoLpTests(unittest.TestCase):
+    """ trimSfWoLpOf() compared each saveframe with the whole {subtype: saveframe} dictionary, so it never trimmed,
+        and a later list of the same content subtype took a list id that the next file reused (DAOTHER-7829).
+    """
+
+    @staticmethod
+    def __sf(list_id, index_id):
+        return {'list_id': list_id, 'index_id': index_id}
+
+    def test_trims_empty_last_saveframe(self):
+        empty = self.__sf(1, 0)
+        sfDict = {('adist', 'anti-distance restraint', None, None, None): [empty]}
+        counter = trimSfWoLpOf(sfDict, {'adist': empty}, 'adist', {'other_restraint': 1, 'dist_restraint': 0})
+        self.assertEqual(sfDict, {})
+        self.assertEqual(counter['other_restraint'], 0)
+
+    def test_keeps_last_saveframe_with_rows(self):
+        full = self.__sf(1, 3)
+        sfDict = {('adist', 'anti-distance restraint', None, None, None): [full]}
+        counter = trimSfWoLpOf(sfDict, {'adist': full}, 'adist', {'other_restraint': 1})
+        self.assertEqual(sfDict, {('adist', 'anti-distance restraint', None, None, None): [full]})
+        self.assertEqual(counter['other_restraint'], 1)
+
+    def test_trims_the_last_saveframe_itself(self):
+        # an earlier saveframe with equal content must survive
+        first, last = self.__sf(1, 0), self.__sf(1, 0)
+        sfDict = {('dist', None, None, None, None): [first], ('dist', 'x', None, None, None): [last]}
+        counter = trimSfWoLpOf(sfDict, {'dist': last}, 'dist', {'dist_restraint': 2})
+        self.assertEqual(list(sfDict), [('dist', None, None, None, None)])
+        self.assertIs(sfDict[('dist', None, None, None, None)][0], first)
+        self.assertEqual(counter['dist_restraint'], 1)
 
 
 if __name__ == "__main__":

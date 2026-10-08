@@ -3,6 +3,9 @@
 # Date: 17-Oct-2025
 #
 # Updates:
+# 08-Oct-2026  M. Yokochi - keep the restraint's chain id in assignCoordPolymerSequence{WithChainId,}WithoutCompId()
+#                           instead of overwriting it with in-loop sequence remap lookups, which recorded the restraint
+#                           under chain None or assigned it depending on the order of chains (DAOTHER-7829)
 """ ParserLister class for ROSETTA MR files.
     @author: Masashi Yokochi
 """
@@ -40,7 +43,6 @@ try:
                                                REPRESENTATIVE_MODEL_ID,
                                                REPRESENTATIVE_ALT_ID,
                                                MAX_PREF_LABEL_SCHEME_COUNT,
-                                               LOCAL_OFFSET_ATTEMPT,
                                                MAX_ALLOWED_EXT_SEQ,
                                                UNREAL_AUTH_SEQ_NUM,
                                                THRESHOLD_FOR_CIRCULAR_SHIFT,
@@ -89,11 +91,9 @@ try:
                                            splitPolySeqRstForBranched,
                                            retrieveOriginalSeqIdFromMRMap)
     from wwpdb.utils.nmr.NmrVrptUtility import (to_np_array,
-                                                distance,
-                                                dist_error,
-                                                angle_target_values,
-                                                dihedral_angle,
-                                                angle_error)
+                                                select_realistic_bond_constraint,
+                                                select_realistic_chi2_angle_constraint,
+                                                distance)
     from wwpdb.utils.nmr.nef.NefTranslator import NefTranslator
     from wwpdb.utils.nmr.io.CifReader import CifReader
     from wwpdb.utils.nmr.mr.RosettaMRParser import RosettaMRParser
@@ -120,6 +120,8 @@ try:
                                                        contentSubtypeOf,
                                                        incListIdCounter,
                                                        decListIdCounter,
+                                                       getSfDictOf,
+                                                       nearestLocalOffset,
                                                        getSaveframe,
                                                        getLoop,
                                                        getRow,
@@ -147,7 +149,6 @@ except ImportError:
                                    REPRESENTATIVE_MODEL_ID,
                                    REPRESENTATIVE_ALT_ID,
                                    MAX_PREF_LABEL_SCHEME_COUNT,
-                                   LOCAL_OFFSET_ATTEMPT,
                                    MAX_ALLOWED_EXT_SEQ,
                                    UNREAL_AUTH_SEQ_NUM,
                                    THRESHOLD_FOR_CIRCULAR_SHIFT,
@@ -196,11 +197,9 @@ except ImportError:
                                splitPolySeqRstForBranched,
                                retrieveOriginalSeqIdFromMRMap)
     from nmr.NmrVrptUtility import (to_np_array,
-                                    distance,
-                                    dist_error,
-                                    angle_target_values,
-                                    dihedral_angle,
-                                    angle_error)
+                                    select_realistic_bond_constraint,
+                                    select_realistic_chi2_angle_constraint,
+                                    distance)
     from nmr.nef.NefTranslator import NefTranslator
     from nmr.io.CifReader import CifReader
     from nmr.mr.RosettaMRParser import RosettaMRParser
@@ -227,6 +226,8 @@ except ImportError:
                                            contentSubtypeOf,
                                            incListIdCounter,
                                            decListIdCounter,
+                                           getSfDictOf,
+                                           nearestLocalOffset,
                                            getSaveframe,
                                            getLoop,
                                            getRow,
@@ -1636,13 +1637,7 @@ class RosettaMRParserListener(ParseTreeListener):
                     if seqId in offset:
                         offset = offset[seqId]
                     else:
-                        for shift in range(1, LOCAL_OFFSET_ATTEMPT):
-                            if seqId + shift in offset:
-                                offset = offset[seqId + shift]
-                                break
-                            if seqId - shift in offset:
-                                offset = offset[seqId - shift]
-                                break
+                        offset = nearestLocalOffset(offset, seqId)
                 if seqId + offset in ps['auth_seq_id']:
                     return ps['auth_chain_id'], seqId + offset, ps['comp_id'][ps['auth_seq_id'].index(seqId + offset)]
             seqKey = (ps['auth_chain_id'], seqId)
@@ -1661,13 +1656,7 @@ class RosettaMRParserListener(ParseTreeListener):
                     if seqId in offset:
                         offset = offset[seqId]
                     else:
-                        for shift in range(1, LOCAL_OFFSET_ATTEMPT):
-                            if seqId + shift in offset:
-                                offset = offset[seqId + shift]
-                                break
-                            if seqId - shift in offset:
-                                offset = offset[seqId - shift]
-                                break
+                        offset = nearestLocalOffset(offset, seqId)
         if seqId + offset in ps['auth_seq_id']:
             return ps['auth_chain_id'], seqId + offset, ps['comp_id'][ps['auth_seq_id'].index(seqId + offset)]
         if self.__reasons is not None and 'extend_seq_scheme' in self.__reasons:
@@ -1700,6 +1689,8 @@ class RosettaMRParserListener(ParseTreeListener):
         chainAssign = set()
         _seqId = seqId
 
+        _refChainId = fixedChainId
+
         fixedSeqId = fixedCompId = None
 
         self.__allow_ext_seq = False
@@ -1715,6 +1706,8 @@ class RosettaMRParserListener(ParseTreeListener):
                 fixedChainId, fixedSeqId = retrieveRemappedChainId(self.__reasons['chain_id_clone'], seqId)
                 if seqId not in self.__reasons['chain_id_clone']:
                     self.__allow_ext_seq = True
+            if fixedChainId is None:
+                fixedChainId = _refChainId
             if fixedSeqId is not None:
                 seqId = _seqId = fixedSeqId
 
@@ -1728,16 +1721,16 @@ class RosettaMRParserListener(ParseTreeListener):
                         continue
                 elif 'global_auth_sequence_offset' not in self.__reasons:
                     if 'ext_chain_seq_id_remap' in self.__reasons:
-                        fixedChainId, fixedSeqId, fixedCompId =\
+                        remapChainId, fixedSeqId, fixedCompId =\
                             retrieveRemappedSeqIdAndCompId(self.__reasons['ext_chain_seq_id_remap'], chainId, seqId)
-                        if fixedChainId is not None and fixedChainId != chainId:
+                        if remapChainId is not None and remapChainId != chainId:
                             continue
                         if fixedSeqId is not None:
                             self.__allow_ext_seq = fixedCompId is not None
                             seqId = _seqId = fixedSeqId
                     if fixedSeqId is None and 'chain_seq_id_remap' in self.__reasons:
-                        fixedChainId, fixedSeqId = retrieveRemappedSeqId(self.__reasons['chain_seq_id_remap'], chainId, seqId)
-                        if fixedChainId is not None and fixedChainId != chainId:
+                        remapChainId, fixedSeqId = retrieveRemappedSeqId(self.__reasons['chain_seq_id_remap'], chainId, seqId)
+                        if remapChainId is not None and remapChainId != chainId:
                             continue
                         if fixedSeqId is not None:
                             seqId = _seqId = fixedSeqId
@@ -1756,11 +1749,11 @@ class RosettaMRParserListener(ParseTreeListener):
                 if self.__reasons is not None:
                     if 'non_poly_remap' in self.__reasons and cifCompId in self.__reasons['non_poly_remap']\
                        and seqId in self.__reasons['non_poly_remap'][cifCompId]:
-                        fixedChainId, fixedSeqId = retrieveRemappedNonPoly(self.__reasons['non_poly_remap'], None,
+                        remapChainId, fixedSeqId = retrieveRemappedNonPoly(self.__reasons['non_poly_remap'], None,
                                                                            chainId, seqId, cifCompId)
                         if fixedSeqId is not None:
                             seqId = _seqId = fixedSeqId
-                        if (fixedChainId is not None and fixedChainId != chainId) or seqId not in ps['auth_seq_id']:
+                        if (remapChainId is not None and remapChainId != chainId) or seqId not in ps['auth_seq_id']:
                             continue
                 updatePolySeqRst(self.__polySeqRst, chainId, _seqId, cifCompId)
                 if atomId is not None and cifCompId not in STD_MON_DICT and self.__mrAtomNameMapping:
@@ -1817,8 +1810,8 @@ class RosettaMRParserListener(ParseTreeListener):
                         if self.__reasons is not None:
                             if 'non_poly_remap' in self.__reasons and cifCompId in self.__reasons['non_poly_remap']\
                                and seqId in self.__reasons['non_poly_remap'][cifCompId]:
-                                fixedChainId, fixedSeqId = retrieveRemappedNonPoly(self.__reasons['non_poly_remap'],
-                                                                                   None, chainId, seqId, cifCompId)
+                                _, fixedSeqId = retrieveRemappedNonPoly(self.__reasons['non_poly_remap'],
+                                                                        None, chainId, seqId, cifCompId)
                                 if fixedSeqId is not None:
                                     seqId = _seqId = fixedSeqId
                         elif atomId in self.__uniqAtomIdToSeqKey:
@@ -1831,14 +1824,16 @@ class RosettaMRParserListener(ParseTreeListener):
                                     r[cifCompId][_seqId] = {'chain_id': seqKey[0], 'seq_id': seqKey[1], 'original_chain_id': None}
             for np in self.__nonPolySeq:
                 chainId, seqId, _ = self.getRealChainSeqId(np, _seqId, False)
+                if fixedChainId is not None and chainId != fixedChainId:
+                    continue
                 if self.__reasons is not None:
                     if 'seq_id_remap' not in self.__reasons and 'chain_seq_id_remap' not in self.__reasons:
                         if fixedChainId is not None and fixedChainId != chainId:
                             continue
                     else:
                         if 'chain_seq_id_remap' in self.__reasons:
-                            fixedChainId, fixedSeqId = retrieveRemappedSeqId(self.__reasons['chain_seq_id_remap'], chainId, seqId)
-                            if fixedChainId is not None and fixedChainId != chainId:
+                            remapChainId, fixedSeqId = retrieveRemappedSeqId(self.__reasons['chain_seq_id_remap'], chainId, seqId)
+                            if remapChainId is not None and remapChainId != chainId:
                                 continue
                             if fixedSeqId is not None:
                                 seqId = _seqId = fixedSeqId
@@ -2025,6 +2020,8 @@ class RosettaMRParserListener(ParseTreeListener):
         chainAssign = set()
         _seqId = seqId
 
+        _refChainId = fixedChainId
+
         fixedSeqId = fixedCompId = None
 
         self.__allow_ext_seq = False
@@ -2040,6 +2037,8 @@ class RosettaMRParserListener(ParseTreeListener):
                 fixedChainId, fixedSeqId = retrieveRemappedChainId(self.__reasons['chain_id_clone'], seqId)
                 if seqId not in self.__reasons['chain_id_clone']:
                     self.__allow_ext_seq = True
+            if fixedChainId is None:
+                fixedChainId = _refChainId
             if fixedSeqId is not None:
                 seqId = _seqId = fixedSeqId
 
@@ -2055,16 +2054,16 @@ class RosettaMRParserListener(ParseTreeListener):
                         continue
                 else:
                     if 'ext_chain_seq_id_remap' in self.__reasons:
-                        fixedChainId, fixedSeqId, fixedCompId =\
+                        remapChainId, fixedSeqId, fixedCompId =\
                             retrieveRemappedSeqIdAndCompId(self.__reasons['ext_chain_seq_id_remap'], chainId, seqId)
-                        if fixedChainId is not None and fixedChainId != chainId:
+                        if remapChainId is not None and remapChainId != chainId:
                             continue
                         if fixedSeqId is not None:
                             self.__allow_ext_seq = fixedCompId is not None
                             seqId = _seqId = fixedSeqId
                     if fixedSeqId is None and 'chain_seq_id_remap' in self.__reasons:
-                        fixedChainId, fixedSeqId = retrieveRemappedSeqId(self.__reasons['chain_seq_id_remap'], chainId, seqId)
-                        if fixedChainId is not None and fixedChainId != chainId:
+                        remapChainId, fixedSeqId = retrieveRemappedSeqId(self.__reasons['chain_seq_id_remap'], chainId, seqId)
+                        if remapChainId is not None and remapChainId != chainId:
                             continue
                         if fixedSeqId is not None:
                             seqId = _seqId = fixedSeqId
@@ -2085,11 +2084,11 @@ class RosettaMRParserListener(ParseTreeListener):
                 if self.__reasons is not None:
                     if 'non_poly_remap' in self.__reasons and cifCompId in self.__reasons['non_poly_remap']\
                        and seqId in self.__reasons['non_poly_remap'][cifCompId]:
-                        fixedChainId, fixedSeqId = retrieveRemappedNonPoly(self.__reasons['non_poly_remap'],
+                        remapChainId, fixedSeqId = retrieveRemappedNonPoly(self.__reasons['non_poly_remap'],
                                                                            None, chainId, seqId, cifCompId)
                         if fixedSeqId is not None:
                             seqId = _seqId = fixedSeqId
-                        if (fixedChainId is not None and fixedChainId != chainId) or seqId not in ps['auth_seq_id']:
+                        if (remapChainId is not None and remapChainId != chainId) or seqId not in ps['auth_seq_id']:
                             continue
                 updatePolySeqRst(self.__polySeqRst, fixedChainId, _seqId, cifCompId)
                 if atomId is None or len(self.__nefT.get_valid_star_atom(cifCompId, atomId)[0]) > 0:
@@ -2133,8 +2132,8 @@ class RosettaMRParserListener(ParseTreeListener):
                             continue
                     else:
                         if 'chain_seq_id_remap' in self.__reasons:
-                            fixedChainId, fixedSeqId = retrieveRemappedSeqId(self.__reasons['chain_seq_id_remap'], chainId, seqId)
-                            if fixedChainId is not None and fixedChainId != chainId:
+                            remapChainId, fixedSeqId = retrieveRemappedSeqId(self.__reasons['chain_seq_id_remap'], chainId, seqId)
+                            if remapChainId is not None and remapChainId != chainId:
                                 continue
                             if fixedSeqId is not None:
                                 seqId = _seqId = fixedSeqId
@@ -2807,287 +2806,77 @@ class RosettaMRParserListener(ParseTreeListener):
                                             f"{chainId}:{seqId}:{compId}:{atomId} is not present in the coordinates.")
         return atomId, asis
 
+    @property
+    def hasCoord(self) -> bool:
+        """ Whether the coordinates are available.
+        """
+
+        return self.__hasCoord
+
+    @property
+    def cR(self) -> CifReader:
+        """ Retrieve the coordinate reader.
+        """
+
+        return self.__cR
+
+    @property
+    def authAsymId(self) -> str:
+        """ Retrieve the atom_site item name for chain ID.
+        """
+
+        return self.__authAsymId
+
+    @property
+    def authSeqId(self) -> str:
+        """ Retrieve the atom_site item name for sequence ID.
+        """
+
+        return self.__authSeqId
+
+    @property
+    def authAtomId(self) -> str:
+        """ Retrieve the atom_site item name for atom ID.
+        """
+
+        return self.__authAtomId
+
+    @property
+    def modelNumName(self) -> str:
+        """ Retrieve the atom_site item name for model number.
+        """
+
+        return self.__modelNumName
+
+    @property
+    def representativeModelId(self) -> int:
+        """ Retrieve the representative model ID.
+        """
+
+        return self.__representativeModelId
+
+    @property
+    def representativeAltId(self) -> str:
+        """ Retrieve the representative alt ID.
+        """
+
+        return self.__representativeAltId
+
     def selectRealisticBondConstraint(self, atom1: str, atom2: str, alt_atom_id1: str, alt_atom_id2: str, dst_func: dict
                                       ) -> Tuple[str, str]:
         """ Return realistic bond constraint taking into account the current coordinates.
         """
 
-        if not self.__hasCoord:
-            return atom1, atom2
-
-        try:
-
-            _p1 =\
-                self.__cR.getDictListWithFilter('atom_site',
-                                                CARTN_DATA_ITEMS,
-                                                [{'name': self.__authAsymId, 'type': 'str', 'value': atom1['chain_id']},
-                                                 {'name': self.__authSeqId, 'type': 'int', 'value': atom1['seq_id']},
-                                                 {'name': self.__authAtomId, 'type': 'str', 'value': atom1['atom_id']},
-                                                 {'name': self.__modelNumName, 'type': 'int',
-                                                  'value': self.__representativeModelId},
-                                                 {'name': 'label_alt_id', 'type': 'enum',
-                                                  'enum': (self.__representativeAltId,)}
-                                                 ])
-
-            if len(_p1) != 1:
-                return atom1, atom2
-
-            p1 = to_np_array(_p1[0])
-
-            _p2 =\
-                self.__cR.getDictListWithFilter('atom_site',
-                                                CARTN_DATA_ITEMS,
-                                                [{'name': self.__authAsymId, 'type': 'str', 'value': atom2['chain_id']},
-                                                 {'name': self.__authSeqId, 'type': 'int', 'value': atom2['seq_id']},
-                                                 {'name': self.__authAtomId, 'type': 'str', 'value': atom2['atom_id']},
-                                                 {'name': self.__modelNumName, 'type': 'int',
-                                                  'value': self.__representativeModelId},
-                                                 {'name': 'label_alt_id', 'type': 'enum',
-                                                  'enum': (self.__representativeAltId,)}
-                                                 ])
-
-            if len(_p2) != 1:
-                return atom1, atom2
-
-            p2 = to_np_array(_p2[0])
-
-            d_org = distance(p1, p2)
-
-            lower_limit = dst_func.get('lower_limit')
-            if lower_limit is not None:
-                lower_limit = float(lower_limit)
-            upper_limit = dst_func.get('upper_limit')
-            if upper_limit is not None:
-                upper_limit = float(upper_limit)
-
-            if alt_atom_id1 is not None:
-
-                _p1 =\
-                    self.__cR.getDictListWithFilter('atom_site',
-                                                    CARTN_DATA_ITEMS,
-                                                    [{'name': self.__authAsymId, 'type': 'str', 'value': atom1['chain_id']},
-                                                     {'name': self.__authSeqId, 'type': 'int', 'value': atom1['seq_id']},
-                                                     {'name': self.__authAtomId, 'type': 'str', 'value': alt_atom_id1},
-                                                     {'name': self.__modelNumName, 'type': 'int',
-                                                      'value': self.__representativeModelId},
-                                                     {'name': 'label_alt_id', 'type': 'enum',
-                                                      'enum': (self.__representativeAltId,)}
-                                                     ])
-
-                if len(_p1) != 1:
-                    return atom1, atom2
-
-                p1_alt = to_np_array(_p1[0])
-
-                d_alt = distance(p1_alt, p2)
-
-                if dist_error(lower_limit, upper_limit, d_org) > dist_error(lower_limit, upper_limit, d_alt):
-                    if 'auth_atom_id' not in atom1:
-                        atom1['auth_atom_id'] = atom1['atom_id']
-                    atom1['atom_id'] = alt_atom_id1
-
-            elif alt_atom_id2 is not None:
-
-                _p2 =\
-                    self.__cR.getDictListWithFilter('atom_site',
-                                                    CARTN_DATA_ITEMS,
-                                                    [{'name': self.__authAsymId, 'type': 'str', 'value': atom2['chain_id']},
-                                                     {'name': self.__authSeqId, 'type': 'int', 'value': atom2['seq_id']},
-                                                     {'name': self.__authAtomId, 'type': 'str', 'value': alt_atom_id2},
-                                                     {'name': self.__modelNumName, 'type': 'int',
-                                                      'value': self.__representativeModelId},
-                                                     {'name': 'label_alt_id', 'type': 'enum',
-                                                      'enum': (self.__representativeAltId,)}
-                                                     ])
-
-                if len(_p2) != 1:
-                    return atom1, atom2
-
-                p2_alt = to_np_array(_p2[0])
-
-                d_alt = distance(p1, p2_alt)
-
-                if dist_error(lower_limit, upper_limit, d_org) > dist_error(lower_limit, upper_limit, d_alt):
-                    if 'auth_atom_id' not in atom2:
-                        atom2['auth_atom_id'] = atom2['atom_id']
-                    atom2['atom_id'] = alt_atom_id2
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            if self.__verbose:
-                self.__log.write(f"+{self.__class_name__}.selectRealisticBondConstraint() ++ Error  - {str(e)}")
-
-        return atom1, atom2
+        return select_realistic_bond_constraint(self, atom1, atom2, alt_atom_id1, alt_atom_id2, dst_func,
+                                                self.__verbose, self.__log)
 
     def selectRealisticChi2AngleConstraint(self, atom1: str, atom2: str, atom3: str, atom4: str, dst_func: dict
                                            ) -> dict:
         """ Return realistic chi2 angle constraint taking into account the current coordinates.
         """
 
-        if not self.__hasCoord:
-            return dst_func
-
-        try:
-
-            _p1 =\
-                self.__cR.getDictListWithFilter('atom_site',
-                                                CARTN_DATA_ITEMS,
-                                                [{'name': self.__authAsymId, 'type': 'str', 'value': atom1['chain_id']},
-                                                 {'name': self.__authSeqId, 'type': 'int', 'value': atom1['seq_id']},
-                                                 {'name': self.__authAtomId, 'type': 'str', 'value': atom1['atom_id']},
-                                                 {'name': self.__modelNumName, 'type': 'int',
-                                                  'value': self.__representativeModelId},
-                                                 {'name': 'label_alt_id', 'type': 'enum',
-                                                  'enum': (self.__representativeAltId,)}
-                                                 ])
-
-            if len(_p1) != 1:
-                return dst_func
-
-            p1 = to_np_array(_p1[0])
-
-            _p2 =\
-                self.__cR.getDictListWithFilter('atom_site',
-                                                CARTN_DATA_ITEMS,
-                                                [{'name': self.__authAsymId, 'type': 'str', 'value': atom2['chain_id']},
-                                                 {'name': self.__authSeqId, 'type': 'int', 'value': atom2['seq_id']},
-                                                 {'name': self.__authAtomId, 'type': 'str', 'value': atom2['atom_id']},
-                                                 {'name': self.__modelNumName, 'type': 'int',
-                                                  'value': self.__representativeModelId},
-                                                 {'name': 'label_alt_id', 'type': 'enum',
-                                                  'enum': (self.__representativeAltId,)}
-                                                 ])
-
-            if len(_p2) != 1:
-                return dst_func
-
-            p2 = to_np_array(_p2[0])
-
-            _p3 =\
-                self.__cR.getDictListWithFilter('atom_site',
-                                                CARTN_DATA_ITEMS,
-                                                [{'name': self.__authAsymId, 'type': 'str', 'value': atom3['chain_id']},
-                                                 {'name': self.__authSeqId, 'type': 'int', 'value': atom3['seq_id']},
-                                                 {'name': self.__authAtomId, 'type': 'str', 'value': atom3['atom_id']},
-                                                 {'name': self.__modelNumName, 'type': 'int',
-                                                  'value': self.__representativeModelId},
-                                                 {'name': 'label_alt_id', 'type': 'enum',
-                                                  'enum': (self.__representativeAltId,)}
-                                                 ])
-
-            if len(_p3) != 1:
-                return dst_func
-
-            p3 = to_np_array(_p3[0])
-
-            _p4 =\
-                self.__cR.getDictListWithFilter('atom_site',
-                                                CARTN_DATA_ITEMS,
-                                                [{'name': self.__authAsymId, 'type': 'str', 'value': atom4['chain_id']},
-                                                 {'name': self.__authSeqId, 'type': 'int', 'value': atom4['seq_id']},
-                                                 {'name': self.__authAtomId, 'type': 'str', 'value': 'CD1'},
-                                                 {'name': self.__modelNumName, 'type': 'int',
-                                                  'value': self.__representativeModelId},
-                                                 {'name': 'label_alt_id', 'type': 'enum',
-                                                  'enum': (self.__representativeAltId,)}
-                                                 ])
-
-            if len(_p4) != 1:
-                return dst_func
-
-            p4 = to_np_array(_p4[0])
-
-            chi2 = dihedral_angle(p1, p2, p3, p4)
-
-            _p4 =\
-                self.__cR.getDictListWithFilter('atom_site',
-                                                CARTN_DATA_ITEMS,
-                                                [{'name': self.__authAsymId, 'type': 'str', 'value': atom4['chain_id']},
-                                                 {'name': self.__authSeqId, 'type': 'int', 'value': atom4['seq_id']},
-                                                 {'name': self.__authAtomId, 'type': 'str', 'value': 'CD2'},
-                                                 {'name': self.__modelNumName, 'type': 'int',
-                                                  'value': self.__representativeModelId},
-                                                 {'name': 'label_alt_id', 'type': 'enum',
-                                                  'enum': (self.__representativeAltId,)}
-                                                 ])
-
-            if len(_p4) != 1:
-                return dst_func
-
-            alt_p4 = to_np_array(_p4[0])
-
-            alt_chi2 = dihedral_angle(p1, p2, p3, alt_p4)
-
-            target_value = dst_func.get('target_value')
-            if target_value is not None:
-                target_value = float(target_value)
-            target_value_uncertainty = dst_func.get('target_value_uncertainty')
-            if target_value_uncertainty is not None:
-                target_value_uncertainty = float(target_value_uncertainty)
-
-            lower_limit = dst_func.get('lower_limit')
-            if lower_limit is not None:
-                lower_limit = float(lower_limit)
-            upper_limit = dst_func.get('upper_limit')
-            if upper_limit is not None:
-                upper_limit = float(upper_limit)
-
-            lower_linear_limit = dst_func.get('lower_linear_limit')
-            if lower_linear_limit is not None:
-                lower_linear_limit = float(lower_linear_limit)
-            upper_linear_limit = dst_func.get('upper_linear_limit')
-            if upper_linear_limit is not None:
-                upper_linear_limit = float(upper_linear_limit)
-
-            target_value, lower_bound, upper_bound =\
-                angle_target_values(target_value, target_value_uncertainty,
-                                    lower_limit, upper_limit,
-                                    lower_linear_limit, upper_linear_limit)
-
-            if target_value is None:
-                return dst_func
-
-            if angle_error(lower_bound, upper_bound, target_value, chi2) >\
-               angle_error(lower_bound, upper_bound, target_value, alt_chi2):
-                target_value = dst_func.get('target_value')
-                if target_value is not None:
-                    target_value = float(target_value) + 180.0
-                lower_limit = dst_func.get('lower_limit')
-                if lower_limit is not None:
-                    lower_limit = float(lower_limit) + 180.0
-                upper_limit = dst_func.get('upper_limit')
-                if upper_limit is not None:
-                    upper_limit = float(upper_limit) + 180.0
-
-                if lower_linear_limit is not None:
-                    lower_linear_limit += 180.0
-                if upper_linear_limit is not None:
-                    upper_linear_limit += 180.0
-
-                _array = numpy.array([target_value, lower_limit, upper_limit, lower_linear_limit, upper_linear_limit],
-                                     dtype=float)
-
-                shift = 0.0
-                if self.__correctCircularShift:
-                    if numpy.nanmin(_array) >= THRESHOLD_FOR_CIRCULAR_SHIFT:
-                        shift = -(numpy.nanmax(_array) // 360) * 360
-                    elif numpy.nanmax(_array) <= -THRESHOLD_FOR_CIRCULAR_SHIFT:
-                        shift = -(numpy.nanmin(_array) // 360) * 360
-                if target_value is not None:
-                    dst_func['target_value'] = str(target_value + shift)
-                if lower_limit is not None:
-                    dst_func['lower_limit'] = str(lower_limit + shift)
-                if upper_limit is not None:
-                    dst_func['upper_limit'] = str(upper_limit + shift)
-                if lower_linear_limit is not None:
-                    dst_func['lower_linear_limit'] = str(lower_linear_limit + shift)
-                if upper_linear_limit is not None:
-                    dst_func['upper_linear_limit'] = str(upper_linear_limit + shift)
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            if self.__verbose:
-                self.__log.write(f"+{self.__class_name__}.selectRealisticChi2AngleConstraint() ++ Error  - {str(e)}")
-
-        return dst_func
+        return select_realistic_chi2_angle_constraint(self, atom1, atom2, atom3, atom4, dst_func,
+                                                      self.__verbose, self.__log, self.__correctCircularShift)
 
     def getCoordAtomSiteOf(self, chainId: str, seqId: int, cifCheck: bool = True, asis: bool = True
                            ) -> Tuple[Tuple[str, int], Optional[dict]]:
@@ -6358,16 +6147,5 @@ class RosettaMRParserListener(ParseTreeListener):
         """ Return a dictionary of pynmrstar saveframes.
         """
 
-        if len(self.sfDict) == 0:
-            return self.__listIdCounter, None
-        ign_keys = []
-        for k, v in self.sfDict.items():
-            for item in reversed(v):
-                if item['index_id'] == 0:
-                    v.remove(item)
-                    if len(v) == 0:
-                        ign_keys.append(k)
-                    self.__listIdCounter = decListIdCounter(k[0], self.__listIdCounter)
-        for k in ign_keys:
-            del self.sfDict[k]
-        return self.__listIdCounter, None if len(self.sfDict) == 0 else self.sfDict
+        self.__listIdCounter, sfDict = getSfDictOf(self.sfDict, self.__listIdCounter)
+        return self.__listIdCounter, sfDict

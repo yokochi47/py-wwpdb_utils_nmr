@@ -5,6 +5,8 @@
 #
 # Updates:
 # 01-Oct-2026  M. Yokochi - lex a one-byte-per-character str in place (latin1_input_stream.h) (DAOTHER-7829, 9785)
+# 08-Oct-2026  M. Yokochi - require speedy-antlr-tool 1.4.4, which ships the parse-tree reference leak fix
+#                           (upstream PR #19); drop the local support-library patch
 ##
 """ Generate the speedy-antlr-tool C++ accelerators for this package's grammars.
 
@@ -33,8 +35,10 @@
     the same name. (Note the -no-listener flag that speedy-antlr-tool's own
     example uses would strip the enterRule/exitRule hooks ParseTreeWalker needs.)
 
-    Requires the 'antlr4-tools' and 'speedy-antlr-tool' pip packages, and Java
-    (antlr4-tools provisions a JRE on first use).
+    Requires the 'antlr4-tools' and 'speedy-antlr-tool' (>= 1.4.4) pip packages,
+    and Java (antlr4-tools provisions a JRE on first use). 1.4.3's shared
+    speedy_antlr.cpp leaked the whole translated parse tree on every parse; the
+    fix is upstream since 1.4.4 (amykyta3/speedy-antlr-tool#19).
 
     Usage:
         python3 tools/gen_speedy_antlr.py --list
@@ -56,6 +60,10 @@ import urllib.request
 import zipfile
 
 ANTLR_VERSION = '4.13.2'
+
+# The first release with the convert_ctx() reference leak fix (upstream PR #19),
+# and the do_parse() template CPP_PATCHES are written against.
+MIN_SPEEDY_ANTLR_VERSION = (1, 4, 4)
 
 CPP_RUNTIME_URL = f'https://www.antlr.org/download/antlr4-cpp-runtime-{ANTLR_VERSION}-source.zip'
 
@@ -128,11 +136,17 @@ CPP_PATCHES = [
          '#include "speedy_antlr.h"\n'
          '#include "latin1_input_stream.h"  // wwPDB\n'),
         ('        // Extract input stream\'s string\n'
-         '        const char *cstrdata;\n'
+         '        char *cstrdata;\n'
          '        Py_ssize_t bufsize;\n'
          '        strdata = PyObject_GetAttrString(stream, "strdata");\n'
          '        if(!strdata) throw speedy_antlr::PythonException();\n'
-         '        cstrdata = PyUnicode_AsUTF8AndSize(strdata, &bufsize);\n'
+         '\n'
+         '        // PyUnicode_AsUTF8AndSize is not part of the stable ABI until python3.10\n'
+         '        // To maximize backwards compatibility, Working around by converting to\n'
+         '        // bytes, then to char instead\n'
+         '        strdata_as_bytes = PyCodec_Encode(strdata, "utf-8", NULL);\n'
+         '        if(!strdata_as_bytes) throw speedy_antlr::PythonException();\n'
+         '        PyBytes_AsStringAndSize(strdata_as_bytes, &cstrdata, &bufsize);\n'
          '        if(!cstrdata) throw speedy_antlr::PythonException();\n'
          '\n'
          '        // Create an antlr InputStream object\n'
@@ -154,9 +168,12 @@ CPP_PATCHES = [
          '                reinterpret_cast<const unsigned char *>(PyUnicode_1BYTE_DATA(strdata)),\n'
          '                static_cast<size_t>(PyUnicode_GET_LENGTH(strdata))));\n'
          '        } else {\n'
+         '            char *cstrdata;\n'
          '            Py_ssize_t bufsize;\n'
-         '            const char *cstrdata = PyUnicode_AsUTF8AndSize(strdata, &bufsize);\n'
-         '            if(!cstrdata) throw speedy_antlr::PythonException();\n'
+         '            strdata_as_bytes = PyCodec_Encode(strdata, "utf-8", NULL);\n'
+         '            if(!strdata_as_bytes) throw speedy_antlr::PythonException();\n'
+         '            if(PyBytes_AsStringAndSize(strdata_as_bytes, &cstrdata, &bufsize) < 0)\n'
+         '                throw speedy_antlr::PythonException();\n'
          '            cpp_stream_holder.reset(new antlr4::ANTLRInputStream(cstrdata, bufsize));\n'
          '        }\n'
          '        antlr4::CharStream &cpp_stream = *cpp_stream_holder;\n'),
@@ -168,53 +185,6 @@ CPP_PATCHES = [
 # tokenVocab: NmrViewNPKParser uses NmrViewPKLexer, and SparkyNPKParser and
 # SparkyRPKParser use SparkyPKLexer. Without this the generated C++ fails to
 # compile on a missing '<X>Lexer.h'.
-# speedy-antlr-tool 1.4.3's shared support library leaks the whole translated parse
-# tree on every parse. Translator::convert_ctx() reassigns its `stop` pointer once
-# per child but releases it only once at the end, so every token except the last
-# keeps a stray reference; in the rule branch the new reference returned by
-# PyObject_GetAttrString() is dropped on the floor as well. Measured on a 2 MB
-# input: RSS grew ~115 MB per parse without bound (272 MB -> 861 MB over six
-# parses) until the kernel killed the process. With this patch RSS is flat.
-#
-# generate() re-emits speedy_antlr.cpp from the tool's template, so the fix has to
-# live here rather than as an edit to the generated file.
-SUPPORT_LIBRARY_PATCHES = [
-    ('convert_ctx() releases the previous `stop` (terminal branch)', [
-        ('            if(token->getType() != antlr4::IntStream::EOF) {\n'
-         '                // Always set stop to current token\n'
-         '                stop = py_token;\n'
-         '                Py_INCREF(stop);\n'
-         '            }',
-         '            if(token->getType() != antlr4::IntStream::EOF) {\n'
-         '                // Always set stop to current token\n'
-         '                Py_XDECREF(stop);  // wwPDB: release the previous stop, else every\n'
-         '                                   // token but the last leaks one reference\n'
-         '                stop = py_token;\n'
-         '                Py_INCREF(stop);\n'
-         '            }'),
-    ]),
-    ('convert_ctx() releases the previous `stop` and unused lookups (rule branch)', [
-        ('            if(!start || start==Py_None) {\n'
-         '                start = PyObject_GetAttrString(py_child, "start");\n'
-         '            }\n'
-         '            PyObject *tmp_stop = PyObject_GetAttrString(py_child, "stop");\n'
-         '            if (tmp_stop && tmp_stop!=Py_None) stop = tmp_stop;',
-         '            if(!start || start==Py_None) {\n'
-         '                Py_XDECREF(start);  // wwPDB: start may hold a reference to None\n'
-         '                start = PyObject_GetAttrString(py_child, "start");\n'
-         '                if (!start) PyErr_Clear();\n'
-         '            }\n'
-         '            PyObject *tmp_stop = PyObject_GetAttrString(py_child, "stop");\n'
-         '            if (tmp_stop && tmp_stop!=Py_None) {\n'
-         '                Py_XDECREF(stop);  // wwPDB: release the previous stop\n'
-         '                stop = tmp_stop;\n'
-         '            } else {\n'
-         '                Py_XDECREF(tmp_stop);  // wwPDB: unused new reference\n'
-         '                if (!tmp_stop) PyErr_Clear();\n'
-         '            }'),
-    ]),
-]
-
 BORROWED_LEXER_CPP_PATCHES = [
     ('the generated C++ references the borrowed lexer', [
         ('#include "%(assumedLexer)s.h"', '#include "%(lexer)s.h"'),
@@ -315,6 +285,18 @@ def discoverGrammars() -> dict:
             found[name] = spec._replace(useSll=spec.useSll or useSll)
 
     return found
+
+
+def checkSpeedyAntlrVersion() -> None:
+    """ Refuse an older speedy-antlr-tool, whose support library leaks the parse tree.
+    """
+
+    from importlib.metadata import version
+
+    installed = version('speedy-antlr-tool')
+    if tuple(int(part) for part in re.findall(r'\d+', installed)[:3]) < MIN_SPEEDY_ANTLR_VERSION:
+        raise RuntimeError(f'speedy-antlr-tool {installed} is too old; '
+                           f'{".".join(map(str, MIN_SPEEDY_ANTLR_VERSION))} or later is required.')
 
 
 def fetchCppRuntime() -> None:
@@ -453,15 +435,6 @@ def generate(spec: GrammarSpec) -> dict:
             'sources': generatedSources(spec)}
 
 
-def patchSupportLibrary() -> None:
-    """ Fix the reference leaks in the shared speedy_antlr.cpp support library.
-        Applied once per run; every accelerator links the same copy.
-    """
-
-    applyPatches(os.path.join(CPP_SRC_DIR, 'speedy_antlr.cpp'), SUPPORT_LIBRARY_PATCHES, {})
-    print('\nspeedy_antlr.cpp: parse-tree reference leaks patched')
-
-
 def writeManifest(entries: list) -> None:
     """ Record the built accelerators for setup.py, which must not depend on this
         script (the container deletes tools/ after building).
@@ -520,9 +493,9 @@ def main() -> int:
         parser.error(f'unknown grammar(s): {", ".join(unknown)}; '
                      f'known: {", ".join(sorted(grammars))}')
 
+    checkSpeedyAntlrVersion()
     fetchCppRuntime()
     entries = [generate(grammars[name]) for name in names]
-    patchSupportLibrary()
     writeManifest(entries)
 
     print('\nNow build the accelerators:\n'
