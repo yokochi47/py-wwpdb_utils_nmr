@@ -221,7 +221,10 @@ class NmrDpRemediationPolySeq(NmrDpRemediationBase):
 
             free_cys = cys_total - disul_cys - other_cys
 
-            if free_cys > 0:
+            if cys_total == 0:  # no modeled CYS, but CYS residues in unmodeled region (6osw)
+                thiol_state = 'not present'
+
+            elif free_cys > 0:
                 if free_cys == cys_total:
                     thiol_state = 'all free'
                 elif disul_cys > 0 and other_cys > 0:
