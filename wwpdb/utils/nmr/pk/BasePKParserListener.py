@@ -3,6 +3,14 @@
 # Date: 03-Dec-2024
 #
 # Updates:
+# 09-Oct-2026  M. Yokochi - assignCoordPolymerSequenceWithChainIdWithoutCompId() without a chain returns no assignment again,
+#                           so that extractPeakAssignment() falls back to ...WithoutCompId() without pinning the default segment id
+#                           (AttributeError on the bare base instance of XEASY PROT) (DAOTHER-7829)
+# 09-Oct-2026  M. Yokochi - keep the chain id in assignCoordPolymerSequence{WithChainId,}WithoutCompId() instead of
+#                           overwriting it with in-loop sequence remap lookups, which recorded the assignment under
+#                           chain None or spread it to every chain with that residue number; the chain-assignment index
+#                           of extractPeakAssignment() no longer clobbers the term index of its loop; J-coupling transfer
+#                           remediation converts an integer chain id as relayed transfer remediation does (DAOTHER-7829)
 """ ParserLister base class for any peak list file.
     @author: Masashi Yokochi
 """
@@ -124,6 +132,7 @@ try:
                                                        contentSubtypeOf,
                                                        incListIdCounter,
                                                        decListIdCounter,
+                                                       getSfDictOf,
                                                        getSaveframe,
                                                        getPkLoop,
                                                        getAltLoops,
@@ -238,6 +247,7 @@ except ImportError:
                                            contentSubtypeOf,
                                            incListIdCounter,
                                            decListIdCounter,
+                                           getSfDictOf,
                                            getSaveframe,
                                            getPkLoop,
                                            getAltLoops,
@@ -3179,68 +3189,28 @@ class BasePKParserListener():
         """ Return whether peak assignment remediation based on J-coupling transfer is possible.
         """
 
-        chain_id, seq_id, comp_id, atom_id, chain_id2, seq_id2, comp_id2, atom_id2 =\
-            atom1['chain_id'], atom1['seq_id'], atom1['comp_id'], atom1['atom_id'], \
-            atom2['chain_id'], atom2['seq_id'], atom2['comp_id'], atom2['atom_id']
-
-        if chain_id == chain_id2 and seq_id == seq_id2:
-            return True
-
-        if chain_id == chain_id2 and seq_id != seq_id2:
-            shift, weight = self.__getCsValue(chain_id, seq_id, comp_id, atom_id)
-            shift2, weight2 = self.__getCsValue(chain_id, seq_id2, comp_id2, atom_id2)
-
-            if None in (shift, shift2):
-                return False
-
-            shift_, _ = self.__getCsValue(chain_id, seq_id2, comp_id2, atom_id)
-            shift2_, _ = self.__getCsValue(chain_id, seq_id, comp_id, atom_id2)
-
-            diff = ((position - shift) * weight) ** 2 + ((position2 - shift2) * weight2) ** 2
-            diff *= 2.0
-
-            diff_ = diff2_ = None
-            if shift_ is not None:
-                diff_ = ((position - shift_) * weight) ** 2 + ((position2 - shift2) * weight2) ** 2
-            if shift2_ is not None:
-                diff2_ = ((position - shift) * weight) ** 2 + ((position2 - shift2_) * weight2) ** 2
-
-            if diff_ is not None and diff2_ is not None:
-                if diff_ < diff and diff2_ < diff:
-                    if diff_ < diff2_:
-                        return True
-                    if diff_ > diff2_:
-                        return True
-                elif diff_ < diff:
-                    return True
-                elif diff2_ < diff:
-                    return True
-                else:
-                    if diff_ < diff2_ and diff_ < 1.0:
-                        return True
-                    if diff_ > diff2_ and diff2_ < 1.0:
-                        return True
-
-            elif diff_ is not None and (diff_ < diff or diff_ < 1.0):
-                return True
-
-            elif diff2_ is not None and (diff2_ < diff or diff2_ < 1.0):
-                return True
-
-        return False
+        return self.__canRemediatePeakAssignmentForTransfer(atom1, atom2, position, position2, False)
 
     def __canRemediatePeakAssignmentForRelayedTransfer(self, atom1: dict, atom2: dict, position: float, position2: float) -> bool:
         """ Return whether peak assignment remediation based on relayed transfer is possible.
+        """
+
+        return self.__canRemediatePeakAssignmentForTransfer(atom1, atom2, position, position2, True)
+
+    def __canRemediatePeakAssignmentForTransfer(self, atom1: dict, atom2: dict, position: float, position2: float, relayed: bool
+                                                ) -> bool:
+        """ Return whether peak assignment remediation based on relayed transfer (relayed), or J-coupling transfer otherwise,
+            is possible.
         """
 
         chain_id, seq_id, comp_id, atom_id, chain_id2, seq_id2, comp_id2, atom_id2 =\
             atom1['chain_id'], atom1['seq_id'], atom1['comp_id'], atom1['atom_id'], \
             atom2['chain_id'], atom2['seq_id'], atom2['comp_id'], atom2['atom_id']
 
-        if chain_id == chain_id2 and abs(seq_id - seq_id2) < 2:
+        if chain_id == chain_id2 and (abs(seq_id - seq_id2) < 2 if relayed else seq_id == seq_id2):
             return True
 
-        if chain_id == chain_id2:
+        if chain_id == chain_id2 and (relayed or seq_id != seq_id2):
             shift, weight = self.__getCsValue(chain_id, seq_id, comp_id, atom_id)
             shift2, weight2 = self.__getCsValue(chain_id, seq_id2, comp_id2, atom_id2)
 
@@ -4623,290 +4593,27 @@ class BasePKParserListener():
         """ Remediate peak assignment based on J-coupling transfer.
         """
 
-        is_reparsable = self.reasons is None and self.software_name != 'PIPP'
-
-        details_col = loop.tags.index('Details')
-
-        for dim_id_1, dim_id_2 in jcoupling_transfers:
-
-            if use_peak_row_format:
-
-                tags = [f'Entity_assembly_ID_{dim_id_1}', f'Comp_index_ID_{dim_id_1}',
-                        f'Comp_ID_{dim_id_1}', f'Atom_ID_{dim_id_1}', f'Position_{dim_id_1}',
-                        f'Entity_assembly_ID_{dim_id_2}', f'Comp_index_ID_{dim_id_2}',
-                        f'Comp_ID_{dim_id_2}', f'Atom_ID_{dim_id_2}', f'Position_{dim_id_2}']
-
-                dat = loop.get_tag(tags)
-
-                for idx, row in enumerate(dat):
-
-                    if any(True for col in range(10) if row[col] in EMPTY_VALUE):
-                        continue
-
-                    chain_id, seq_id, comp_id, atom_id, chain_id2, seq_id2, comp_id2, atom_id2 =\
-                        row[0], row[1], row[2], row[3], row[5], row[6], row[7], row[8]
-
-                    if isinstance(chain_id, int):
-                        chain_id = str(chain_id)
-
-                    if isinstance(chain_id2, int):
-                        chain_id2 = str(chain_id2)
-
-                    if isinstance(seq_id, str):
-                        seq_id = int(seq_id)
-
-                    if isinstance(seq_id2, str):
-                        seq_id2 = int(seq_id2)
-
-                    if chain_id == chain_id2 and seq_id == seq_id2:
-                        continue
-
-                    if chain_id == chain_id2 and seq_id != seq_id2:
-                        position, position2 = row[4], row[9]
-
-                        if isinstance(position, str):
-                            position = float(position)
-
-                        if isinstance(position2, str):
-                            position2 = float(position2)
-
-                        shift, weight = self.__getCsValue(chain_id, seq_id, comp_id, atom_id)
-                        shift2, weight2 = self.__getCsValue(chain_id, seq_id2, comp_id2, atom_id2)
-
-                        # pylint: disable=cell-var-from-loop
-                        def swap_seq_id_1():
-                            if loop.data[idx][details_col] in EMPTY_VALUE:
-                                loop.data[idx][details_col] = f'{seq_id}:{comp_id} -> {seq_id2}:{comp_id2}'
-                            loop.data[idx][loop.tags.index(f'Comp_index_ID_{dim_id_1}')] =\
-                                loop.data[idx][loop.tags.index(f'Comp_index_ID_{dim_id_2}')]
-                            loop.data[idx][loop.tags.index(f'Comp_ID_{dim_id_1}')] =\
-                                loop.data[idx][loop.tags.index(f'Comp_ID_{dim_id_2}')]
-                            loop.data[idx][loop.tags.index(f'Auth_seq_ID_{dim_id_1}')] =\
-                                loop.data[idx][loop.tags.index(f'Auth_seq_ID_{dim_id_2}')]
-                            loop.data[idx][loop.tags.index(f'Auth_comp_ID_{dim_id_1}')] =\
-                                loop.data[idx][loop.tags.index(f'Auth_comp_ID_{dim_id_2}')]
-
-                        # pylint: disable=cell-var-from-loop
-                        def swap_seq_id_2():
-                            if loop.data[idx][details_col] in EMPTY_VALUE:
-                                loop.data[idx][details_col] = f'{seq_id2}:{comp_id2} -> {seq_id}:{comp_id}'
-                            loop.data[idx][loop.tags.index(f'Comp_index_ID_{dim_id_2}')] =\
-                                loop.data[idx][loop.tags.index(f'Comp_index_ID_{dim_id_1}')]
-                            loop.data[idx][loop.tags.index(f'Comp_ID_{dim_id_2}')] =\
-                                loop.data[idx][loop.tags.index(f'Comp_ID_{dim_id_1}')]
-                            loop.data[idx][loop.tags.index(f'Auth_seq_ID_{dim_id_2}')] =\
-                                loop.data[idx][loop.tags.index(f'Auth_seq_ID_{dim_id_1}')]
-                            loop.data[idx][loop.tags.index(f'Auth_comp_ID_{dim_id_2}')] =\
-                                loop.data[idx][loop.tags.index(f'Auth_comp_ID_{dim_id_1}')]
-
-                        if None in (shift, shift2):
-
-                            if is_reparsable:
-                                self.reasonsForReParsing['jcoupling_idx_history'] = self.jcoupling_idx_history
-                                is_reparsable = False
-
-                            continue
-
-                        shift_, _ = self.__getCsValue(chain_id, seq_id2, comp_id2, atom_id)
-                        shift2_, _ = self.__getCsValue(chain_id, seq_id, comp_id, atom_id2)
-
-                        diff = ((position - shift) * weight) ** 2 + ((position2 - shift2) * weight2) ** 2
-                        diff *= 2.0
-
-                        diff_ = diff2_ = None
-                        if shift_ is not None:
-                            diff_ = ((position - shift_) * weight) ** 2 + ((position2 - shift2) * weight2) ** 2
-                        if shift2_ is not None:
-                            diff2_ = ((position - shift) * weight) ** 2 + ((position2 - shift2_) * weight2) ** 2
-
-                        if diff_ is not None and diff2_ is not None:
-                            if diff_ < diff and diff2_ < diff:
-                                if diff_ < diff2_:
-                                    swap_seq_id_1()
-                                    continue
-                                if diff_ > diff2_:
-                                    swap_seq_id_2()
-                                    continue
-                            elif diff_ < diff:
-                                swap_seq_id_1()
-                                continue
-                            elif diff2_ < diff:
-                                swap_seq_id_2()
-                                continue
-                            else:
-                                if diff_ < diff2_ and diff_ < 1.0:
-                                    swap_seq_id_1()
-                                    continue
-                                if diff_ > diff2_ and diff2_ < 1.0:
-                                    swap_seq_id_2()
-                                    continue
-
-                        elif diff_ is not None and (diff_ < diff or diff_ < 1.0):
-                            swap_seq_id_1()
-                            continue
-
-                        elif diff2_ is not None and (diff2_ < diff or diff2_ < 1.0):
-                            swap_seq_id_2()
-                            continue
-
-                        if is_reparsable:
-                            self.reasonsForReParsing['jcoupling_idx_history'] = self.jcoupling_idx_history
-                            is_reparsable = False
-
-                    else:
-
-                        if is_reparsable:
-                            self.reasonsForReParsing['jcoupling_idx_history'] = self.jcoupling_idx_history
-                            is_reparsable = False
-
-            else:
-
-                tags = ['Peak_ID', 'Spectral_dim_ID', 'Entity_assembly_ID', 'Comp_index_ID', 'Comp_ID', 'Atom_ID', 'Val']
-
-                seq_id_col = loop.tags.index('Comp_index_ID')
-                comp_id_col = loop.tags.index('Comp_ID')
-                auth_seq_id_col = loop.tags.index('Auth_seq_ID')
-                auth_comp_id_col = loop.tags.index('Auth_comp_ID')
-
-                dat = loop.get_tag(tags)
-
-                peak_id = None
-
-                for idx, row in enumerate(dat):
-                    dim_id = row[1]
-
-                    if any(True for col in range(7) if row[col] in EMPTY_VALUE):
-                        continue
-
-                    if dim_id == 1:
-                        peak_id = row[0]
-                        chain_ids, seq_ids, comp_ids, atom_ids, positions = [], [], [], [], []
-                    else:
-                        if peak_id != row[0]:
-                            continue
-
-                    chain_ids.append(row[2] if isinstance(row[2], str) else str(row[2]))  # noqa: E501, pylint: disable=possibly-used-before-assignment,line-too-long
-                    seq_ids.append(int(row[3]) if isinstance(row[3], str) else row[3])  # noqa: E501, pylint: disable=possibly-used-before-assignment,line-too-long
-                    comp_ids.append(row[4])  # pylint: disable=possibly-used-before-assignment
-                    atom_ids.append(row[5])  # pylint: disable=possibly-used-before-assignment
-                    positions.append(float(row[6]) if isinstance(row[6], str) else row[6])  # noqa: E501, pylint: disable=possibly-used-before-assignment,line-too-long
-
-                    if dim_id < num_of_dim:
-                        continue
-
-                    if len(atom_ids) < num_of_dim:
-                        continue
-
-                    _dim_id_1 = dim_id_1 - 1
-                    _dim_id_2 = dim_id_2 - 1
-
-                    chain_id, seq_id, comp_id, atom_id, position, chain_id2, seq_id2, comp_id2, atom_id2, position2 =\
-                        chain_ids[_dim_id_1], seq_ids[_dim_id_1], comp_ids[_dim_id_1], atom_ids[_dim_id_1], positions[_dim_id_1], \
-                        chain_ids[_dim_id_2], seq_ids[_dim_id_2], comp_ids[_dim_id_2], atom_ids[_dim_id_2], positions[_dim_id_2]
-
-                    if chain_id == chain_id2 and seq_id == seq_id2:
-                        continue
-
-                    if chain_id == chain_id2 and seq_id != seq_id2:
-                        shift, weight = self.__getCsValue(chain_id, seq_id, comp_id, atom_id)
-                        shift2, weight2 = self.__getCsValue(chain_id, seq_id2, comp_id2, atom_id2)
-
-                        # pylint: disable=cell-var-from-loop
-                        def alt_swap_seq_id_1():
-                            if loop.data[idx][details_col] in EMPTY_VALUE:
-                                loop.data[idx - num_of_dim + dim_id_1][details_col] = f'{seq_id}:{comp_id} -> {seq_id2}:{comp_id2}'
-                            loop.data[idx - num_of_dim + dim_id_1][seq_id_col] =\
-                                loop.data[idx - num_of_dim + dim_id_2][seq_id_col]
-                            loop.data[idx - num_of_dim + dim_id_1][comp_id_col] =\
-                                loop.data[idx - num_of_dim + dim_id_2][comp_id_col]
-                            loop.data[idx - num_of_dim + dim_id_1][auth_seq_id_col] =\
-                                loop.data[idx - num_of_dim + dim_id_2][auth_seq_id_col]
-                            loop.data[idx - num_of_dim + dim_id_1][auth_comp_id_col] =\
-                                loop.data[idx - num_of_dim + dim_id_2][auth_comp_id_col]
-
-                        # pylint: disable=cell-var-from-loop
-                        def alt_swap_seq_id_2():
-                            if loop.data[idx - num_of_dim + dim_id_2][details_col] in EMPTY_VALUE:
-                                loop.data[idx - num_of_dim + dim_id_2][details_col] = f'{seq_id2}:{comp_id2} -> {seq_id}:{comp_id}'
-                            loop.data[idx - num_of_dim + dim_id_2][seq_id_col] =\
-                                loop.data[idx - num_of_dim + dim_id_1][seq_id_col]
-                            loop.data[idx - num_of_dim + dim_id_2][comp_id_col] =\
-                                loop.data[idx - num_of_dim + dim_id_1][comp_id_col]
-                            loop.data[idx - num_of_dim + dim_id_2][auth_seq_id_col] =\
-                                loop.data[idx - num_of_dim + dim_id_1][auth_seq_id_col]
-                            loop.data[idx - num_of_dim + dim_id_2][auth_comp_id_col] =\
-                                loop.data[idx - num_of_dim + dim_id_1][auth_comp_id_col]
-
-                        if None in (shift, shift2):
-
-                            if is_reparsable:
-                                self.reasonsForReParsing['jcoupling_idx_history'] = self.jcoupling_idx_history
-                                is_reparsable = False
-
-                            continue
-
-                        shift_, _ = self.__getCsValue(chain_id, seq_id2, comp_id2, atom_id)
-                        shift2_, _ = self.__getCsValue(chain_id, seq_id, comp_id, atom_id2)
-
-                        diff = ((position - shift) * weight) ** 2 + ((position2 - shift2) * weight2) ** 2
-                        diff *= 2.0
-
-                        diff_ = diff2_ = None
-                        if shift_ is not None:
-                            diff_ = ((position - shift_) * weight) ** 2 + ((position2 - shift2) * weight2) ** 2
-                        if shift2_ is not None:
-                            diff2_ = ((position - shift) * weight) ** 2 + ((position2 - shift2_) * weight2) ** 2
-
-                        if diff_ is not None and diff2_ is not None:
-                            if diff_ < diff and diff2_ < diff:
-                                if diff_ < diff2_:
-                                    alt_swap_seq_id_1()
-                                    continue
-                                if diff_ > diff2_:
-                                    alt_swap_seq_id_2()
-                                    continue
-                            elif diff_ < diff:
-                                alt_swap_seq_id_1()
-                                continue
-                            elif diff2_ < diff:
-                                alt_swap_seq_id_2()
-                                continue
-                            else:
-                                if diff_ < diff2_ and diff_ < 1.0:
-                                    alt_swap_seq_id_1()
-                                    continue
-                                if diff_ > diff2_ and diff2_ < 1.0:
-                                    alt_swap_seq_id_2()
-                                    continue
-
-                        elif diff_ is not None and (diff_ < diff or diff_ < 1.0):
-                            alt_swap_seq_id_1()
-                            continue
-
-                        elif diff2_ is not None and (diff2_ < diff or diff2_ < 1.0):
-                            alt_swap_seq_id_2()
-                            continue
-
-                        if is_reparsable:
-                            self.reasonsForReParsing['jcoupling_idx_history'] = self.jcoupling_idx_history
-                            is_reparsable = False
-
-                    else:
-
-                        if is_reparsable:
-                            self.reasonsForReParsing['jcoupling_idx_history'] = self.jcoupling_idx_history
-                            is_reparsable = False
+        self.__remediatePeakAssignmentForTransfer(num_of_dim, jcoupling_transfers, use_peak_row_format, loop, False)
 
     def __remediatePeakAssignmentForRelayedTransfer(self, num_of_dim: int, relayed_transfers: List[List[int]],
                                                     use_peak_row_format: bool, loop: pynmrstar.Loop) -> None:
         """ Remediate peak assignment based on relayed transfer.
         """
 
+        self.__remediatePeakAssignmentForTransfer(num_of_dim, relayed_transfers, use_peak_row_format, loop, True)
+
+    def __remediatePeakAssignmentForTransfer(self, num_of_dim: int, transfers: List[List[int]],
+                                             use_peak_row_format: bool, loop: pynmrstar.Loop, relayed: bool) -> None:
+        """ Remediate peak assignment based on relayed transfer (relayed), or J-coupling transfer otherwise.
+        """
+
+        idx_history_key = 'relayed_idx_history' if relayed else 'jcoupling_idx_history'
+
         is_reparsable = self.reasons is None and self.software_name != 'PIPP'
 
         details_col = loop.tags.index('Details')
 
-        for dim_id_1, dim_id_2 in relayed_transfers:
+        for dim_id_1, dim_id_2 in transfers:
 
             if use_peak_row_format:
 
@@ -4937,10 +4644,10 @@ class BasePKParserListener():
                     if isinstance(seq_id2, str):
                         seq_id2 = int(seq_id2)
 
-                    if chain_id == chain_id2 and abs(seq_id - seq_id2) < 2:
+                    if chain_id == chain_id2 and (abs(seq_id - seq_id2) < 2 if relayed else seq_id == seq_id2):
                         continue
 
-                    if chain_id == chain_id2:
+                    if chain_id == chain_id2 and (relayed or seq_id != seq_id2):
                         position, position2 = row[4], row[9]
 
                         if isinstance(chain_id, int):
@@ -4984,7 +4691,7 @@ class BasePKParserListener():
                         if None in (shift, shift2):
 
                             if is_reparsable:
-                                self.reasonsForReParsing['relayed_idx_history'] = self.relayed_idx_history
+                                self.reasonsForReParsing[idx_history_key] = getattr(self, idx_history_key)
                                 is_reparsable = False
 
                             continue
@@ -5032,13 +4739,13 @@ class BasePKParserListener():
                             continue
 
                         if is_reparsable:
-                            self.reasonsForReParsing['relayed_idx_history'] = self.relayed_idx_history
+                            self.reasonsForReParsing[idx_history_key] = getattr(self, idx_history_key)
                             is_reparsable = False
 
                     else:
 
                         if is_reparsable:
-                            self.reasonsForReParsing['relayed_idx_history'] = self.relayed_idx_history
+                            self.reasonsForReParsing[idx_history_key] = getattr(self, idx_history_key)
                             is_reparsable = False
 
             else:
@@ -5086,10 +4793,10 @@ class BasePKParserListener():
                         chain_ids[_dim_id_1], seq_ids[_dim_id_1], comp_ids[_dim_id_1], atom_ids[_dim_id_1], positions[_dim_id_1], \
                         chain_ids[_dim_id_2], seq_ids[_dim_id_2], comp_ids[_dim_id_2], atom_ids[_dim_id_2], positions[_dim_id_2]
 
-                    if chain_id == chain_id2 and abs(seq_id - seq_id2) < 2:
+                    if chain_id == chain_id2 and (abs(seq_id - seq_id2) < 2 if relayed else seq_id == seq_id2):
                         continue
 
-                    if chain_id == chain_id2:
+                    if chain_id == chain_id2 and (relayed or seq_id != seq_id2):
                         chain_id = chain_ids[_dim_id_1]
 
                         if isinstance(chain_id, int):
@@ -5127,7 +4834,7 @@ class BasePKParserListener():
                         if None in (shift, shift2):
 
                             if is_reparsable:
-                                self.reasonsForReParsing['relayed_idx_history'] = self.relayed_idx_history
+                                self.reasonsForReParsing[idx_history_key] = getattr(self, idx_history_key)
                                 is_reparsable = False
 
                             continue
@@ -5175,13 +4882,13 @@ class BasePKParserListener():
                             continue
 
                         if is_reparsable:
-                            self.reasonsForReParsing['relayed_idx_history'] = self.relayed_idx_history
+                            self.reasonsForReParsing[idx_history_key] = getattr(self, idx_history_key)
                             is_reparsable = False
 
                     else:
 
                         if is_reparsable:
-                            self.reasonsForReParsing['relayed_idx_history'] = self.relayed_idx_history
+                            self.reasonsForReParsing[idx_history_key] = getattr(self, idx_history_key)
                             is_reparsable = False
 
     def __getCsValue(self, chain_id: str, seq_id: int, comp_id: str, atom_id: str
@@ -5268,49 +4975,34 @@ class BasePKParserListener():
                                                 'value': value})
                     return
 
-    def validatePeak2D(self, index: int, pos_1: float, pos_2: float,
-                       pos_unc_1: Optional[float], pos_unc_2: Optional[float],
-                       lw_1: Optional[float], lw_2: Optional[float],
-                       pos_hz_1: Optional[float], pos_hz_2: Optional[float],  # pylint: disable=unused-argument
-                       lw_hz_1: Optional[float], lw_hz_2: Optional[float],
+    def __validatePeak(self, index: int, positions: tuple, pos_uncs: tuple, lws: tuple, lw_hzs: tuple,
                        height: Optional[str], height_uncertainty: Optional[str],
                        volume: Optional[str], volume_uncertainty: Optional[str],
-                       figure_of_merit: Optional[Union[float, int]] = None
+                       figure_of_merit: Optional[Union[float, int]], num_of_dim: int
                        ) -> Optional[dict]:
-        """ Validate value range of 2D peak.
+        """ Validate value range of peak of a given dimension (positions, pos_uncs, lws, lw_hzs are given per dimension).
         """
 
         validRange = True
         dstFunc = {}
 
-        if CS_ERROR_MIN < pos_1 < CS_ERROR_MAX:
-            dstFunc['position_1'] = str(pos_1)
-        else:
-            validRange = False
-            self.f.append(f"[Range value error] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_1='{pos_1}' must be within range {CS_RESTRAINT_ERROR}.")
-
-        if CS_ERROR_MIN < pos_2 < CS_ERROR_MAX:
-            dstFunc['position_2'] = str(pos_2)
-        else:
-            validRange = False
-            self.f.append(f"[Range value error] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_2='{pos_2}' must be within range {CS_RESTRAINT_ERROR}.")
+        for dim, pos in enumerate(positions, start=1):
+            if CS_ERROR_MIN < pos < CS_ERROR_MAX:
+                dstFunc[f'position_{dim}'] = str(pos)
+            else:
+                validRange = False
+                self.f.append(f"[Range value error] {self.getCurrentSpectralPeak(n=index)}"
+                              f"The position_{dim}='{pos}' must be within range {CS_RESTRAINT_ERROR}.")
 
         if not validRange:
             return None
 
-        if CS_RANGE_MIN <= pos_1 <= CS_RANGE_MAX:
-            pass
-        else:
-            self.f.append(f"[Range value warning] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_1='{pos_1}' should be within range {CS_RESTRAINT_RANGE}.")
-
-        if CS_RANGE_MIN <= pos_2 <= CS_RANGE_MAX:
-            pass
-        else:
-            self.f.append(f"[Range value warning] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_2='{pos_2}' should be within range {CS_RESTRAINT_RANGE}.")
+        for dim, pos in enumerate(positions, start=1):
+            if CS_RANGE_MIN <= pos <= CS_RANGE_MAX:
+                pass
+            else:
+                self.f.append(f"[Range value warning] {self.getCurrentSpectralPeak(n=index)}"
+                              f"The position_{dim}='{pos}' should be within range {CS_RESTRAINT_RANGE}.")
 
         if height is not None and float(height) != 0.0:
             dstFunc['height'] = height
@@ -5326,19 +5018,15 @@ class BasePKParserListener():
                           "Neither peak height nor peak volume value is set. Please re-upload the NMR spectral peak list file.")
             return None
 
-        if pos_unc_1 is not None and pos_unc_1 != 0.0:
-            dstFunc['position_uncertainty_1'] = str(pos_unc_1) if pos_unc_1 > 0.0 else str(abs(pos_unc_1))
-        if pos_unc_2 is not None and pos_unc_2 != 0.0:
-            dstFunc['position_uncertainty_2'] = str(pos_unc_2) if pos_unc_2 > 0.0 else str(abs(pos_unc_2))
+        for dim, pos_unc in enumerate(pos_uncs, start=1):
+            if pos_unc is not None and pos_unc != 0.0:
+                dstFunc[f'position_uncertainty_{dim}'] = str(pos_unc) if pos_unc > 0.0 else str(abs(pos_unc))
 
-        if lw_hz_1 is not None and lw_hz_1 != 0.0:
-            dstFunc['line_width_1'] = str(lw_hz_1) if lw_hz_1 > 0.0 else str(abs(lw_hz_1))
-        elif lw_1 is not None and lw_1 != 0.0:
-            dstFunc['line_width_1'] = str(lw_1) if lw_1 > 0.0 else str(abs(lw_1))
-        if lw_hz_2 is not None and lw_hz_2 != 0.0:
-            dstFunc['line_width_2'] = str(lw_hz_2) if lw_hz_2 > 0.0 else str(abs(lw_hz_2))
-        elif lw_2 is not None and lw_2 != 0.0:
-            dstFunc['line_width_2'] = str(lw_2) if lw_2 > 0.0 else str(abs(lw_2))
+        for dim, (lw, lw_hz) in enumerate(zip(lws, lw_hzs), start=1):
+            if lw_hz is not None and lw_hz != 0.0:
+                dstFunc[f'line_width_{dim}'] = str(lw_hz) if lw_hz > 0.0 else str(abs(lw_hz))
+            elif lw is not None and lw != 0.0:
+                dstFunc[f'line_width_{dim}'] = str(lw) if lw > 0.0 else str(abs(lw))
 
         if figure_of_merit is not None:
             if WEIGHT_RANGE_MIN <= figure_of_merit <= WEIGHT_RANGE_MAX:
@@ -5347,15 +5035,31 @@ class BasePKParserListener():
                 self.f.append(f"[Range value warning] {self.getCurrentSpectralPeak(n=index)}"
                               f"The figure_of_merit='{figure_of_merit}' should be within range {WEIGHT_RANGE}.")
 
-        if self.peaks2D == 1 and self.__defaultSegId__ is not None:
+        if getattr(self, f'peaks{num_of_dim}D') == 1 and self.__defaultSegId__ is not None:
             self.__defaultSegId = self.__defaultSegId__
             if self.reasons is not None and 'default_seg_id' in self.reasons:
                 try:
-                    self.__defaultSegId = self.reasons['default_seg_id'][2][self.cur_list_id]
+                    self.__defaultSegId = self.reasons['default_seg_id'][num_of_dim][self.cur_list_id]
                 except KeyError:
                     pass
 
         return dstFunc
+
+    def validatePeak2D(self, index: int, pos_1: float, pos_2: float,
+                       pos_unc_1: Optional[float], pos_unc_2: Optional[float],
+                       lw_1: Optional[float], lw_2: Optional[float],
+                       pos_hz_1: Optional[float], pos_hz_2: Optional[float],  # pylint: disable=unused-argument
+                       lw_hz_1: Optional[float], lw_hz_2: Optional[float],
+                       height: Optional[str], height_uncertainty: Optional[str],
+                       volume: Optional[str], volume_uncertainty: Optional[str],
+                       figure_of_merit: Optional[Union[float, int]] = None
+                       ) -> Optional[dict]:
+        """ Validate value range of 2D peak.
+        """
+
+        return self.__validatePeak(index, (pos_1, pos_2), (pos_unc_1, pos_unc_2),
+                                   (lw_1, lw_2), (lw_hz_1, lw_hz_2),
+                                   height, height_uncertainty, volume, volume_uncertainty, figure_of_merit, 2)
 
     def validatePeak3D(self, index: int, pos_1: float, pos_2: float, pos_3: float,
                        pos_unc_1: Optional[float], pos_unc_2: Optional[float], pos_unc_3: Optional[float],
@@ -5370,101 +5074,9 @@ class BasePKParserListener():
         """ Validate value range of 3D peak.
         """
 
-        validRange = True
-        dstFunc = {}
-
-        if CS_ERROR_MIN < pos_1 < CS_ERROR_MAX:
-            dstFunc['position_1'] = str(pos_1)
-        else:
-            validRange = False
-            self.f.append(f"[Range value error] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_1='{pos_1}' must be within range {CS_RESTRAINT_ERROR}.")
-
-        if CS_ERROR_MIN < pos_2 < CS_ERROR_MAX:
-            dstFunc['position_2'] = str(pos_2)
-        else:
-            validRange = False
-            self.f.append(f"[Range value error] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_2='{pos_2}' must be within range {CS_RESTRAINT_ERROR}.")
-
-        if CS_ERROR_MIN < pos_3 < CS_ERROR_MAX:
-            dstFunc['position_3'] = str(pos_3)
-        else:
-            validRange = False
-            self.f.append(f"[Range value error] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_3='{pos_3}' must be within range {CS_RESTRAINT_ERROR}.")
-
-        if not validRange:
-            return None
-
-        if CS_RANGE_MIN <= pos_1 <= CS_RANGE_MAX:
-            pass
-        else:
-            self.f.append(f"[Range value warning] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_1='{pos_1}' should be within range {CS_RESTRAINT_RANGE}.")
-
-        if CS_RANGE_MIN <= pos_2 <= CS_RANGE_MAX:
-            pass
-        else:
-            self.f.append(f"[Range value warning] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_2='{pos_2}' should be within range {CS_RESTRAINT_RANGE}.")
-
-        if CS_RANGE_MIN <= pos_3 <= CS_RANGE_MAX:
-            pass
-        else:
-            self.f.append(f"[Range value warning] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_3='{pos_3}' should be within range {CS_RESTRAINT_RANGE}.")
-
-        if height is not None and float(height) != 0.0:
-            dstFunc['height'] = height
-        if volume is not None and float(volume) != 0.0:
-            dstFunc['volume'] = volume
-        if height_uncertainty is not None and float(height_uncertainty) != 0.0:
-            dstFunc['height_uncertainty'] = height_uncertainty
-        if volume_uncertainty is not None and float(volume_uncertainty) != 0.0:
-            dstFunc['volume_uncertainty'] = volume_uncertainty
-
-        if 'height' not in dstFunc and 'volume' not in dstFunc and not self.__internal:
-            self.f.append(f"[Missing data] {self.getCurrentSpectralPeak(n=index)}"
-                          "Neither peak height nor peak volume value is set. Please re-upload the NMR spectral peak list file.")
-            return None
-
-        if pos_unc_1 is not None and pos_unc_1 != 0.0:
-            dstFunc['position_uncertainty_1'] = str(pos_unc_1) if pos_unc_1 > 0.0 else str(abs(pos_unc_1))
-        if pos_unc_2 is not None and pos_unc_2 != 0.0:
-            dstFunc['position_uncertainty_2'] = str(pos_unc_2) if pos_unc_2 > 0.0 else str(abs(pos_unc_2))
-        if pos_unc_3 is not None and pos_unc_3 != 0.0:
-            dstFunc['position_uncertainty_3'] = str(pos_unc_3) if pos_unc_3 > 0.0 else str(abs(pos_unc_3))
-
-        if lw_hz_1 is not None and lw_hz_1 != 0.0:
-            dstFunc['line_width_1'] = str(lw_hz_1) if lw_hz_1 > 0.0 else str(abs(lw_hz_1))
-        elif lw_1 is not None and lw_1 != 0.0:
-            dstFunc['line_width_1'] = str(lw_1) if lw_1 > 0.0 else str(abs(lw_1))
-        if lw_hz_2 is not None and lw_hz_2 != 0.0:
-            dstFunc['line_width_2'] = str(lw_hz_2) if lw_hz_2 > 0.0 else str(abs(lw_hz_2))
-        elif lw_2 is not None and lw_2 != 0.0:
-            dstFunc['line_width_2'] = str(lw_2) if lw_2 > 0.0 else str(abs(lw_2))
-        if lw_hz_3 is not None and lw_hz_3 != 0.0:
-            dstFunc['line_width_3'] = str(lw_hz_3) if lw_hz_3 > 0.0 else str(abs(lw_hz_3))
-        elif lw_3 is not None and lw_3 != 0.0:
-            dstFunc['line_width_3'] = str(lw_3) if lw_3 > 0.0 else str(abs(lw_3))
-
-        if figure_of_merit is not None:
-            if WEIGHT_RANGE_MIN <= figure_of_merit <= WEIGHT_RANGE_MAX:
-                dstFunc['figure_of_merit'] = str(figure_of_merit)
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentSpectralPeak(n=index)}"
-                              f"The figure_of_merit='{figure_of_merit}' should be within range {WEIGHT_RANGE}.")
-
-        if self.peaks3D == 1 and self.__defaultSegId__ is not None:
-            self.__defaultSegId = self.__defaultSegId__
-            if self.reasons is not None and 'default_seg_id' in self.reasons:
-                try:
-                    self.__defaultSegId = self.reasons['default_seg_id'][3][self.cur_list_id]
-                except KeyError:
-                    pass
-
-        return dstFunc
+        return self.__validatePeak(index, (pos_1, pos_2, pos_3), (pos_unc_1, pos_unc_2, pos_unc_3),
+                                   (lw_1, lw_2, lw_3), (lw_hz_1, lw_hz_2, lw_hz_3),
+                                   height, height_uncertainty, volume, volume_uncertainty, figure_of_merit, 3)
 
     def validatePeak4D(self, index: int, pos_1: float, pos_2: float, pos_3: float, pos_4: float,
                        pos_unc_1: Optional[float], pos_unc_2: Optional[float],
@@ -5480,120 +5092,9 @@ class BasePKParserListener():
         """ Validate value range of 4D peak.
         """
 
-        validRange = True
-        dstFunc = {}
-
-        if CS_ERROR_MIN < pos_1 < CS_ERROR_MAX:
-            dstFunc['position_1'] = str(pos_1)
-        else:
-            validRange = False
-            self.f.append(f"[Range value error] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_1='{pos_1}' must be within range {CS_RESTRAINT_ERROR}.")
-
-        if CS_ERROR_MIN < pos_2 < CS_ERROR_MAX:
-            dstFunc['position_2'] = str(pos_2)
-        else:
-            validRange = False
-            self.f.append(f"[Range value error] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_2='{pos_2}' must be within range {CS_RESTRAINT_ERROR}.")
-
-        if CS_ERROR_MIN < pos_3 < CS_ERROR_MAX:
-            dstFunc['position_3'] = str(pos_3)
-        else:
-            validRange = False
-            self.f.append(f"[Range value error] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_3='{pos_3}' must be within range {CS_RESTRAINT_ERROR}.")
-
-        if CS_ERROR_MIN < pos_4 < CS_ERROR_MAX:
-            dstFunc['position_4'] = str(pos_4)
-        else:
-            validRange = False
-            self.f.append(f"[Range value error] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_4='{pos_4}' must be within range {CS_RESTRAINT_ERROR}.")
-
-        if not validRange:
-            return None
-
-        if CS_RANGE_MIN <= pos_1 <= CS_RANGE_MAX:
-            pass
-        else:
-            self.f.append(f"[Range value warning] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_1='{pos_1}' should be within range {CS_RESTRAINT_RANGE}.")
-
-        if CS_RANGE_MIN <= pos_2 <= CS_RANGE_MAX:
-            pass
-        else:
-            self.f.append(f"[Range value warning] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_2='{pos_2}' should be within range {CS_RESTRAINT_RANGE}.")
-
-        if CS_RANGE_MIN <= pos_3 <= CS_RANGE_MAX:
-            pass
-        else:
-            self.f.append(f"[Range value warning] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_3='{pos_3}' should be within range {CS_RESTRAINT_RANGE}.")
-
-        if CS_RANGE_MIN <= pos_4 <= CS_RANGE_MAX:
-            pass
-        else:
-            self.f.append(f"[Range value warning] {self.getCurrentSpectralPeak(n=index)}"
-                          f"The position_4='{pos_4}' should be within range {CS_RESTRAINT_RANGE}.")
-
-        if height is not None and float(height) != 0.0:
-            dstFunc['height'] = height
-        if volume is not None and float(volume) != 0.0:
-            dstFunc['volume'] = volume
-        if height_uncertainty is not None and float(height_uncertainty) != 0.0:
-            dstFunc['height_uncertainty'] = height_uncertainty
-        if volume_uncertainty is not None and float(volume_uncertainty) != 0.0:
-            dstFunc['volume_uncertainty'] = volume_uncertainty
-
-        if 'height' not in dstFunc and 'volume' not in dstFunc and not self.__internal:
-            self.f.append(f"[Missing data] {self.getCurrentSpectralPeak(n=index)}"
-                          "Neither peak height nor peak volume value is set. Please re-upload the NMR spectral peak list file.")
-            return None
-
-        if pos_unc_1 is not None and pos_unc_1 != 0.0:
-            dstFunc['position_uncertainty_1'] = str(pos_unc_1) if pos_unc_1 > 0.0 else str(abs(pos_unc_1))
-        if pos_unc_2 is not None and pos_unc_2 != 0.0:
-            dstFunc['position_uncertainty_2'] = str(pos_unc_2) if pos_unc_2 > 0.0 else str(abs(pos_unc_2))
-        if pos_unc_3 is not None and pos_unc_3 != 0.0:
-            dstFunc['position_uncertainty_3'] = str(pos_unc_3) if pos_unc_3 > 0.0 else str(abs(pos_unc_3))
-        if pos_unc_4 is not None and pos_unc_4 != 0.0:
-            dstFunc['position_uncertainty_4'] = str(pos_unc_4) if pos_unc_4 > 0.0 else str(abs(pos_unc_4))
-
-        if lw_hz_1 is not None and lw_hz_1 != 0.0:
-            dstFunc['line_width_1'] = str(lw_hz_1) if lw_hz_1 > 0.0 else str(abs(lw_hz_1))
-        elif lw_1 is not None and lw_1 != 0.0:
-            dstFunc['line_width_1'] = str(lw_1) if lw_1 > 0.0 else str(abs(lw_1))
-        if lw_hz_2 is not None and lw_hz_2 != 0.0:
-            dstFunc['line_width_2'] = str(lw_hz_2) if lw_hz_2 > 0.0 else str(abs(lw_hz_2))
-        elif lw_2 is not None and lw_2 != 0.0:
-            dstFunc['line_width_2'] = str(lw_2) if lw_2 > 0.0 else str(abs(lw_2))
-        if lw_hz_3 is not None and lw_hz_3 != 0.0:
-            dstFunc['line_width_3'] = str(lw_hz_3) if lw_hz_3 > 0.0 else str(abs(lw_hz_3))
-        elif lw_3 is not None and lw_3 != 0.0:
-            dstFunc['line_width_3'] = str(lw_3) if lw_3 > 0.0 else str(abs(lw_3))
-        if lw_hz_4 is not None and lw_hz_4 != 0.0:
-            dstFunc['line_width_4'] = str(lw_hz_4) if lw_hz_4 > 0.0 else str(abs(lw_hz_4))
-        elif lw_4 is not None and lw_4 != 0.0:
-            dstFunc['line_width_4'] = str(lw_4) if lw_4 > 0.0 else str(abs(lw_4))
-
-        if figure_of_merit is not None:
-            if WEIGHT_RANGE_MIN <= figure_of_merit <= WEIGHT_RANGE_MAX:
-                dstFunc['figure_of_merit'] = str(figure_of_merit)
-            else:
-                self.f.append(f"[Range value warning] {self.getCurrentSpectralPeak(n=index)}"
-                              f"The figure_of_merit='{figure_of_merit}' should be within range {WEIGHT_RANGE}.")
-
-        if self.peaks4D == 1 and self.__defaultSegId__ is not None:
-            self.__defaultSegId = self.__defaultSegId__
-            if self.reasons is not None and 'default_seg_id' in self.reasons:
-                try:
-                    self.__defaultSegId = self.reasons['default_seg_id'][4][self.cur_list_id]
-                except KeyError:
-                    pass
-
-        return dstFunc
+        return self.__validatePeak(index, (pos_1, pos_2, pos_3, pos_4), (pos_unc_1, pos_unc_2, pos_unc_3, pos_unc_4),
+                                   (lw_1, lw_2, lw_3, lw_4), (lw_hz_1, lw_hz_2, lw_hz_3, lw_hz_4),
+                                   height, height_uncertainty, volume, volume_uncertainty, figure_of_merit, 4)
 
     def selectProbablePosition(self, index: int, label: str, positions: List[float],
                                with_segid: Optional[str] = None, with_compid: Optional[str] = None) -> float:
@@ -8446,6 +7947,118 @@ class BasePKParserListener():
 
         segId = _segId = resId = resName = atomName = _segId_ = _resId_ = authResId = None
         dimId = 1
+
+        def append_atom_assignment() -> bool:
+            """ Assign the current atom (atomName) to the coordinates and append it to ret.
+                @return: whether the atom is skipped as an ignorable diagonal assignment
+            """
+            nonlocal _, atomName, details, dimId, resName, segId
+
+            if self.__hasCoord:
+                if segId is None and resName is None:
+                    chainAssign =\
+                        self.assignCoordPolymerSequenceWithChainIdWithoutCompId(self.__defaultSegId, resId, atomName, src_index)
+                    if len(chainAssign) > 0:
+                        if self.__defaultSegId is None:
+                            ca_idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
+                        else:
+                            ca_idx = next((chainAssign.index(a) for a in chainAssign
+                                           if a[0] == self.__defaultSegId and a[1] == resId), -1)
+                            if ca_idx == -1:
+                                ca_idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
+                        if ca_idx != -1:
+                            # if self.__defaultSegId is None:
+                            self.__defaultSegId = chainAssign[ca_idx][0]
+                        else:
+                            ca_idx = 0
+                        segId, _, resName, _ = chainAssign[ca_idx]
+                    else:
+                        chainAssign = self.assignCoordPolymerSequenceWithoutCompId(resId, atomName, src_index)
+                        if len(chainAssign) > 0:
+                            if self.__defaultSegId is None:
+                                ca_idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
+                            else:
+                                ca_idx = next((chainAssign.index(a) for a in chainAssign
+                                               if a[0] == self.__defaultSegId and a[1] == resId), -1)
+                                if ca_idx == -1:
+                                    ca_idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
+                            if ca_idx != -1:
+                                # if self.__defaultSegId is None:
+                                # self.__defaultSegId = chainAssign[ca_idx][0]
+                                pass
+                            else:
+                                ca_idx = 0
+                            segId, _, resName, _ = chainAssign[ca_idx]
+                elif segId is None:
+                    chainAssign, _ = self.assignCoordPolymerSequence(self.__defaultSegId,
+                                                                     resId, resName, atomName, src_index)
+                    is_valid = is_valid_chain_assign(chainAssign, resName)
+                    if not is_valid:
+                        if self.__defaultSegId != self.__defaultSegId__:
+                            __preferAuthSeq = self.__preferAuthSeq
+                            self.__preferAuthSeq = not __preferAuthSeq
+                            chainAssign, _ = self.assignCoordPolymerSequenceWithChainId(self.__defaultSegId__,
+                                                                                        resId, resName, atomName, src_index)
+                            is_valid = is_valid_chain_assign(chainAssign, resName)
+                            self.__preferAuthSeq = __preferAuthSeq
+                    if is_valid:
+                        ca_idx = next((chainAssign.index(a) for a in chainAssign if a[2] == resName), -1)
+                        if ca_idx != -1:
+                            # if self.__defaultSegId is None:
+                            self.__defaultSegId = chainAssign[ca_idx][0]
+                        else:
+                            ca_idx = 0
+                        segId = chainAssign[ca_idx][0]
+                    else:
+                        chainAssign, _ = self.assignCoordPolymerSequence(None,
+                                                                         resId, resName, atomName, src_index)
+                        if is_valid_chain_assign(chainAssign, resName):
+                            ca_idx = next((chainAssign.index(a) for a in chainAssign if a[2] == resName), -1)
+                            if ca_idx != -1:
+                                # if self.__defaultSegId is None:
+                                self.__defaultSegId = chainAssign[ca_idx][0]
+                                if self.reasons is None:
+                                    r = self.__getNamedReasonsForReparsing('default_seg_id')
+                                    if self.num_of_dim not in r:
+                                        r[self.num_of_dim] = {}
+                                    if self.cur_list_id != -1 and self.cur_list_id not in r[self.num_of_dim]:
+                                        r[self.num_of_dim][self.cur_list_id] = self.__defaultSegId
+                            else:
+                                ca_idx = 0
+                            segId = chainAssign[ca_idx][0]
+                elif resName is None:
+                    chainAssign = self.assignCoordPolymerSequenceWithChainIdWithoutCompId(segId, resId, atomName, src_index)
+                    if len(chainAssign) > 0:
+                        ca_idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), 0)
+                        resName = chainAssign[ca_idx][2]
+                _, _, details = self.nefT.get_valid_star_atom_in_xplor(resName, atomName, leave_unmatched=True)
+                if details is not None:
+                    atomName = translateToStdAtomName(atomName, resName, ccU=self.ccU)
+                if any(True for item in ret
+                       if item['chain_id'] == segId and item['seq_id'] == resId and item['atom_id'] == atomName):
+                    if self.__ignore_diagonal:
+                        return True
+                ret.append({'dim_id': dimId, 'chain_id': segId, 'auth_chain_id': _segId, 'seq_id': resId,
+                            'auth_seq_id': authResId, 'comp_id': resName, 'atom_id': atomName})
+            else:
+                if any(True for item in ret
+                       if (segId is None or item['chain_id'] == segId)
+                       and item['seq_id'] == resId and item['atom_id'] == atomName):
+                    if self.__ignore_diagonal:
+                        return True
+                ass = {'dim': dimId, 'atom_id': atomName}
+                if _segId is not None:
+                    ass['auth_chain_id'] = _segId
+                if segId is not None:
+                    ass['chain_id'] = segId
+                if resId is not None:
+                    ass['seq_id'] = resId
+                if resName is not None:
+                    ass['comp_id'] = resName
+                ret.append(ass)
+            dimId += 1
+            return False
+
         for idx, term in enumerate(_str):
             if segIdLike[idx]:
                 segId = _segId = term[segIdSpan[idx][0]:segIdSpan[idx][1]]
@@ -8479,109 +8092,8 @@ class BasePKParserListener():
                         return None
                     resId = _resId[len(ret)]
                 atomName = term[___atomNameSpan[idx][0]:___atomNameSpan[idx][1]]
-                if self.__hasCoord:
-                    if segId is None and resName is None:
-                        chainAssign =\
-                            self.assignCoordPolymerSequenceWithChainIdWithoutCompId(self.__defaultSegId, resId, atomName, src_index)
-                        if len(chainAssign) > 0:
-                            if self.__defaultSegId is None:
-                                idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                            else:
-                                idx = next((chainAssign.index(a) for a in chainAssign
-                                            if a[0] == self.__defaultSegId and a[1] == resId), -1)
-                                if idx == -1:
-                                    idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                            if idx != -1:
-                                # if self.__defaultSegId is None:
-                                self.__defaultSegId = chainAssign[idx][0]
-                            else:
-                                idx = 0
-                            segId, _, resName, _ = chainAssign[idx]
-                        else:
-                            chainAssign = self.assignCoordPolymerSequenceWithoutCompId(resId, atomName, src_index)
-                            if len(chainAssign) > 0:
-                                if self.__defaultSegId is None:
-                                    idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                                else:
-                                    idx = next((chainAssign.index(a) for a in chainAssign
-                                                if a[0] == self.__defaultSegId and a[1] == resId), -1)
-                                    if idx == -1:
-                                        idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                                if idx != -1:
-                                    # if self.__defaultSegId is None:
-                                    # self.__defaultSegId = chainAssign[idx][0]
-                                    pass
-                                else:
-                                    idx = 0
-                                segId, _, resName, _ = chainAssign[idx]
-                    elif segId is None:
-                        chainAssign, _ = self.assignCoordPolymerSequence(self.__defaultSegId,
-                                                                         resId, resName, atomName, src_index)
-                        is_valid = is_valid_chain_assign(chainAssign, resName)
-                        if not is_valid:
-                            if self.__defaultSegId != self.__defaultSegId__:
-                                __preferAuthSeq = self.__preferAuthSeq
-                                self.__preferAuthSeq = not __preferAuthSeq
-                                chainAssign, _ = self.assignCoordPolymerSequenceWithChainId(self.__defaultSegId__,
-                                                                                            resId, resName, atomName, src_index)
-                                is_valid = is_valid_chain_assign(chainAssign, resName)
-                                self.__preferAuthSeq = __preferAuthSeq
-                        if is_valid:
-                            idx = next((chainAssign.index(a) for a in chainAssign if a[2] == resName), -1)
-                            if idx != -1:
-                                # if self.__defaultSegId is None:
-                                self.__defaultSegId = chainAssign[idx][0]
-                            else:
-                                idx = 0
-                            segId = chainAssign[idx][0]
-                        else:
-                            chainAssign, _ = self.assignCoordPolymerSequence(None,
-                                                                             resId, resName, atomName, src_index)
-                            if is_valid_chain_assign(chainAssign, resName):
-                                idx = next((chainAssign.index(a) for a in chainAssign if a[2] == resName), -1)
-                                if idx != -1:
-                                    # if self.__defaultSegId is None:
-                                    self.__defaultSegId = chainAssign[idx][0]
-                                    if self.reasons is None:
-                                        r = self.__getNamedReasonsForReparsing('default_seg_id')
-                                        if self.num_of_dim not in r:
-                                            r[self.num_of_dim] = {}
-                                        if self.cur_list_id != -1 and self.cur_list_id not in r[self.num_of_dim]:
-                                            r[self.num_of_dim][self.cur_list_id] = self.__defaultSegId
-                                else:
-                                    idx = 0
-                                segId = chainAssign[idx][0]
-                    elif resName is None:
-                        chainAssign = self.assignCoordPolymerSequenceWithChainIdWithoutCompId(segId, resId, atomName, src_index)
-                        if len(chainAssign) > 0:
-                            idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), 0)
-                            resName = chainAssign[idx][2]
-                    _, _, details = self.nefT.get_valid_star_atom_in_xplor(resName, atomName, leave_unmatched=True)
-                    if details is not None:
-                        atomName = translateToStdAtomName(atomName, resName, ccU=self.ccU)
-                    if any(True for item in ret
-                           if item['chain_id'] == segId and item['seq_id'] == resId and item['atom_id'] == atomName):
-                        if self.__ignore_diagonal:
-                            continue
-                    ret.append({'dim_id': dimId, 'chain_id': segId, 'auth_chain_id': _segId, 'seq_id': resId,
-                                'auth_seq_id': authResId, 'comp_id': resName, 'atom_id': atomName})
-                else:
-                    if any(True for item in ret
-                           if (segId is None or item['chain_id'] == segId)
-                           and item['seq_id'] == resId and item['atom_id'] == atomName):
-                        if self.__ignore_diagonal:
-                            continue
-                    ass = {'dim': dimId, 'atom_id': atomName}
-                    if _segId is not None:
-                        ass['auth_chain_id'] = _segId
-                    if segId is not None:
-                        ass['chain_id'] = segId
-                    if resId is not None:
-                        ass['seq_id'] = resId
-                    if resName is not None:
-                        ass['comp_id'] = resName
-                    ret.append(ass)
-                dimId += 1
+                if append_atom_assignment():
+                    continue
             if __atomNameLike[idx]:
                 if resIdLater:
                     for _idx, _term in enumerate(_str):
@@ -8594,109 +8106,8 @@ class BasePKParserListener():
                         return None
                     resId = _resId[len(ret)]
                 atomName = term[__atomNameSpan[idx][0]:__atomNameSpan[idx][1]]
-                if self.__hasCoord:
-                    if segId is None and resName is None:
-                        chainAssign =\
-                            self.assignCoordPolymerSequenceWithChainIdWithoutCompId(self.__defaultSegId, resId, atomName, src_index)
-                        if len(chainAssign) > 0:
-                            if self.__defaultSegId is None:
-                                idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                            else:
-                                idx = next((chainAssign.index(a) for a in chainAssign
-                                            if a[0] == self.__defaultSegId and a[1] == resId), -1)
-                                if idx == -1:
-                                    idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                            if idx != -1:
-                                # if self.__defaultSegId is None:
-                                self.__defaultSegId = chainAssign[idx][0]
-                            else:
-                                idx = 0
-                            segId, _, resName, _ = chainAssign[idx]
-                        else:
-                            chainAssign = self.assignCoordPolymerSequenceWithoutCompId(resId, atomName, src_index)
-                            if len(chainAssign) > 0:
-                                if self.__defaultSegId is None:
-                                    idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                                else:
-                                    idx = next((chainAssign.index(a) for a in chainAssign
-                                                if a[0] == self.__defaultSegId and a[1] == resId), -1)
-                                    if idx == -1:
-                                        idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                                if idx != -1:
-                                    # if self.__defaultSegId is None:
-                                    # self.__defaultSegId = chainAssign[idx][0]
-                                    pass
-                                else:
-                                    idx = 0
-                                segId, _, resName, _ = chainAssign[idx]
-                    elif segId is None:
-                        chainAssign, _ = self.assignCoordPolymerSequence(self.__defaultSegId,
-                                                                         resId, resName, atomName, src_index)
-                        is_valid = is_valid_chain_assign(chainAssign, resName)
-                        if not is_valid:
-                            if self.__defaultSegId != self.__defaultSegId__:
-                                __preferAuthSeq = self.__preferAuthSeq
-                                self.__preferAuthSeq = not __preferAuthSeq
-                                chainAssign, _ = self.assignCoordPolymerSequenceWithChainId(self.__defaultSegId__,
-                                                                                            resId, resName, atomName, src_index)
-                                is_valid = is_valid_chain_assign(chainAssign, resName)
-                                self.__preferAuthSeq = __preferAuthSeq
-                        if is_valid:
-                            idx = next((chainAssign.index(a) for a in chainAssign if a[2] == resName), -1)
-                            if idx != -1:
-                                # if self.__defaultSegId is None:
-                                self.__defaultSegId = chainAssign[idx][0]
-                            else:
-                                idx = 0
-                            segId = chainAssign[idx][0]
-                        else:
-                            chainAssign, _ = self.assignCoordPolymerSequence(None,
-                                                                             resId, resName, atomName, src_index)
-                            if is_valid_chain_assign(chainAssign, resName):
-                                idx = next((chainAssign.index(a) for a in chainAssign if a[2] == resName), -1)
-                                if idx != -1:
-                                    # if self.__defaultSegId is None:
-                                    self.__defaultSegId = chainAssign[idx][0]
-                                    if self.reasons is None:
-                                        r = self.__getNamedReasonsForReparsing('default_seg_id')
-                                        if self.num_of_dim not in r:
-                                            r[self.num_of_dim] = {}
-                                        if self.cur_list_id != -1 and self.cur_list_id not in r[self.num_of_dim]:
-                                            r[self.num_of_dim][self.cur_list_id] = self.__defaultSegId
-                                else:
-                                    idx = 0
-                                segId = chainAssign[idx][0]
-                    elif resName is None:
-                        chainAssign = self.assignCoordPolymerSequenceWithChainIdWithoutCompId(segId, resId, atomName, src_index)
-                        if len(chainAssign) > 0:
-                            idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), 0)
-                            resName = chainAssign[idx][2]
-                    _, _, details = self.nefT.get_valid_star_atom_in_xplor(resName, atomName, leave_unmatched=True)
-                    if details is not None:
-                        atomName = translateToStdAtomName(atomName, resName, ccU=self.ccU)
-                    if any(True for item in ret
-                           if item['chain_id'] == segId and item['seq_id'] == resId and item['atom_id'] == atomName):
-                        if self.__ignore_diagonal:
-                            continue
-                    ret.append({'dim_id': dimId, 'chain_id': segId, 'auth_chain_id': _segId, 'seq_id': resId,
-                                'auth_seq_id': authResId, 'comp_id': resName, 'atom_id': atomName})
-                else:
-                    if any(True for item in ret
-                           if (segId is None or item['chain_id'] == segId)
-                           and item['seq_id'] == resId and item['atom_id'] == atomName):
-                        if self.__ignore_diagonal:
-                            continue
-                    ass = {'dim': dimId, 'atom_id': atomName}
-                    if _segId is not None:
-                        ass['auth_chain_id'] = _segId
-                    if segId is not None:
-                        ass['chain_id'] = segId
-                    if resId is not None:
-                        ass['seq_id'] = resId
-                    if resName is not None:
-                        ass['comp_id'] = resName
-                    ret.append(ass)
-                dimId += 1
+                if append_atom_assignment():
+                    continue
             if _atomNameLike[idx]:
                 if resIdLater:
                     for _idx, _term in enumerate(_str):
@@ -8709,109 +8120,8 @@ class BasePKParserListener():
                         return None
                     resId = _resId[len(ret)]
                 atomName = term[_atomNameSpan[idx][0]:_atomNameSpan[idx][1]]
-                if self.__hasCoord:
-                    if segId is None and resName is None:
-                        chainAssign =\
-                            self.assignCoordPolymerSequenceWithChainIdWithoutCompId(self.__defaultSegId, resId, atomName, src_index)
-                        if len(chainAssign) > 0:
-                            if self.__defaultSegId is None:
-                                idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                            else:
-                                idx = next((chainAssign.index(a) for a in chainAssign
-                                            if a[0] == self.__defaultSegId and a[1] == resId), -1)
-                                if idx == -1:
-                                    idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                            if idx != -1:
-                                # if self.__defaultSegId is None:
-                                self.__defaultSegId = chainAssign[idx][0]
-                            else:
-                                idx = 0
-                            segId, _, resName, _ = chainAssign[idx]
-                        else:
-                            chainAssign = self.assignCoordPolymerSequenceWithoutCompId(resId, atomName, src_index)
-                            if len(chainAssign) > 0:
-                                if self.__defaultSegId is None:
-                                    idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                                else:
-                                    idx = next((chainAssign.index(a) for a in chainAssign
-                                                if a[0] == self.__defaultSegId and a[1] == resId), -1)
-                                    if idx == -1:
-                                        idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                                if idx != -1:
-                                    # if self.__defaultSegId is None:
-                                    # self.__defaultSegId = chainAssign[idx][0]
-                                    pass
-                                else:
-                                    idx = 0
-                                segId, _, resName, _ = chainAssign[idx]
-                    elif segId is None:
-                        chainAssign, _ = self.assignCoordPolymerSequence(self.__defaultSegId,
-                                                                         resId, resName, atomName, src_index)
-                        is_valid = is_valid_chain_assign(chainAssign, resName)
-                        if not is_valid:
-                            if self.__defaultSegId != self.__defaultSegId__:
-                                __preferAuthSeq = self.__preferAuthSeq
-                                self.__preferAuthSeq = not __preferAuthSeq
-                                chainAssign, _ = self.assignCoordPolymerSequenceWithChainId(self.__defaultSegId__,
-                                                                                            resId, resName, atomName, src_index)
-                                is_valid = is_valid_chain_assign(chainAssign, resName)
-                                self.__preferAuthSeq = __preferAuthSeq
-                        if is_valid:
-                            idx = next((chainAssign.index(a) for a in chainAssign if a[2] == resName), -1)
-                            if idx != -1:
-                                # if self.__defaultSegId is None:
-                                self.__defaultSegId = chainAssign[idx][0]
-                            else:
-                                idx = 0
-                            segId = chainAssign[idx][0]
-                        else:
-                            chainAssign, _ = self.assignCoordPolymerSequence(None,
-                                                                             resId, resName, atomName, src_index)
-                            if is_valid_chain_assign(chainAssign, resName):
-                                idx = next((chainAssign.index(a) for a in chainAssign if a[2] == resName), -1)
-                                if idx != -1:
-                                    # if self.__defaultSegId is None:
-                                    self.__defaultSegId = chainAssign[idx][0]
-                                    if self.reasons is None:
-                                        r = self.__getNamedReasonsForReparsing('default_seg_id')
-                                        if self.num_of_dim not in r:
-                                            r[self.num_of_dim] = {}
-                                        if self.cur_list_id != -1 and self.cur_list_id not in r[self.num_of_dim]:
-                                            r[self.num_of_dim][self.cur_list_id] = self.__defaultSegId
-                                else:
-                                    idx = 0
-                                segId = chainAssign[idx][0]
-                    elif resName is None:
-                        chainAssign = self.assignCoordPolymerSequenceWithChainIdWithoutCompId(segId, resId, atomName, src_index)
-                        if len(chainAssign) > 0:
-                            idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), 0)
-                            resName = chainAssign[idx][2]
-                    _, _, details = self.nefT.get_valid_star_atom_in_xplor(resName, atomName, leave_unmatched=True)
-                    if details is not None:
-                        atomName = translateToStdAtomName(atomName, resName, ccU=self.ccU)
-                    if any(True for item in ret
-                           if item['chain_id'] == segId and item['seq_id'] == resId and item['atom_id'] == atomName):
-                        if self.__ignore_diagonal:
-                            continue
-                    ret.append({'dim_id': dimId, 'chain_id': segId, 'auth_chain_id': _segId, 'seq_id': resId,
-                                'auth_seq_id': authResId, 'comp_id': resName, 'atom_id': atomName})
-                else:
-                    if any(True for item in ret
-                           if (segId is None or item['chain_id'] == segId)
-                           and item['seq_id'] == resId and item['atom_id'] == atomName):
-                        if self.__ignore_diagonal:
-                            continue
-                    ass = {'dim': dimId, 'atom_id': atomName}
-                    if _segId is not None:
-                        ass['auth_chain_id'] = _segId
-                    if segId is not None:
-                        ass['chain_id'] = segId
-                    if resId is not None:
-                        ass['seq_id'] = resId
-                    if resName is not None:
-                        ass['comp_id'] = resName
-                    ret.append(ass)
-                dimId += 1
+                if append_atom_assignment():
+                    continue
             if atomNameLike[idx]:
                 if resIdLater:
                     for _idx, _term in enumerate(_str):
@@ -8826,109 +8136,8 @@ class BasePKParserListener():
                 if _ligAtomId is not None:
                     resId = _ligSeqId
                 atomName = term[atomNameSpan[idx][0]:atomNameSpan[idx][1]]
-                if self.__hasCoord:
-                    if segId is None and resName is None:
-                        chainAssign =\
-                            self.assignCoordPolymerSequenceWithChainIdWithoutCompId(self.__defaultSegId, resId, atomName, src_index)
-                        if len(chainAssign) > 0:
-                            if self.__defaultSegId is None:
-                                idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                            else:
-                                idx = next((chainAssign.index(a) for a in chainAssign
-                                            if a[0] == self.__defaultSegId and a[1] == resId), -1)
-                                if idx == -1:
-                                    idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                            if idx != -1:
-                                # if self.__defaultSegId is None:
-                                self.__defaultSegId = chainAssign[idx][0]
-                            else:
-                                idx = 0
-                            segId, _, resName, _ = chainAssign[idx]
-                        else:
-                            chainAssign = self.assignCoordPolymerSequenceWithoutCompId(resId, atomName, src_index)
-                            if len(chainAssign) > 0:
-                                if self.__defaultSegId is None:
-                                    idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                                else:
-                                    idx = next((chainAssign.index(a) for a in chainAssign
-                                                if a[0] == self.__defaultSegId and a[1] == resId), -1)
-                                    if idx == -1:
-                                        idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                                if idx != -1:
-                                    # if self.__defaultSegId is None:
-                                    # self.__defaultSegId = chainAssign[idx][0]
-                                    pass
-                                else:
-                                    idx = 0
-                                segId, _, resName, _ = chainAssign[idx]
-                    elif segId is None:
-                        chainAssign, _ = self.assignCoordPolymerSequence(self.__defaultSegId,
-                                                                         resId, resName, atomName, src_index)
-                        is_valid = is_valid_chain_assign(chainAssign, resName)
-                        if not is_valid:
-                            if self.__defaultSegId != self.__defaultSegId__:
-                                __preferAuthSeq = self.__preferAuthSeq
-                                self.__preferAuthSeq = not __preferAuthSeq
-                                chainAssign, _ = self.assignCoordPolymerSequenceWithChainId(self.__defaultSegId__,
-                                                                                            resId, resName, atomName, src_index)
-                                is_valid = is_valid_chain_assign(chainAssign, resName)
-                                self.__preferAuthSeq = __preferAuthSeq
-                        if is_valid:
-                            idx = next((chainAssign.index(a) for a in chainAssign if a[2] == resName), -1)
-                            if idx != -1:
-                                # if self.__defaultSegId is None:
-                                self.__defaultSegId = chainAssign[idx][0]
-                            else:
-                                idx = 0
-                            segId = chainAssign[idx][0]
-                        else:
-                            chainAssign, _ = self.assignCoordPolymerSequence(None,
-                                                                             resId, resName, atomName, src_index)
-                            if is_valid_chain_assign(chainAssign, resName):
-                                idx = next((chainAssign.index(a) for a in chainAssign if a[2] == resName), -1)
-                                if idx != -1:
-                                    # if self.__defaultSegId is None:
-                                    self.__defaultSegId = chainAssign[idx][0]
-                                    if self.reasons is None:
-                                        r = self.__getNamedReasonsForReparsing('default_seg_id')
-                                        if self.num_of_dim not in r:
-                                            r[self.num_of_dim] = {}
-                                        if self.cur_list_id != -1 and self.cur_list_id not in r[self.num_of_dim]:
-                                            r[self.num_of_dim][self.cur_list_id] = self.__defaultSegId
-                                else:
-                                    idx = 0
-                                segId = chainAssign[idx][0]
-                    elif resName is None:
-                        chainAssign = self.assignCoordPolymerSequenceWithChainIdWithoutCompId(segId, resId, atomName, src_index)
-                        if len(chainAssign) > 0:
-                            idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), 0)
-                            resName = chainAssign[idx][2]
-                    _, _, details = self.nefT.get_valid_star_atom_in_xplor(resName, atomName, leave_unmatched=True)
-                    if details is not None:
-                        atomName = translateToStdAtomName(atomName, resName, ccU=self.ccU)
-                    if any(True for item in ret
-                           if item['chain_id'] == segId and item['seq_id'] == resId and item['atom_id'] == atomName):
-                        if self.__ignore_diagonal:
-                            continue
-                    ret.append({'dim_id': dimId, 'chain_id': segId, 'auth_chain_id': _segId, 'seq_id': resId,
-                                'auth_seq_id': authResId, 'comp_id': resName, 'atom_id': atomName})
-                else:
-                    if any(True for item in ret
-                           if (segId is None or item['chain_id'] == segId)
-                           and item['seq_id'] == resId and item['atom_id'] == atomName):
-                        if self.__ignore_diagonal:
-                            continue
-                    ass = {'dim': dimId, 'atom_id': atomName}
-                    if _segId is not None:
-                        ass['auth_chain_id'] = _segId
-                    if segId is not None:
-                        ass['chain_id'] = segId
-                    if resId is not None:
-                        ass['seq_id'] = resId
-                    if resName is not None:
-                        ass['comp_id'] = resName
-                    ret.append(ass)
-                dimId += 1
+                if append_atom_assignment():
+                    continue
             elif atomNameLike_[idx] and siblingAtomName[idx] is not None:
                 if resIdLater:
                     for _idx, _term in enumerate(_str):
@@ -8941,110 +8150,8 @@ class BasePKParserListener():
                         return None
                     resId = _resId[len(ret)]
                 for atomName in siblingAtomName[idx]:
-                    if self.__hasCoord:
-                        if segId is None and resName is None:
-                            chainAssign =\
-                                self.assignCoordPolymerSequenceWithChainIdWithoutCompId(self.__defaultSegId, resId, atomName,
-                                                                                        src_index)
-                            if len(chainAssign) > 0:
-                                if self.__defaultSegId is None:
-                                    idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                                else:
-                                    idx = next((chainAssign.index(a) for a in chainAssign
-                                                if a[0] == self.__defaultSegId and a[1] == resId), -1)
-                                    if idx == -1:
-                                        idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                                if idx != -1:
-                                    # if self.__defaultSegId is None:
-                                    self.__defaultSegId = chainAssign[idx][0]
-                                else:
-                                    idx = 0
-                                segId, _, resName, _ = chainAssign[idx]
-                            else:
-                                chainAssign = self.assignCoordPolymerSequenceWithoutCompId(resId, atomName, src_index)
-                                if len(chainAssign) > 0:
-                                    if self.__defaultSegId is None:
-                                        idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                                    else:
-                                        idx = next((chainAssign.index(a) for a in chainAssign
-                                                    if a[0] == self.__defaultSegId and a[1] == resId), -1)
-                                        if idx == -1:
-                                            idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), -1)
-                                    if idx != -1:
-                                        # if self.__defaultSegId is None:
-                                        # self.__defaultSegId = chainAssign[idx][0]
-                                        pass
-                                    else:
-                                        idx = 0
-                                    segId, _, resName, _ = chainAssign[idx]
-                        elif segId is None:
-                            chainAssign, _ = self.assignCoordPolymerSequence(self.__defaultSegId,
-                                                                             resId, resName, atomName, src_index)
-                            is_valid = is_valid_chain_assign(chainAssign, resName)
-                            if not is_valid:
-                                if self.__defaultSegId != self.__defaultSegId__:
-                                    __preferAuthSeq = self.__preferAuthSeq
-                                    self.__preferAuthSeq = not __preferAuthSeq
-                                    chainAssign, _ = self.assignCoordPolymerSequenceWithChainId(self.__defaultSegId__,
-                                                                                                resId, resName, atomName, src_index)
-                                    is_valid = is_valid_chain_assign(chainAssign, resName)
-                                    self.__preferAuthSeq = __preferAuthSeq
-                            if is_valid:
-                                idx = next((chainAssign.index(a) for a in chainAssign if a[2] == resName), -1)
-                                if idx != -1:
-                                    # if self.__defaultSegId is None:
-                                    self.__defaultSegId = chainAssign[idx][0]
-                                else:
-                                    idx = 0
-                                segId = chainAssign[idx][0]
-                            else:
-                                chainAssign, _ = self.assignCoordPolymerSequence(None,
-                                                                                 resId, resName, atomName, src_index)
-                                if is_valid_chain_assign(chainAssign, resName):
-                                    idx = next((chainAssign.index(a) for a in chainAssign if a[2] == resName), -1)
-                                    if idx != -1:
-                                        # if self.__defaultSegId is None:
-                                        self.__defaultSegId = chainAssign[idx][0]
-                                        if self.reasons is None:
-                                            r = self.__getNamedReasonsForReparsing('default_seg_id')
-                                            if self.num_of_dim not in r:
-                                                r[self.num_of_dim] = {}
-                                            if self.cur_list_id != -1 and self.cur_list_id not in r[self.num_of_dim]:
-                                                r[self.num_of_dim][self.cur_list_id] = self.__defaultSegId
-                                    else:
-                                        idx = 0
-                                    segId = chainAssign[idx][0]
-                        elif resName is None:
-                            chainAssign = self.assignCoordPolymerSequenceWithChainIdWithoutCompId(segId, resId, atomName, src_index)
-                            if len(chainAssign) > 0:
-                                idx = next((chainAssign.index(a) for a in chainAssign if a[1] == resId), 0)
-                                resName = chainAssign[idx][2]
-                        _, _, details = self.nefT.get_valid_star_atom_in_xplor(resName, atomName, leave_unmatched=True)
-                        if details is not None:
-                            atomName = translateToStdAtomName(atomName, resName, ccU=self.ccU)
-                        if any(True for item in ret
-                               if item['chain_id'] == segId and item['seq_id'] == resId and item['atom_id'] == atomName):
-                            if self.__ignore_diagonal:
-                                continue
-                        ret.append({'dim_id': dimId, 'chain_id': segId, 'auth_chain_id': _segId, 'seq_id': resId,
-                                    'auth_seq_id': authResId, 'comp_id': resName, 'atom_id': atomName})
-                    else:
-                        if any(True for item in ret
-                               if (segId is None or item['chain_id'] == segId)
-                               and item['seq_id'] == resId and item['atom_id'] == atomName):
-                            if self.__ignore_diagonal:
-                                continue
-                        ass = {'dim': dimId, 'atom_id': atomName}
-                        if _segId is not None:
-                            ass['auth_chain_id'] = _segId
-                        if segId is not None:
-                            ass['chain_id'] = segId
-                        if resId is not None:
-                            ass['seq_id'] = resId
-                        if resName is not None:
-                            ass['comp_id'] = resName
-                        ret.append(ass)
-                    dimId += 1
+                    if append_atom_assignment():
+                        continue
 
         multiple = len(ret) > numOfDim
 
@@ -10520,15 +9627,16 @@ class BasePKParserListener():
 
         return list(chainAssign), asis
 
-    def assignCoordPolymerSequenceWithoutCompId(self, seqId: int, atomId: str, index: int
+    def assignCoordPolymerSequenceWithoutCompId(self, seqId: int, atomId: str, index: int, fixedChainId: Optional[str] = None
                                                 ) -> List[Tuple[str, int, str, bool]]:
-        """ Assign polymer sequences of the coordinates.
+        """ Assign polymer sequences of the coordinates, restricted to a given chain (fixedChainId) if any.
         """
 
         chainAssign = set()
         _seqId = seqId
 
-        fixedChainId = fixedSeqId = fixedCompId = None
+        _refChainId = fixedChainId
+        fixedSeqId = fixedCompId = None
 
         self.__allow_ext_seq = False
 
@@ -10539,11 +9647,15 @@ class BasePKParserListener():
                 fixedChainId, fixedSeqId = retrieveRemappedChainId(self.reasons['chain_id_remap'], seqId)
             elif 'chain_id_clone' in self.reasons and seqId in self.reasons['chain_id_clone']:
                 fixedChainId, fixedSeqId = retrieveRemappedChainId(self.reasons['chain_id_clone'], seqId)
+            if fixedChainId is None:
+                fixedChainId = _refChainId
             if fixedSeqId is not None:
                 seqId = _seqId = fixedSeqId
 
         for ps in self.polySeq:
             chainId, seqId, cifCompId = self.getRealChainSeqId(ps, _seqId, None)
+            if fixedChainId is not None and chainId != fixedChainId:
+                continue
             if self.reasons is not None:
                 if 'seq_id_remap' not in self.reasons\
                    and 'chain_seq_id_remap' not in self.reasons\
@@ -10552,16 +9664,16 @@ class BasePKParserListener():
                         continue
                 else:
                     if 'ext_chain_seq_id_remap' in self.reasons:
-                        fixedChainId, fixedSeqId, fixedCompId =\
+                        remapChainId, fixedSeqId, fixedCompId =\
                             retrieveRemappedSeqIdAndCompId(self.reasons['ext_chain_seq_id_remap'], chainId, seqId)
-                        if fixedChainId is not None and fixedChainId != chainId:
+                        if remapChainId is not None and remapChainId != chainId:
                             continue
                         if fixedSeqId is not None:
                             self.__allow_ext_seq = fixedCompId is not None
                             seqId = _seqId = fixedSeqId
                     if fixedSeqId is None and 'chain_seq_id_remap' in self.reasons:
-                        fixedChainId, fixedSeqId = retrieveRemappedSeqId(self.reasons['chain_seq_id_remap'], chainId, seqId)
-                        if fixedChainId is not None and fixedChainId != chainId:
+                        remapChainId, fixedSeqId = retrieveRemappedSeqId(self.reasons['chain_seq_id_remap'], chainId, seqId)
+                        if remapChainId is not None and remapChainId != chainId:
                             continue
                         if fixedSeqId is not None:
                             seqId = _seqId = fixedSeqId
@@ -10582,11 +9694,11 @@ class BasePKParserListener():
                 if self.reasons is not None:
                     if 'non_poly_remap' in self.reasons and cifCompId in self.reasons['non_poly_remap']\
                        and seqId in self.reasons['non_poly_remap'][cifCompId]:
-                        fixedChainId, fixedSeqId = retrieveRemappedNonPoly(self.reasons['non_poly_remap'], None,
+                        remapChainId, fixedSeqId = retrieveRemappedNonPoly(self.reasons['non_poly_remap'], None,
                                                                            chainId, seqId, cifCompId)
                         if fixedSeqId is not None:
                             seqId = _seqId = fixedSeqId
-                        if (fixedChainId is not None and fixedChainId != chainId) or seqId not in ps['auth_seq_id']:
+                        if (remapChainId is not None and remapChainId != chainId) or seqId not in ps['auth_seq_id']:
                             continue
                 updatePolySeqRst(self.polySeqRst, chainId, _seqId, cifCompId)
                 if atomId is None or len(self.nefT.get_valid_star_atom(cifCompId, atomId)[0]) > 0:
@@ -10622,14 +9734,16 @@ class BasePKParserListener():
         if self.hasNonPolySeq:
             for np in self.nonPolySeq:
                 chainId, seqId, cifCompId = self.getRealChainSeqId(np, _seqId, None, False)
+                if fixedChainId is not None and chainId != fixedChainId:
+                    continue
                 if self.reasons is not None:
                     if 'seq_id_remap' not in self.reasons and 'chain_seq_id_remap' not in self.reasons:
                         if fixedChainId is not None and fixedChainId != chainId:
                             continue
                     else:
                         if 'chain_seq_id_remap' in self.reasons:
-                            fixedChainId, fixedSeqId = retrieveRemappedSeqId(self.reasons['chain_seq_id_remap'], chainId, seqId)
-                            if fixedChainId is not None and fixedChainId != chainId:
+                            remapChainId, fixedSeqId = retrieveRemappedSeqId(self.reasons['chain_seq_id_remap'], chainId, seqId)
+                            if remapChainId is not None and remapChainId != chainId:
                                 continue
                             if fixedSeqId is not None:
                                 seqId = _seqId = fixedSeqId
@@ -10704,13 +9818,15 @@ class BasePKParserListener():
                             self.__setLocalSeqScheme()
 
         if len(chainAssign) == 0:
+            _chainId_ = '' if _refChainId is None else f'{fixedChainId}:'  # prefix of the restraint's chain if given
             if seqId == 1 or (chainId if fixedChainId is None else fixedChainId, seqId - 1) in self.__coordUnobsRes:
                 if atomId is not None and atomId in AMINO_PROTON_CODE and atomId != 'H1':
-                    return self.assignCoordPolymerSequenceWithoutCompId(seqId, 'H1', index)
+                    return self.assignCoordPolymerSequenceWithoutCompId(seqId, 'H1', index,
+                                                                        None if _refChainId is None else fixedChainId)
             if atomId is not None and (('-' in atomId and ':' in atomId) or '.' in atomId):
                 if self.no_extra_comment:
                     self.f.append(f"[Atom not found] {self.getCurrentSpectralPeak(n=index)}"
-                                  f"{_seqId}:?:{atomId} is not present in the coordinates.")
+                                  f"{_chainId_}{_seqId}:?:{atomId} is not present in the coordinates.")
             elif atomId is not None:
                 if len(self.polySeq) == 1 and seqId < 1:
                     refChainId = self.polySeq[0]['auth_chain_id']
@@ -10722,7 +9838,7 @@ class BasePKParserListener():
                 else:
                     if self.no_extra_comment:
                         self.f.append(f"[Atom not found] {self.getCurrentSpectralPeak(n=index)}"
-                                      f"{_seqId}:{atomId} is not present in the coordinates.")
+                                      f"{_chainId_}{_seqId}:{atomId} is not present in the coordinates.")
                     compIds = guessCompIdFromAtomId([atomId], self.polySeq, self.nefT)
                     if compIds is not None:
                         chainId = fixedChainId
@@ -10738,219 +9854,14 @@ class BasePKParserListener():
 
     def assignCoordPolymerSequenceWithChainIdWithoutCompId(self, fixedChainId: str, seqId: int, atomId: str, index: int
                                                            ) -> List[Tuple[str, int, str, bool]]:
-        """ Assign polymer sequences of the coordinates.
+        """ Assign polymer sequences of the coordinates of a given chain.
+            @return: no assignment without a chain, so that callers fall back to assignCoordPolymerSequenceWithoutCompId()
         """
 
-        chainAssign = set()
-        _seqId = seqId
+        if fixedChainId is None:
+            return []
 
-        fixedSeqId = fixedCompId = None
-
-        self.__allow_ext_seq = False
-
-        if self.reasons is not None:
-            if 'branched_remap' in self.reasons and seqId in self.reasons['branched_remap']:
-                fixedChainId, fixedSeqId = retrieveRemappedChainId(self.reasons['branched_remap'], seqId)
-            if 'chain_id_remap' in self.reasons and seqId in self.reasons['chain_id_remap']:
-                fixedChainId, fixedSeqId = retrieveRemappedChainId(self.reasons['chain_id_remap'], seqId)
-            elif 'chain_id_clone' in self.reasons and seqId in self.reasons['chain_id_clone']:
-                fixedChainId, fixedSeqId = retrieveRemappedChainId(self.reasons['chain_id_clone'], seqId)
-            if fixedSeqId is not None:
-                seqId = _seqId = fixedSeqId
-
-        for ps in self.polySeq:
-            chainId, seqId, cifCompId = self.getRealChainSeqId(ps, _seqId, None)
-            if chainId != fixedChainId:
-                continue
-            if self.reasons is not None:
-                if 'seq_id_remap' not in self.reasons\
-                   and 'chain_seq_id_remap' not in self.reasons\
-                   and 'ext_chain_seq_id_remap' not in self.reasons:
-                    if fixedChainId is not None and fixedChainId != chainId:
-                        continue
-                else:
-                    if 'ext_chain_seq_id_remap' in self.reasons:
-                        fixedChainId, fixedSeqId, fixedCompId =\
-                            retrieveRemappedSeqIdAndCompId(self.reasons['ext_chain_seq_id_remap'], chainId, seqId)
-                        if fixedChainId is not None and fixedChainId != chainId:
-                            continue
-                        if fixedSeqId is not None:
-                            self.__allow_ext_seq = fixedCompId is not None
-                            seqId = _seqId = fixedSeqId
-                    if fixedSeqId is None and 'chain_seq_id_remap' in self.reasons:
-                        fixedChainId, fixedSeqId = retrieveRemappedSeqId(self.reasons['chain_seq_id_remap'], chainId, seqId)
-                        if fixedChainId is not None and fixedChainId != chainId:
-                            continue
-                        if fixedSeqId is not None:
-                            seqId = _seqId = fixedSeqId
-                    if fixedSeqId is None and 'seq_id_remap' in self.reasons:
-                        _, fixedSeqId = retrieveRemappedSeqId(self.reasons['seq_id_remap'], chainId, seqId)
-                        if fixedSeqId is not None:
-                            seqId = _seqId = fixedSeqId
-            if seqId in ps['auth_seq_id'] or fixedCompId is not None:
-                if fixedCompId is not None:
-                    cifCompId = fixedCompId
-                else:
-                    if cifCompId is not None:
-                        idx = next((_idx for _idx, (_seqId_, _cifCompId_) in enumerate(zip(ps['auth_seq_id'], ps['comp_id']))
-                                    if _seqId_ == seqId and _cifCompId_ == cifCompId), ps['auth_seq_id'].index(seqId))
-                    else:
-                        idx = ps['auth_seq_id'].index(seqId) if seqId in ps['auth_seq_id'] else ps['seq_id'].index(seqId)
-                    cifCompId = ps['comp_id'][idx]
-                if self.reasons is not None:
-                    if 'non_poly_remap' in self.reasons and cifCompId in self.reasons['non_poly_remap']\
-                       and seqId in self.reasons['non_poly_remap'][cifCompId]:
-                        fixedChainId, fixedSeqId = retrieveRemappedNonPoly(self.reasons['non_poly_remap'], None,
-                                                                           chainId, seqId, cifCompId)
-                        if fixedSeqId is not None:
-                            seqId = _seqId = fixedSeqId
-                        if (fixedChainId is not None and fixedChainId != chainId) or seqId not in ps['auth_seq_id']:
-                            continue
-                updatePolySeqRst(self.polySeqRst, fixedChainId, _seqId, cifCompId)
-                if len(self.nefT.get_valid_star_atom(cifCompId, atomId)[0]) > 0:
-                    chainAssign.add((chainId, seqId, cifCompId, True))
-            elif 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
-                auth_seq_id_list = list(filter(None, ps['auth_seq_id']))
-                if len(auth_seq_id_list) > 0:
-                    min_auth_seq_id = min(auth_seq_id_list)
-                    max_auth_seq_id = max(auth_seq_id_list)
-                    if min_auth_seq_id <= seqId <= max_auth_seq_id:
-                        _seqId_ = seqId + 1
-                        while _seqId_ <= max_auth_seq_id:
-                            if _seqId_ in ps['auth_seq_id']:
-                                break
-                            _seqId_ += 1
-                        if _seqId_ not in ps['auth_seq_id']:
-                            _seqId_ = seqId - 1
-                            while _seqId_ >= min_auth_seq_id:
-                                if _seqId_ in ps['auth_seq_id']:
-                                    break
-                                _seqId_ -= 1
-                        if _seqId_ in ps['auth_seq_id']:
-                            idx = ps['auth_seq_id'].index(_seqId_) - (_seqId_ - seqId)
-                            try:
-                                seqId_ = ps['auth_seq_id'][idx]
-                                cifCompId = ps['comp_id'][idx]
-                                updatePolySeqRst(self.polySeqRst, fixedChainId, _seqId, cifCompId)
-                                if len(self.nefT.get_valid_star_atom(cifCompId, atomId)[0]) > 0:
-                                    chainAssign.add((chainId, seqId_, cifCompId, True))
-                            except IndexError:
-                                pass
-
-        if self.hasNonPolySeq:
-            for np in self.nonPolySeq:
-                chainId, seqId, cifCompId = self.getRealChainSeqId(np, _seqId, None, False)
-                if chainId != fixedChainId:
-                    continue
-                if self.reasons is not None:
-                    if 'seq_id_remap' not in self.reasons and 'chain_seq_id_remap' not in self.reasons:
-                        if fixedChainId is not None and fixedChainId != chainId:
-                            continue
-                    else:
-                        if 'chain_seq_id_remap' in self.reasons:
-                            fixedChainId, fixedSeqId = retrieveRemappedSeqId(self.reasons['chain_seq_id_remap'], chainId, seqId)
-                            if fixedChainId is not None and fixedChainId != chainId:
-                                continue
-                            if fixedSeqId is not None:
-                                seqId = _seqId = fixedSeqId
-                        if fixedSeqId is None and 'seq_id_remap' in self.reasons:
-                            _, fixedSeqId = retrieveRemappedSeqId(self.reasons['seq_id_remap'], chainId, seqId)
-                            if fixedSeqId is not None:
-                                seqId = _seqId = fixedSeqId
-                if seqId in np['auth_seq_id']:
-                    if cifCompId is not None:
-                        idx = next((_idx for _idx, (_seqId_, _cifCompId_) in enumerate(zip(np['auth_seq_id'], np['comp_id']))
-                                    if _seqId_ == seqId and _cifCompId_ == cifCompId), np['auth_seq_id'].index(seqId))
-                    else:
-                        idx = np['auth_seq_id'].index(seqId) if seqId in np['auth_seq_id'] else np['seq_id'].index(seqId)
-                    cifCompId = np['comp_id'][idx]
-                    updatePolySeqRst(self.polySeqRst, fixedChainId, _seqId, cifCompId)
-                    if len(self.nefT.get_valid_star_atom(cifCompId, atomId)[0]) > 0:
-                        chainAssign.add((chainId, seqId, cifCompId, False))
-
-        if len(chainAssign) == 0:
-            for ps in self.polySeq:
-                chainId = ps['chain_id']
-                if chainId != fixedChainId:
-                    continue
-                seqKey = (chainId, _seqId)
-                if seqKey in self.__authToLabelSeq:
-                    _, seqId = self.__authToLabelSeq[seqKey]
-                    if seqId in ps['seq_id']:
-                        cifCompId = ps['comp_id'][ps['seq_id'].index(seqId)]
-                        updatePolySeqRst(self.polySeqRst, fixedChainId, _seqId, cifCompId)
-                        if len(self.nefT.get_valid_star_atom(cifCompId, atomId)[0]) > 0:
-                            chainAssign.add((ps['auth_chain_id'], _seqId, cifCompId, True))
-
-            if self.hasNonPolySeq:
-                for np in self.nonPolySeq:
-                    chainId = np['auth_chain_id']
-                    if chainId != fixedChainId:
-                        continue
-                    seqKey = (chainId, _seqId)
-                    if seqKey in self.__authToLabelSeq:
-                        _, seqId = self.__authToLabelSeq[seqKey]
-                        if seqId in np['seq_id']:
-                            cifCompId = np['comp_id'][np['seq_id'].index(seqId)]
-                            updatePolySeqRst(self.polySeqRst, fixedChainId, _seqId, cifCompId)
-                            if len(self.nefT.get_valid_star_atom(cifCompId, atomId)[0]) > 0:
-                                chainAssign.add((np['auth_chain_id'], _seqId, cifCompId, False))
-
-        if len(chainAssign) == 0 and self.__altPolySeq is not None:
-            for ps in self.__altPolySeq:
-                chainId = ps['auth_chain_id']
-                if chainId != fixedChainId:
-                    continue
-                if _seqId in ps['auth_seq_id']:
-                    cifCompId = ps['comp_id'][ps['auth_seq_id'].index(_seqId)]
-                    updatePolySeqRst(self.polySeqRst, fixedChainId, _seqId, cifCompId)
-                    chainAssign.add((chainId, _seqId, cifCompId, True))
-
-        if len(chainAssign) == 0 and (self.__preferAuthSeqCount - self.__preferLabelSeqCount < MAX_PREF_LABEL_SCHEME_COUNT
-                                      or len(self.polySeq) > 1):
-            for ps in self.polySeq:
-                chainId = ps['chain_id']
-                if chainId != fixedChainId:
-                    continue
-                seqKey = (chainId, _seqId)
-                if seqKey in self.__labelToAuthSeq:
-                    _, seqId = self.__labelToAuthSeq[seqKey]
-                    if seqId in ps['auth_seq_id']:
-                        cifCompId = ps['comp_id'][ps['auth_seq_id'].index(seqId)]
-                        updatePolySeqRst(self.polySeqRst, fixedChainId, seqId, cifCompId)
-                        if len(self.nefT.get_valid_star_atom(cifCompId, atomId)[0]) > 0:
-                            chainAssign.add((ps['auth_chain_id'], seqId, cifCompId, True))
-                            self.__authSeqId = 'label_seq_id'
-                            self.__setLocalSeqScheme()
-
-        if len(chainAssign) == 0:
-            if seqId == 1 or (fixedChainId, seqId - 1) in self.__coordUnobsRes:
-                if atomId in AMINO_PROTON_CODE and atomId != 'H1':
-                    return self.assignCoordPolymerSequenceWithChainIdWithoutCompId(fixedChainId, seqId, 'H1', index)
-            if (('-' in atomId and ':' in atomId) or '.' in atomId):
-                if self.no_extra_comment:
-                    self.f.append(f"[Atom not found] {self.getCurrentSpectralPeak(n=index)}"
-                                  f"{fixedChainId}:{_seqId}:?:{atomId} is not present in the coordinates.")
-            else:
-                if len(self.polySeq) == 1 and seqId < 1:
-                    refChainId = self.polySeq[0]['auth_chain_id']
-                    if self.no_extra_comment:
-                        self.f.append(f"[Atom not found] {self.getCurrentSpectralPeak(n=index)}"
-                                      f"{_seqId}:?:{atomId} is not present in the coordinates. "
-                                      f"The residue number '{_seqId}' is not present in polymer sequence "
-                                      f"of chain {refChainId} of the coordinates. {INSTRUCTION_FOR_FULL_SEQUENCE}")
-                else:
-                    if self.no_extra_comment:
-                        self.f.append(f"[Atom not found] {self.getCurrentSpectralPeak(n=index)}"
-                                      f"{fixedChainId}:{_seqId}:{atomId} is not present in the coordinates.")
-                    compIds = guessCompIdFromAtomId([atomId], self.polySeq, self.nefT)
-                    if compIds is not None:
-                        if len(compIds) == 1:
-                            updatePolySeqRst(self.polySeqRstFailed, fixedChainId, seqId, compIds[0])
-                        else:
-                            updatePolySeqRstAmbig(self.polySeqRstFailedAmbig, fixedChainId, seqId, compIds)
-
-        return list(chainAssign)
+        return self.assignCoordPolymerSequenceWithoutCompId(seqId, atomId, index, fixedChainId)
 
     def selectCoordAtoms(self, chainAssign: List[Tuple[str, int, str, bool]], authChainId: Optional[str],
                          seqId: int, compId: str, atomId: str,
@@ -11634,16 +10545,5 @@ class BasePKParserListener():
         """ Return a dictionary of pynmrstar saveframes.
         """
 
-        if len(self.sfDict) == 0:
-            return self.__listIdCounter, None
-        ign_keys = []
-        for k, v in self.sfDict.items():
-            for item in reversed(v):
-                if item['index_id'] == 0:
-                    v.remove(item)
-                    if len(v) == 0:
-                        ign_keys.append(k)
-                    self.__listIdCounter = decListIdCounter(k[0], self.__listIdCounter, reservedListIds=self.__reservedListIds)
-        for k in ign_keys:
-            del self.sfDict[k]
-        return self.__listIdCounter, None if len(self.sfDict) == 0 else self.sfDict
+        self.__listIdCounter, sfDict = getSfDictOf(self.sfDict, self.__listIdCounter, self.__reservedListIds)
+        return self.__listIdCounter, sfDict

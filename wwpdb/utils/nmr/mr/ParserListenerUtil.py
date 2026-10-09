@@ -6549,7 +6549,7 @@ def trimSfWoLpOf(sfDict: dict, lastSfDict: dict, curSubtype: str, listIdCounter:
     return listIdCounter
 
 
-def getSfDictOf(sfDict: dict, listIdCounter: dict) -> Tuple[dict, Optional[dict]]:
+def getSfDictOf(sfDict: dict, listIdCounter: dict, reservedListIds: Optional[dict] = None) -> Tuple[dict, Optional[dict]]:
     """ Remove pynmrstar saveframes without any row, and return the list id counter and the remaining saveframes.
     """
 
@@ -6562,7 +6562,7 @@ def getSfDictOf(sfDict: dict, listIdCounter: dict) -> Tuple[dict, Optional[dict]
                 v.remove(item)
                 if len(v) == 0:
                     ign_keys.append(k)
-                listIdCounter = decListIdCounter(k[0], listIdCounter)
+                listIdCounter = decListIdCounter(k[0], listIdCounter, reservedListIds=reservedListIds)
     for k in ign_keys:
         del sfDict[k]
     return listIdCounter, None if len(sfDict) == 0 else sfDict

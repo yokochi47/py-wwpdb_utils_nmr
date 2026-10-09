@@ -341,6 +341,10 @@
 # 08-Oct-2026  M. Yokochi - trim the last saveframe without any row of MR parser listeners (trimSfWoLp()), which never
 #                           matched, so a later list took a list id that the next file reused; keep the last saveframes
 #                           per listener instance (DAOTHER-7829)
+# 09-Oct-2026  M. Yokochi - merge assignCoordPolymerSequenceWithChainIdWithoutCompId() into ...WithoutCompId(), share
+#                           getSfDictOf(), and fold repeated code of BasePKParserListener (validatePeak{2,3,4}D(), J-coupling/
+#                           relayed transfer remediation, extractPeakAssignment()) and BaseCSParserListener
+#                           (extractAssignment()) (DAOTHER-7829)
 ##
 """ Main class for NMR data processing.
     @author: Masashi Yokochi
@@ -349,7 +353,7 @@ __docformat__ = "restructuredtext en"
 __author__ = "Masashi Yokochi"
 __email__ = "yokochi@protein.osaka-u.ac.jp"
 __license__ = "Apache License 2.0"
-__version__ = "5.4.2"
+__version__ = "5.4.3"
 
 import collections
 import copy

@@ -3,6 +3,8 @@
 # Date: 05-Dec-2024
 #
 # Updates:
+# 09-Oct-2026  M. Yokochi - instantiate BasePKParserListener through a subclass with an instance __dict__, since writing its
+#                           class-level defaults outside __slots__ raised AttributeError (read-only) (DAOTHER-7829)
 """ ParserLister class for XEASY PROT files.
     @author: Masashi Yokochi
 """
@@ -45,6 +47,12 @@ except ImportError:
     from nmr.mr.BaseTopologyParserListener import BaseTopologyParserListener
 
 
+class _BasePKParserListener(BasePKParserListener):
+    """ BasePKParserListener with an instance __dict__. Its class-level defaults outside __slots__ (e.g. __defaultSegId) are
+        written per instance, which needs a subclass without __slots__, as the concrete peak list listeners are.
+    """
+
+
 class XeasyPROTParserListener(ParseTreeListener, BaseTopologyParserListener):
     """ This class defines a complete listener for a parse tree produced by XeasyPROTParser.
     """
@@ -70,8 +78,8 @@ class XeasyPROTParserListener(ParseTreeListener, BaseTopologyParserListener):
 
         self.file_type = 'nm-aux-xea'
 
-        self.__base_pk = BasePKParserListener(verbose, log, representativeModelId, representativeAltId,
-                                              mrAtomNameMapping, cR, caC, nefT)
+        self.__base_pk = _BasePKParserListener(verbose, log, representativeModelId, representativeAltId,
+                                               mrAtomNameMapping, cR, caC, nefT)
 
         self.protStatements = 0
 

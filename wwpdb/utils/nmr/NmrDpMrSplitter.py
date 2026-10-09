@@ -16,7 +16,7 @@ __docformat__ = "restructuredtext en"
 __author__ = "Masashi Yokochi"
 __email__ = "yokochi@protein.osaka-u.ac.jp"
 __license__ = "Apache License 2.0"
-__version__ = "5.4.2"
+__version__ = "5.4.3"
 
 import codecs
 import itertools
