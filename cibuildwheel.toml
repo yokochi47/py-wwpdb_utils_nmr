@@ -44,8 +44,9 @@ CXXFLAGS = "-g0"
 archs = ["x86_64"]
 # mmcif has no cp39 manylinux wheel, so installing a wheel for its test builds mmcif
 # from source, which needs CMake (undeclared in mmcif's build requirements) and, as
-# for the tox jobs, flex and bison.
-before-all = "dnf install -y flex bison"
+# for the tox jobs, flex and bison. Both come from AlmaLinux AppStream; EPEL is left out
+# because a mirror serving stale metadata fails the whole install.
+before-all = "dnf install -y --disablerepo='epel*' flex bison"
 before-test = "pip install cmake"
 
 [tool.cibuildwheel.macos]
