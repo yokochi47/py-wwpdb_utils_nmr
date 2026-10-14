@@ -1,7 +1,7 @@
 # ============================================================
 # Stage 1: Builder
 # ============================================================
-FROM python:3-slim AS builder
+FROM python:3.14-slim AS builder
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -94,7 +94,7 @@ RUN rm -f .dockerignore \
 # ============================================================
 # Stage 2: Runtime (minimal, non-root)
 # ============================================================
-FROM python:3-slim
+FROM python:3.14-slim
 
 # Runtime OS deps
 RUN apt-get update && \
