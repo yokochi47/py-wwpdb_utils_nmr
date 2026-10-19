@@ -3455,7 +3455,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 return
 
             ca_shift = self.numberSelection[0]
-            cb_shift = self.numberSelection[1]
+            cb_shift = self.numberSelection[1] if len(self.numberSelection) > 1 else None
 
             if CS_ERROR_MIN < ca_shift < CS_ERROR_MAX:
                 pass
@@ -3539,7 +3539,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
 
             comp_id = self.atomSelectionSet[2][0]['comp_id']
 
-            if comp_id == 'GLY':
+            if comp_id == 'GLY' or dstFunc['cb_shift'] is None:
                 del dstFunc['cb_shift']
 
             else:
@@ -6940,7 +6940,8 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
 
             atomSelection = [dict(s) for s in dict.fromkeys(frozenset(atom.items())
                                                             for atom in _atomSelection
-                                                            if isinstance(atom, dict))] if len(_atomSelection) > 1 else _atomSelection  # noqa: E501
+                                                            if isinstance(atom, dict))]\
+                if len(_atomSelection) > 1 else _atomSelection
 
             if len(atomSelection) > 0:
                 self.stackSelections.append(atomSelection)
@@ -9054,7 +9055,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
         """ Exit a parse tree produced by XplorMRParser#evaluate_statement.
         """
 
-        if self.stackVflc:
+        if len(self.stackVflc) == 2:
             self.evaluate[self.cur_symbol_name] = self.stackVflc[0]
 
             if self.cur_vflc_op_code in ('+', '-', '*', '/', '^'):

@@ -24,7 +24,9 @@ try:
                                                REPRESENTATIVE_MODEL_ID,
                                                REPRESENTATIVE_ALT_ID,
                                                DIST_AMBIG_LOW,
-                                               DIST_AMBIG_UP)
+                                               DIST_AMBIG_UP,
+                                               JCOUP_BB_PAIR_CODE,
+                                               ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS)
     from wwpdb.utils.nmr.nef.NefTranslator import NefTranslator
     from wwpdb.utils.nmr.io.CifReader import CifReader
     from wwpdb.utils.nmr.mr.BiosymMRParser import BiosymMRParser
@@ -34,6 +36,7 @@ try:
                                                        isIdenticalRestraint,
                                                        hasInterChainRestraint,
                                                        isAmbigAtomSelection,
+                                                       isLongRangeRestraint,
                                                        getAltProtonIdInBondConstraint,
                                                        isLikePheOrTyr,
                                                        getRow,
@@ -49,7 +52,9 @@ except ImportError:
                                    REPRESENTATIVE_MODEL_ID,
                                    REPRESENTATIVE_ALT_ID,
                                    DIST_AMBIG_LOW,
-                                   DIST_AMBIG_UP)
+                                   DIST_AMBIG_UP,
+                                   JCOUP_BB_PAIR_CODE,
+                                   ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS)
     from nmr.nef.NefTranslator import NefTranslator
     from nmr.io.CifReader import CifReader
     from nmr.mr.BiosymMRParser import BiosymMRParser
@@ -59,6 +64,7 @@ except ImportError:
                                            isIdenticalRestraint,
                                            hasInterChainRestraint,
                                            isAmbigAtomSelection,
+                                           isLongRangeRestraint,
                                            getAltProtonIdInBondConstraint,
                                            isLikePheOrTyr,
                                            getRow,
@@ -129,7 +135,7 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             chainId1, seqId1, compId1, atomId1 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(0)))
             chainId2, seqId2, compId2, atomId2 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(1)))
 
-            if len(self.numberSelection) == 0 or None in self.numberSelection:
+            if len(self.numberSelection) == 0 or None in self.numberSelection or None in (atomId1, atomId2):
                 self.distRestraints -= 1
                 return
 
@@ -281,7 +287,7 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             chainId1, seqId1, compId1, atomId1 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(0)))
             chainId2, seqId2, compId2, atomId2 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(1)))
 
-            if len(self.numberSelection) == 0 or None in self.numberSelection:
+            if len(self.numberSelection) == 0 or None in self.numberSelection or None in (atomId1, atomId2):
                 self.dihedRestraints -= 1
                 return
 
@@ -448,7 +454,7 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
         self.atomSelectionSet.clear()
 
-    def exitDihedral_angle_restraint(self, ctx: BiosymMRParser.Dihedral_angle_restraintContext):  # pylint: disable=unused-argument
+    def exitDihedral_angle_restraint(self, ctx: BiosymMRParser.Dihedral_angle_restraintContext):
         """ Exit a parse tree produced by BiosymMRParser#dihedral_angle_restraint.
         """
 
@@ -459,8 +465,15 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             chainId3, seqId3, compId3, atomId3 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(2)))
             chainId4, seqId4, compId4, atomId4 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(3)))
 
-            if len(self.numberSelection) == 0 or None in self.numberSelection:
+            if len(self.numberSelection) == 0 or None in self.numberSelection or None in (atomId1, atomId2, atomId3, atomId4):
                 self.dihedRestraints -= 1
+                return
+
+            if self.delegateCouplingRestraint():
+                self.dihedRestraints -= 1
+                self.cur_subtype = 'jcoup'
+                self.jcoupRestraints += 1
+                self.exitCoupling_restraint(ctx)
                 return
 
             # cco = self.numberSelection[0]
@@ -685,8 +698,7 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
         self.atomSelectionSet.clear()
 
-    def exitDihedral_angle_constraint(self, ctx: BiosymMRParser.Dihedral_angle_constraintContext
-                                      ):  # pylint: disable=unused-argument
+    def exitDihedral_angle_constraint(self, ctx: BiosymMRParser.Dihedral_angle_constraintContext):
         """ Exit a parse tree produced by BiosymMRParser#dihedral_angle_constraint.
         """
 
@@ -697,8 +709,15 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             chainId3, seqId3, compId3, atomId3 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(2)))
             chainId4, seqId4, compId4, atomId4 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(3)))
 
-            if len(self.numberSelection) == 0 or None in self.numberSelection:
+            if len(self.numberSelection) == 0 or None in self.numberSelection or None in (atomId1, atomId2, atomId3, atomId4):
                 self.dihedRestraints -= 1
+                return
+
+            if self.delegateCouplingRestraint():
+                self.dihedRestraints -= 1
+                self.cur_subtype = 'jcoup'
+                self.jcoupRestraints += 1
+                self.exitCoupling_restraint(ctx)
                 return
 
             target_value = None
@@ -835,6 +854,186 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
         finally:
             self.numberSelection.clear()
 
+    def delegateCouplingRestraint(self) -> bool:
+        """ Check whether dihedral angle restraint is delegated to J-coupling restraint
+        """
+
+        if len(self.numberSelection) < 5:
+            return False
+        coup = self.numberSelection[0]
+        if 0 < coup < 20.0:
+            pass
+        else:
+            return False
+
+        low = self.numberSelection[1]
+        up = self.numberSelection[2]
+
+        if -360.0 < low < up < 360.0:
+            pass
+        else:
+            return False
+
+        low2 = self.numberSelection[3]
+        up2 = self.numberSelection[4]
+
+        if -360.0 < low2 < up2 < 360.0:
+            pass
+        else:
+            return False
+
+        avr = (low + up) / 2.0
+        avr2 = (low2 + up2) / 2.0
+
+        if low2 < avr < up2 or low < avr2 < up:
+            return False
+
+        return True
+
+    def exitCoupling_restraint(self, ctx: BiosymMRParser.Dihedral_angle_constraintContext):
+        """ Delegated function for J-coupling restraint
+        """
+
+        try:
+
+            chainId1, seqId1, compId1, atomId1 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(0)))
+            chainId2, seqId2, compId2, atomId2 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(1)))
+            chainId3, seqId3, compId3, atomId3 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(2)))
+            chainId4, seqId4, compId4, atomId4 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(3)))
+
+            if len(self.numberSelection) == 0 or None in self.numberSelection or None in (atomId1, atomId2, atomId3, atomId4):
+                self.jcoupRestraints -= 1
+                return
+
+            target_value = self.numberSelection[0]
+            lower_limit = None
+            upper_limit = None
+            weight = 1.0
+
+            dstFunc = self.validateRdcRange(weight, 1, target_value, lower_limit, upper_limit)
+
+            if dstFunc is None:
+                return
+
+            if not self.hasPolySeq and not self.hasNonPolySeq:
+                return
+
+            self.retrieveLocalSeqScheme()
+
+            chainAssign1, asis1 = self.assignCoordPolymerSequenceWithChainId(chainId1, seqId1, compId1, atomId1)
+            chainAssign2, asis2 = self.assignCoordPolymerSequenceWithChainId(chainId2, seqId2, compId2, atomId2)
+            chainAssign3, asis3 = self.assignCoordPolymerSequenceWithChainId(chainId3, seqId3, compId3, atomId3)
+            chainAssign4, asis4 = self.assignCoordPolymerSequenceWithChainId(chainId4, seqId4, compId4, atomId4)
+
+            if 0 in (len(chainAssign1), len(chainAssign2), len(chainAssign3), len(chainAssign4)):
+                return
+
+            self.selectCoordAtoms(chainAssign1, seqId1, compId1, atomId1, False)
+            self.selectCoordAtoms(chainAssign2, seqId2, compId2, atomId2, False)
+            self.selectCoordAtoms(chainAssign3, seqId3, compId3, atomId3, False)
+            self.selectCoordAtoms(chainAssign4, seqId4, compId4, atomId4, False)
+
+            if len(self.atomSelectionSet) != 4:
+                return
+
+            if not self.areUniqueCoordAtoms('a J-coupling'):
+                return
+
+            for i in range(0, len(self.atomSelectionSet), 4):
+                chain_id_1 = self.atomSelectionSet[i][0]['chain_id']
+                seq_id_1 = self.atomSelectionSet[i][0]['seq_id']
+                comp_id_1 = self.atomSelectionSet[i][0]['comp_id']
+                atom_id_1 = self.atomSelectionSet[i][0]['atom_id']
+
+                chain_id_2 = self.atomSelectionSet[i + 3][0]['chain_id']
+                seq_id_2 = self.atomSelectionSet[i + 3][0]['seq_id']
+                comp_id_2 = self.atomSelectionSet[i + 3][0]['comp_id']
+                atom_id_2 = self.atomSelectionSet[i + 3][0]['atom_id']
+
+                if (atom_id_1[0] not in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS) or (atom_id_2[0] not in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS):
+                    self.f.append(f"[Invalid data] {self.getCurrentRestraint()}"
+                                  "Non-magnetic susceptible spin appears in J-coupling vector; "
+                                  f"({chain_id_1}:{seq_id_1}:{comp_id_1}:{atom_id_1}, "
+                                  f"{chain_id_2}:{seq_id_2}:{comp_id_2}:{atom_id_2}).")
+                    return
+
+                if chain_id_1 != chain_id_2:
+                    ps1 = next((ps for ps in self.polySeq
+                                if ps['auth_chain_id'] == chain_id_1 and 'identical_auth_chain_id' in ps), None)
+                    ps2 = next((ps for ps in self.polySeq
+                                if ps['auth_chain_id'] == chain_id_2 and 'identical_auth_chain_id' in ps), None)
+                    if ps1 is None and ps2 is None:
+                        self.f.append(f"[Invalid data] {self.getCurrentRestraint()}"
+                                      "Found inter-chain J-coupling vector; "
+                                      f"({chain_id_1}:{seq_id_1}:{comp_id_1}:{atom_id_1}, "
+                                      f"{chain_id_2}:{seq_id_2}:{comp_id_2}:{atom_id_2}).")
+                        return
+
+                elif abs(seq_id_1 - seq_id_2) > 1:
+                    if abs(seq_id_1 - seq_id_2) > 2 or {atom_id_1, atom_id_2} != {'H', 'N'}:
+                        warn_title = 'Anomalous data' if self.preferAuthSeq and 'PRO' in (comp_id_1, comp_id_2) else 'Invalid data'
+                        self.f.append(f"[{warn_title}] {self.getCurrentRestraint()}"
+                                      "Found inter-residue J-coupling vector; "
+                                      f"({chain_id_1}:{seq_id_1}:{comp_id_1}:{atom_id_1}, "
+                                      f"{chain_id_2}:{seq_id_2}:{comp_id_2}:{atom_id_2}).")
+                        return
+
+                elif abs(seq_id_1 - seq_id_2) == 1:
+
+                    if self.csStat.peptideLike(comp_id_1) and self.csStat.peptideLike(comp_id_2) and\
+                            ((seq_id_1 < seq_id_2 and atom_id_1 == 'C' and atom_id_2 in JCOUP_BB_PAIR_CODE)
+                             or (seq_id_1 > seq_id_2 and atom_id_1 in JCOUP_BB_PAIR_CODE and atom_id_2 == 'C')
+                             or (seq_id_1 < seq_id_2 and atom_id_1.startswith('HA') and atom_id_2 in ('H', 'N'))
+                             or (seq_id_1 > seq_id_2 and atom_id_1 in ('H', 'N') and atom_id_2.startswith('HA'))
+                             or {atom_id_1, atom_id_2} == {'H', 'N'}):
+                        pass
+
+                    elif self.csStat.getTypeOfCompId(comp_id_1)[1] and self.csStat.getTypeOfCompId(comp_id_1)[1]\
+                            and seq_id_1 < seq_id_2 and atom_id_2 == 'P':
+                        pass
+
+                    else:
+                        warn_title = 'Anomalous data' if self.preferAuthSeq and 'PRO' in (comp_id_1, comp_id_2) else 'Invalid data'
+                        self.f.append(f"[{warn_title}] {self.getCurrentRestraint()}"
+                                      "Found inter-residue J-coupling vector; "
+                                      f"({chain_id_1}:{seq_id_1}:{comp_id_1}:{atom_id_1}, "
+                                      f"{chain_id_2}:{seq_id_2}:{comp_id_2}:{atom_id_2}).")
+                        return
+
+                elif atom_id_1 == atom_id_2:
+                    self.f.append(f"[Invalid data] {self.getCurrentRestraint()}"
+                                  "Found zero J-coupling vector; "
+                                  f"({chain_id_1}:{seq_id_1}:{comp_id_1}:{atom_id_1}, "
+                                  f"{chain_id_2}:{seq_id_2}:{comp_id_2}:{atom_id_2}).")
+                    return
+
+            sf = None
+            if self.createSfDict:
+                sf = self.getSf(potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                sf['id'] += 1
+
+            for atom1, atom2, atom3, atom4 in itertools.product(self.atomSelectionSet[0],
+                                                                self.atomSelectionSet[1],
+                                                                self.atomSelectionSet[2],
+                                                                self.atomSelectionSet[3]):
+                if isLongRangeRestraint([atom1, atom2, atom3, atom4], self.polySeq if self.gapInAuthSeq else None):
+                    if {atom1['atom_id'], atom4['atom_id']} != {'H', 'N'}:
+                        continue
+                if self.debug:
+                    print(f"subtype={self.cur_subtype} id={self.jcoupRestraints} "
+                          f"atom1={atom1} atom2={atom2} atom3={atom3} atom4={atom4} {dstFunc}")
+                if self.createSfDict and sf is not None:
+                    sf['index_id'] += 1
+                    row = getRow(self.cur_subtype, sf['id'], sf['index_id'],
+                                 '.', None, None,
+                                 sf['list_id'], self.entryId, dstFunc,
+                                 self.authToStarSeq, self.authToOrigSeq, self.authToInsCode, self.offsetHolder,
+                                 atom1, atom2, atom3, atom4, asis1=asis1, asis2=asis2, asis3=asis3, asis4=asis4)
+                    sf['loop'].add_data(row)
+
+        finally:
+            self.numberSelection.clear()
+
     def enterChirality_constraints(self, ctx: BiosymMRParser.Chirality_constraintsContext):  # pylint: disable=unused-argument
         """ Enter a parse tree produced by BiosymMRParser#chirality_constraints.
         """
@@ -861,7 +1060,7 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
         chirality = str(ctx.Chiral_code())
 
-        if not self.hasPolySeq and not self.hasNonPolySeq:
+        if not self.hasPolySeq and not self.hasNonPolySeq or atomId1 is None:
             return
 
         self.retrieveLocalSeqScheme()
@@ -927,7 +1126,7 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
         chainId4, seqId4, compId4, atomId4 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(3)))
         chainId5, seqId5, compId5, atomId5 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(4)))
 
-        if not self.hasPolySeq and not self.hasNonPolySeq:
+        if not self.hasPolySeq and not self.hasNonPolySeq or None in (atomId1, atomId2, atomId3, atomId4, atomId5):
             return
 
         self.retrieveLocalSeqScheme()
@@ -1044,7 +1243,7 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
         weight = 1.0
 
-        if not self.hasPolySeq and not self.hasNonPolySeq:
+        if not self.hasPolySeq and not self.hasNonPolySeq or None in (atomId1, atomId2):
             return
 
         self.retrieveLocalSeqScheme()

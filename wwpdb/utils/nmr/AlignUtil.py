@@ -267,7 +267,7 @@ def beautifyPolySeq(polySeq1: dict, polySeq2: dict, seqIdName1: str = 'seq_id', 
            in zip(_polySeq1[seqIdName1], _polySeq2['comp_id']) if seqId is not None and seqId > 0]
     if has_auth_comp_id2:
         _a_c2 = [authCompId for seqId, authCompId
-                 in zip(_polySeq2[seqIdName1], _polySeq2['auth_comp_id']) if seqId is not None and seqId > 0]
+                 in zip(_polySeq2[seqIdName2], _polySeq2['auth_comp_id']) if seqId is not None and seqId > 0]
         if _a_c2 in EMPTY_VALUE:
             _a_c2 = _c2
 

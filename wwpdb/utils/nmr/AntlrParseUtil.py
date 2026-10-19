@@ -112,6 +112,9 @@ class LazyCodePointInputStream(InputStream):
 
     @property
     def data(self) -> list:  # pylint: disable=invalid-overridden-method
+        """ Retrieve list of the code points for pure-Python lexer.
+        """
+
         if self._codePoints is None:
             self._codePoints = [ord(c) for c in self.strdata]
         return self._codePoints

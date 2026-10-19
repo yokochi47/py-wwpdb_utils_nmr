@@ -74,6 +74,7 @@ name|type|description
 `secret_key`|`param`|Token used for signing in standalone NMR data conversion service.
 `service_host`|`param`|Host name of standalone NMR data conversion service as signer.
 `dep_sys_name`|`param`|Target deposition system name of standalone NMR data conversion service.
+`permit_missing_cs_file`|`param`|Boolean value. Permit missing CS file. NOTE: used for internal only.
 
 4. Add primary output file path, other output file path and parameters
 

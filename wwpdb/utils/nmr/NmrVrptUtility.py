@@ -1284,6 +1284,7 @@ class NmrVrptUtility:
                  '__log',
                  '__debug',
                  '__trust_pdbx_auth_atom_name',
+                 '__permit_missing_chem_shift',
                  '__use_cache',
                  '__inputParamDict',
                  '__outputParamDict',
@@ -1356,6 +1357,7 @@ class NmrVrptUtility:
 
         self.__debug = False
         self.__trust_pdbx_auth_atom_name = False
+        self.__permit_missing_chem_shift = False
         self.__use_cache = cR is not None and caC is not None
 
         # auxiliary input resource
@@ -1616,6 +1618,12 @@ class NmrVrptUtility:
         """
 
         self.__trust_pdbx_auth_atom_name = trust_pdbx_auth_atom_name
+
+    def permitMissingChemShift(self, permit_missing_chem_shift: bool) -> None:
+        """ Whether permit missing assigned chemical shift.
+        """
+
+        self.__permit_missing_chem_shift = permit_missing_chem_shift
 
     def useCache(self, use_cache: bool) -> None:
         """ Use cache file(s) of the previous run.
@@ -5153,7 +5161,8 @@ class NmrVrptUtility:
 
         if self.__chemShiftDict is None or len(self.__chemShiftDict) == 0:
             self.__results = {'cs_no_file': True}
-            self.__log.write("There are no assigned chemical shifts that need to be analyzed.\n")
+            if not self.__permit_missing_chem_shift:
+                self.__log.write("There are no assigned chemical shifts that need to be analyzed.\n")
             return False
 
         has_coord = self.__coordinates is not None

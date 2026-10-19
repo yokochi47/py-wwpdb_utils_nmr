@@ -437,6 +437,9 @@ class NmrDpValidationOutStats(NmrDpValidationBase):
             vrpt_util.dirPath = self._reg.dirPath
             vrpt_util.cacheDirPath = self._reg.cacheDirPath
 
+            if self._reg.permit_missing_cs_file:
+                vrpt_util.permitMissingChemShift(True)
+
             software_info.append({'name': 'wwpdb.utils.nmr.NmrVrptUtility',
                                   'version': vrpt_util.version,
                                   'classification': 'workflow that performs chemical shift and restraint validations'})
@@ -789,20 +792,26 @@ class NmrDpValidationOutStats(NmrDpValidationBase):
             if has_rdc and 'rdc_correlation_plot' in vrpt_mr:
                 rdc_correlation_plot = vrpt_mr['rdc_correlation_plot']
 
-                input_source_ = self._reg.report_prev.input_sources[0]
-                input_source_dic_ = input_source_.get()
-                content_subtypes_ = input_source_dic_['content_subtype']
+                try:
 
-                if 'rdc_restraint' in content_subtypes_ and 'stats_of_exptl_data' in input_source_dic_:
-                    stats_of_exptl_data = input_source_dic_['stats_of_exptl_data']
+                    input_source_ = self._reg.report_prev.input_sources[0]
+                    input_source_dic_ = input_source_.get()
 
-                    if 'rdc_restraint' in stats_of_exptl_data:
+                    content_subtypes_ = input_source_dic_['content_subtype']
 
-                        for rdc_stat in stats_of_exptl_data['rdc_restraint']:
-                            list_id = rdc_stat['list_id']
+                    if 'rdc_restraint' in content_subtypes_ and 'stats_of_exptl_data' in input_source_dic_:
+                        stats_of_exptl_data = input_source_dic_['stats_of_exptl_data']
 
-                            if list_id in rdc_correlation_plot:
-                                rdc_stat['correlation_plot'] = rdc_correlation_plot[list_id]
+                        if 'rdc_restraint' in stats_of_exptl_data:
+
+                            for rdc_stat in stats_of_exptl_data['rdc_restraint']:
+                                list_id = rdc_stat['list_id']
+
+                                if list_id in rdc_correlation_plot:
+                                    rdc_stat['correlation_plot'] = rdc_correlation_plot[list_id]
+
+                except TypeError:
+                    pass
 
             def get_dist_violations_per_model():
                 violations_per_model = []

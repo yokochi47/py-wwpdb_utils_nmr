@@ -1737,9 +1737,9 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                         if self.branched is not None:
                             ps = next((ps for ps in self.branched if ps['auth_chain_id'] == chainId), None)
                             if ps is None:
-                                ps = next(ps for ps in self.polySeq if ps['auth_chain_id'] == chainId)
+                                ps = next((ps for ps in self.polySeq if ps['auth_chain_id'] == chainId), None)
                     else:
-                        ps = next(ps for ps in self.polySeq if ps['auth_chain_id'] == chainId)
+                        ps = next((ps for ps in self.polySeq if ps['auth_chain_id'] == chainId), None)
 
                     peptide, nucleotide, carbohydrate = self.csStat.getTypeOfCompId(cifCompId)
 
@@ -2558,14 +2558,14 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             self.cur_subtype = 'noepk'
 
         self.cur_subtype_altered = False
-        self.cur_comment_inlined = True
+        # self.cur_comment_inlined = True
 
     def exitFixres_distance_restraints(self, ctx: CyanaMRParser.Fixres_distance_restraintsContext
                                        ):  # pylint: disable=unused-argument
         """ Exit a parse tree produced by CyanaMRParser#fixres_distance_restraints.
         """
 
-        self.cur_comment_inlined = False
+        # self.cur_comment_inlined = False
 
     def enterFixres_distance_restraint(self, ctx: CyanaMRParser.Fixres_distance_restraintContext
                                        ):  # pylint: disable=unused-argument
@@ -2852,14 +2852,14 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             self.cur_subtype = 'noepk'
 
         self.cur_subtype_altered = False
-        self.cur_comment_inlined = True
+        # self.cur_comment_inlined = True
 
     def exitFixresw_distance_restraints(self, ctx: CyanaMRParser.Fixresw_distance_restraintsContext
                                         ):  # pylint: disable=unused-argument
         """ Exit a parse tree produced by CyanaMRParser#fixresw_distance_restraints.
         """
 
-        self.cur_comment_inlined = False
+        # self.cur_comment_inlined = False
 
     def enterFixresw_distance_restraint(self, ctx: CyanaMRParser.Fixresw_distance_restraintContext
                                         ):  # pylint: disable=unused-argument
@@ -3231,14 +3231,14 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             self.cur_subtype = 'noepk'
 
         self.cur_subtype_altered = False
-        self.cur_comment_inlined = True
+        # self.cur_comment_inlined = True
 
     def exitFixresw2_distance_restraints(self, ctx: CyanaMRParser.Fixresw2_distance_restraintsContext
                                          ):  # pylint: disable=unused-argument
         """ Exit a parse tree produced by CyanaMRParser#fixresw2_distance_restraints.
         """
 
-        self.cur_comment_inlined = False
+        # self.cur_comment_inlined = False
 
     def enterFixresw2_distance_restraint(self, ctx: CyanaMRParser.Fixresw2_distance_restraintContext
                                          ):  # pylint: disable=unused-argument
@@ -3510,14 +3510,14 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             self.cur_subtype = 'noepk'
 
         self.cur_subtype_altered = False
-        self.cur_comment_inlined = True
+        # self.cur_comment_inlined = True
 
     def exitFixatm_distance_restraints(self, ctx: CyanaMRParser.Fixatm_distance_restraintsContext
                                        ):  # pylint: disable=unused-argument
         """ Exit a parse tree produced by CyanaMRParser#fixatm_distance_restraints.
         """
 
-        self.cur_comment_inlined = False
+        # self.cur_comment_inlined = False
 
     def enterFixatm_distance_restraint(self, ctx: CyanaMRParser.Fixatm_distance_restraintContext
                                        ):  # pylint: disable=unused-argument
@@ -3804,14 +3804,14 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             self.cur_subtype = 'noepk'
 
         self.cur_subtype_altered = False
-        self.cur_comment_inlined = True
+        # self.cur_comment_inlined = True
 
     def exitFixatmw_distance_restraints(self, ctx: CyanaMRParser.Fixatmw_distance_restraintsContext
                                         ):  # pylint: disable=unused-argument
         """ Exit a parse tree produced by CyanaMRParser#fixatmw_distance_restraints.
         """
 
-        self.cur_comment_inlined = False
+        # self.cur_comment_inlined = False
 
     def enterFixatmw_distance_restraint(self, ctx: CyanaMRParser.Fixatmw_distance_restraintContext
                                         ):  # pylint: disable=unused-argument
@@ -4183,14 +4183,14 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             self.cur_subtype = 'noepk'
 
         self.cur_subtype_altered = False
-        self.cur_comment_inlined = True
+        # self.cur_comment_inlined = True
 
     def exitFixatmw2_distance_restraints(self, ctx: CyanaMRParser.Fixatmw2_distance_restraintsContext
                                          ):  # pylint: disable=unused-argument
         """ Exit a parse tree produced by CyanaMRParser#fixatmw2_distance_restraints.
         """
 
-        self.cur_comment_inlined = False
+        # self.cur_comment_inlined = False
 
     def enterFixatmw2_distance_restraint(self, ctx: CyanaMRParser.Fixatmw2_distance_restraintContext
                                          ):  # pylint: disable=unused-argument
@@ -5826,9 +5826,9 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                         if self.branched is not None:
                             ps = next((ps for ps in self.branched if ps['auth_chain_id'] == chainId), None)
                             if ps is None:
-                                ps = next(ps for ps in self.polySeq if ps['auth_chain_id'] == chainId)
+                                ps = next((ps for ps in self.polySeq if ps['auth_chain_id'] == chainId), None)
                     else:
-                        ps = next(ps for ps in self.polySeq if ps['auth_chain_id'] == chainId)
+                        ps = next((ps for ps in self.polySeq if ps['auth_chain_id'] == chainId), None)
 
                     peptide, nucleotide, carbohydrate = self.csStat.getTypeOfCompId(cifCompId)
 

@@ -80,7 +80,8 @@ DP_INPUT_PARAM_KEYS = ('remediation', 'internal', 'bmrb_only', 'bmrb_id', 'merge
                        'transl_pseudo_name', 'tolerant_seq_align', 'fix_format_issue', 'excl_missing_data',
                        'cmpl_missing_data', 'trust_pdbx_nmr_ens', 'rmsd_not_superimposed', 'rmsd_overlaid_exactly',
                        'secret_key', 'service_host',  # used only for standalone NMR data conversion service
-                       'dep_sys_name', 'elec_dep_hash_code', 'update_related_entries')  # used only for BMRB internal annotation
+                       'dep_sys_name', 'elec_dep_hash_code', 'update_related_entries',  # used only for BMRB internal annotation
+                       'permit_missing_cs_file')  # NMR data remediation Phase 3
 
 # supported input file names for NmrDpUtility class
 DP_INPUT_FILE_KEYS = (MODEL_FILE_PATH_KEY,

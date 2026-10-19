@@ -1351,6 +1351,9 @@ class RosettaMRParserListener(ParseTreeListener):
                 if isinstance(memberId, str) and isinstance(combinationId, int) and combinationId == 1:
                     sf['loop'].data[-1] = resetCombinationId(self.__cur_subtype, sf['loop'].data[-1])
 
+        except AttributeError:
+            pass
+
         finally:
             self.atomSelectionInComment.clear()
             self.genResNumSelection.clear()
@@ -3023,6 +3026,9 @@ class RosettaMRParserListener(ParseTreeListener):
                                                dstFunc.get('upper_linear_limit'),
                                                sf['list_id']])
 
+        except AttributeError:
+            pass
+
         finally:
             self.genResNumSelection.clear()
             self.genSimpleNameSelection.clear()
@@ -3090,6 +3096,9 @@ class RosettaMRParserListener(ParseTreeListener):
         if self.__correctCircularShift:
             _array = numpy.array([target_value, lower_limit, upper_limit, lower_linear_limit, upper_linear_limit],
                                  dtype=float)
+
+            if numpy.isnan(_array).all():
+                return None
 
             shift = None
             if numpy.nanmin(_array) >= THRESHOLD_FOR_CIRCULAR_SHIFT:
@@ -3439,6 +3448,9 @@ class RosettaMRParserListener(ParseTreeListener):
             if self.__createSfDict and sf is not None and isinstance(combinationId, int) and combinationId == 1:
                 sf['loop'].data[-1] = resetCombinationId(self.__cur_subtype, sf['loop'].data[-1])
 
+        except AttributeError:
+            pass
+
         finally:
             self.genResNumSelection.clear()
             self.genSimpleNameSelection.clear()
@@ -3648,6 +3660,9 @@ class RosettaMRParserListener(ParseTreeListener):
                                  atom1, atom2, atom3, atom4)
                     sf['loop'].add_data(row)
 
+        except AttributeError:
+            pass
+
         finally:
             self.genResNumSelection.clear()
             self.genSimpleNameSelection.clear()
@@ -3768,7 +3783,7 @@ class RosettaMRParserListener(ParseTreeListener):
                                                cartX, cartY, cartZ,
                                                sf['list_id']])
 
-        except ValueError:
+        except (AttributeError, ValueError):
             self.geoRestraints -= 1
 
         finally:
@@ -3885,7 +3900,7 @@ class RosettaMRParserListener(ParseTreeListener):
                                                cartX, cartY, cartZ,
                                                sf['list_id']])
 
-        except ValueError:
+        except (ValueError, AttributeError):
             self.geoRestraints -= 1
 
         finally:
@@ -3994,6 +4009,9 @@ class RosettaMRParserListener(ParseTreeListener):
                                                dstFunc.get('upper_linear_limit'),
                                                sf['list_id']])
 
+        except AttributeError:
+            pass
+
         finally:
             self.genResNumSelection.clear()
             self.genSimpleNameSelection.clear()
@@ -4098,6 +4116,9 @@ class RosettaMRParserListener(ParseTreeListener):
                                                dstFunc.get('upper_limit'),
                                                dstFunc.get('upper_linear_limit'),
                                                sf['list_id']])
+
+        except AttributeError:
+            pass
 
         finally:
             self.genResNumSelection.clear()
@@ -5811,6 +5832,9 @@ class RosettaMRParserListener(ParseTreeListener):
                     memberId = '.'
                 if isinstance(memberId, str) and isinstance(combinationId, int) and combinationId == 1:
                     sf['loop'].data[-1] = resetCombinationId(self.__cur_subtype, sf['loop'].data[-1])
+
+        except AttributeError:
+            pass
 
         finally:
             self.atomSelectionInComment.clear()

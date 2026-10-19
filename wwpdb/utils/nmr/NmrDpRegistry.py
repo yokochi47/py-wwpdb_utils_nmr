@@ -157,6 +157,9 @@ class NmrDpRegistry:
     # whether legacy distance restraint has been uploaded
     legacy_dist_restraint_uploaded: bool = False
 
+    # whether permit missing chemical shift file (NMR data remediation Phase 3
+    permit_missing_cs_file: bool = False
+
     # whether stereo-array isotope labeling method has been applied for the study
     sail_flag: bool = False
 

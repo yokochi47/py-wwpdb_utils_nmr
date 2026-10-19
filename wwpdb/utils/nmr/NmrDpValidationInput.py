@@ -50,7 +50,8 @@ try:
                                                  convert_rtf_to_ascii,
                                                  is_rtf_file)
     from wwpdb.utils.nmr.NmrDpReport import NmrDpReportInputSource
-    from wwpdb.utils.nmr.CifToNmrStar import (get_first_sf_tag,
+    from wwpdb.utils.nmr.CifToNmrStar import (has_key_value,
+                                              get_first_sf_tag,
                                               set_sf_tag)
     from wwpdb.utils.nmr.NmrVrptUtility import (uncompress_gzip_file,
                                                 compress_as_gzip_file)
@@ -80,7 +81,8 @@ except ImportError:
                                      convert_rtf_to_ascii,
                                      is_rtf_file)
     from nmr.NmrDpReport import NmrDpReportInputSource
-    from nmr.CifToNmrStar import (get_first_sf_tag,
+    from nmr.CifToNmrStar import (has_key_value,
+                                  get_first_sf_tag,
                                   set_sf_tag)
     from nmr.NmrVrptUtility import (uncompress_gzip_file,
                                     compress_as_gzip_file)
@@ -104,6 +106,11 @@ class NmrDpValidationInput(NmrDpValidationBase):
         self._reg.legacy_dist_restraint_uploaded = False
 
         def proc_cs_path_path_list(offset):
+
+            if not has_key_value(self._reg.inputParamDict, CS_FILE_PATH_LIST_KEY) and self._reg.permit_missing_cs_file:
+                self._reg.star_data.append(pynmrstar.Entry.from_scratch('dummy'))
+                self._reg.star_data_type.append('Entry')
+                return True
 
             for csListId, cs in enumerate(self._reg.inputParamDict[CS_FILE_PATH_LIST_KEY], start=offset):
 

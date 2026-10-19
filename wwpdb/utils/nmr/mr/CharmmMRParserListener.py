@@ -1359,7 +1359,8 @@ class CharmmMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
 
             atomSelection = [dict(s) for s in dict.fromkeys(frozenset(atom.items())
                                                             for atom in _atomSelection
-                                                            if isinstance(atom, dict))] if len(_atomSelection) > 1 else _atomSelection  # noqa: E501
+                                                            if isinstance(atom, dict))]\
+                if len(_atomSelection) > 1 else _atomSelection
 
             if len(atomSelection) > 0:
                 self.stackSelections.append(atomSelection)

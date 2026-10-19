@@ -1469,10 +1469,13 @@ class BasePKParserListener():
                                 elif mid_code == ' ' and test_seq_id in poly_seq_rst['seq_id']:
                                     idx = poly_seq_rst['seq_id'].index(test_seq_id)
                                     if poly_seq_rst['comp_id'][idx] == '.' and poly_seq_rst['auth_comp_id'][idx] not in EMPTY_VALUE:
-                                        seq_id_mapping[test_seq_id] =\
-                                            next(auth_seq_id for auth_seq_id, seq_id
-                                                 in zip(poly_seq_model['auth_seq_id'], poly_seq_model['seq_id'])
-                                                 if seq_id == ref_seq_id and isinstance(auth_seq_id, int))
+                                        try:
+                                            seq_id_mapping[test_seq_id] =\
+                                                next(auth_seq_id for auth_seq_id, seq_id
+                                                     in zip(poly_seq_model['auth_seq_id'], poly_seq_model['seq_id'])
+                                                     if seq_id == ref_seq_id and isinstance(auth_seq_id, int))
+                                        except StopIteration:
+                                            pass
 
                             if offset is not None and all(v - k == offset for k, v in seq_id_mapping.items()):
                                 test_seq_id_list = list(seq_id_mapping.keys())
@@ -5004,14 +5007,26 @@ class BasePKParserListener():
                 self.f.append(f"[Range value warning] {self.getCurrentSpectralPeak(n=index)}"
                               f"The position_{dim}='{pos}' should be within range {CS_RESTRAINT_RANGE}.")
 
-        if height is not None and float(height) != 0.0:
-            dstFunc['height'] = height
-        if volume is not None and float(volume) != 0.0:
-            dstFunc['volume'] = volume
-        if height_uncertainty is not None and float(height_uncertainty) != 0.0:
-            dstFunc['height_uncertainty'] = height_uncertainty
-        if volume_uncertainty is not None and float(volume_uncertainty) != 0.0:
-            dstFunc['volume_uncertainty'] = volume_uncertainty
+        try:
+            if height is not None and float(height) != 0.0:
+                dstFunc['height'] = height
+        except ValueError:
+            pass
+        try:
+            if volume is not None and float(volume) != 0.0:
+                dstFunc['volume'] = volume
+        except ValueError:
+            pass
+        try:
+            if height_uncertainty is not None and float(height_uncertainty) != 0.0:
+                dstFunc['height_uncertainty'] = height_uncertainty
+        except ValueError:
+            pass
+        try:
+            if volume_uncertainty is not None and float(volume_uncertainty) != 0.0:
+                dstFunc['volume_uncertainty'] = volume_uncertainty
+        except ValueError:
+            pass
 
         if 'height' not in dstFunc and 'volume' not in dstFunc and not self.__internal:
             self.f.append(f"[Missing data] {self.getCurrentSpectralPeak(n=index)}"

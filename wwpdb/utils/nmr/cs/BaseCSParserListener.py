@@ -536,12 +536,15 @@ class BaseCSParserListener():
                                 elif mid_code == ' ' and test_seq_id in poly_seq_rst['seq_id']:
                                     idx = poly_seq_rst['seq_id'].index(test_seq_id)
                                     if poly_seq_rst['comp_id'][idx] == '.' and poly_seq_rst['auth_comp_id'][idx] not in EMPTY_VALUE:
-                                        seq_id_mapping[test_seq_id] =\
-                                            next(auth_seq_id for auth_seq_id, seq_id
-                                                 in zip(poly_seq_model['auth_seq_id' if 'auth_seq_id' in poly_seq_model
-                                                                       else 'seq_id'],
-                                                        poly_seq_model['seq_id'])
-                                                 if seq_id == ref_seq_id and isinstance(auth_seq_id, int))
+                                        try:
+                                            seq_id_mapping[test_seq_id] =\
+                                                next(auth_seq_id for auth_seq_id, seq_id
+                                                     in zip(poly_seq_model['auth_seq_id' if 'auth_seq_id' in poly_seq_model
+                                                                           else 'seq_id'],
+                                                            poly_seq_model['seq_id'])
+                                                     if seq_id == ref_seq_id and isinstance(auth_seq_id, int))
+                                        except StopIteration:
+                                            pass
 
                             if offset is not None and all(v - k == offset for k, v in seq_id_mapping.items()):
                                 test_seq_id_list = list(seq_id_mapping.keys())

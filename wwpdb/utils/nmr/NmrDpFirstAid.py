@@ -245,17 +245,15 @@ class NmrDpFirstAid:
                     j -= 1
 
             j += 1
-            i = 0
 
             _srcPath_next = self.getNextPath(_srcPath)
 
             with open(_srcPath, 'r', encoding='utf-8') as ifh, \
                     open(_srcPath_next, 'w', encoding='utf-8') as ofh:
                 ofh.write(f'data_{os.path.basename(srcPath)}\n\n')
-                for line in ifh:
-                    if i < j:
+                for idx, line in enumerate(ifh):
+                    if idx < j:
                         ofh.write(line)
-                    i += 1
 
                 _srcPath = ofh.name
                 tmpPaths.append(_srcPath)
@@ -318,18 +316,15 @@ class NmrDpFirstAid:
                 if __pynmrstar_v3_6__:
                     line_num -= 1
 
-                i = 0
-
                 _srcPath_next = self.getNextPath(_srcPath)
 
                 with open(_srcPath, 'r', encoding='utf-8') as ifh, \
                         open(_srcPath_next, 'w', encoding='utf-8') as ofh:
-                    for line in ifh:
-                        if i == line_num:
+                    for idx, line in enumerate(ifh):
+                        if idx == line_num:
                             ofh.write('stop_\n')
                         ofh.write(line)
-                        i += 1
-                    if i == line_num:
+                    if idx == line_num:
                         ofh.write('stop_\n')
 
                     _srcPath = ofh.name
@@ -369,11 +364,10 @@ class NmrDpFirstAid:
 
                 with open(_srcPath, 'r', encoding='utf-8') as ifh, \
                         open(_srcPath_next, 'w', encoding='utf-8') as ofh:
-                    for line in ifh:
-                        if i == line_num - 1:
+                    for idx, line in enumerate(ifh):
+                        if idx == line_num - 1:
                             ofh.write('loop_\n')
                         ofh.write(line)
-                        i += 1
 
                     _srcPath = ofh.name
                     tmpPaths.append(_srcPath)
@@ -522,18 +516,15 @@ class NmrDpFirstAid:
                 if __pynmrstar_v3_6__:
                     line_num -= 1
 
-                i = 0
-
                 _srcPath_next = self.getNextPath(_srcPath)
 
                 with open(_srcPath, 'r', encoding='utf-8') as ifh, \
                         open(_srcPath_next, 'w', encoding='utf-8') as ofh:
-                    for line in ifh:
-                        if i != line_num:
+                    for idx, line in enumerate(ifh):
+                        if idx != line_num:
                             ofh.write(line)
                         else:
                             ofh.write(f"save_{os.path.basename(srcPath)}\n")
-                        i += 1
 
                     _srcPath = ofh.name
                     tmpPaths.append(_srcPath)

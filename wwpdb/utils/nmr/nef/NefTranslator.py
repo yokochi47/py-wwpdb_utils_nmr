@@ -7912,7 +7912,7 @@ class NefTranslator:
                     # DAOTHER-8817: H\S*[xyXY]\S+[%*]
                     if atom_type[0] in PROTON_BEGIN_CODE\
                        and ('X' in atom_type or 'Y' in atom_type or 'x' in atom_type or 'y' in atom_type):
-                        _atom_type = atom_type.replace('X', '').replace('Y', '').replace('x', '').replace('y', '')
+                        _atom_type = atom_type.replace('X', '').replace('Y', '').replace('x', '').replace('y', '').rstrip('*')
                         if wc_code == '%':
                             pattern = re.compile(fr'{_atom_type}\d+') if is_std_comp_id else re.compile(fr'{_atom_type}\S?$')
                         elif wc_code == '*':
@@ -7920,16 +7920,18 @@ class NefTranslator:
                         elif self.__verbose:
                             self.__log.write(f"+{self.__class_name__}.get_star_atom_for_ligand_remap() ++ Error  - "
                                              f"Invalid NEF atom nomenclature {nef_atom} found.\n")
-                    elif wc_code == '%':
-                        pattern = re.compile(fr'{atom_type}\d+') if is_std_comp_id else re.compile(fr'{atom_type}\S?$')
-                    elif wc_code == '*':
-                        pattern = re.compile(fr'{atom_type}\S+')
-                    elif self.__verbose:
-                        self.__log.write(f"+{self.__class_name__}.get_star_atom_for_ligand_remap() ++ Error  - "
-                                         f"Invalid NEF atom nomenclature {nef_atom} found.\n")
+                    else:
+                        atom_type = atom_type.rstrip('*')
+                        if wc_code == '%':
+                            pattern = re.compile(fr'{atom_type}\d+') if is_std_comp_id else re.compile(fr'{atom_type}\S?$')
+                        elif wc_code == '*':
+                            pattern = re.compile(fr'{atom_type}\S+')
+                        elif self.__verbose:
+                            self.__log.write(f"+{self.__class_name__}.get_star_atom_for_ligand_remap() ++ Error  - "
+                                             f"Invalid NEF atom nomenclature {nef_atom} found.\n")
                 else:
                     _wc_code = atom_type[0]
-                    atom_type = atom_type[1:]
+                    atom_type = atom_type[1:].lstrip('*').rstrip('*')
 
                     if _wc_code == '%':
                         if wc_code == '%':
@@ -8816,7 +8818,7 @@ class NefTranslator:
                         # DAOTHER-8817: H\S*[xyXY]\S+[%*]
                         if atom_type[0] in PROTON_BEGIN_CODE and ('X' in atom_type or 'Y' in atom_type
                                                                   or 'x' in atom_type or 'y' in atom_type):
-                            _atom_type = atom_type.replace('X', '').replace('Y', '').replace('x', '').replace('y', '')
+                            _atom_type = atom_type.replace('X', '').replace('Y', '').replace('x', '').replace('y', '').rstrip('*')
                             if wc_code == '%':
                                 pattern = re.compile(fr'{_atom_type}\d+') if is_std_comp_id else re.compile(fr'{_atom_type}\S?$')
                             elif wc_code == '*':
@@ -8824,31 +8826,33 @@ class NefTranslator:
                             elif self.__verbose:
                                 self.__log.write(f"+{self.__class_name__}.get_star_atom() "
                                                  f"++ Error  - Invalid NEF atom nomenclature {nef_atom} found.\n")
-                        elif wc_code == '%':
-                            pattern = re.compile(fr'{atom_type}\d+') if is_std_comp_id else re.compile(fr'{atom_type}\S?$')
-                        elif wc_code == '*':
-                            pattern = re.compile(fr'{atom_type}\S+')
-                        elif self.__verbose:
-                            self.__log.write(f"+{self.__class_name__}.get_star_atom() "
-                                             f"++ Error  - Invalid NEF atom nomenclature {nef_atom} found.\n")
+                        else:
+                            atom_type = atom_type.rstrip('*')
+                            if wc_code == '%':
+                                pattern = re.compile(fr'{atom_type}\d+') if is_std_comp_id else re.compile(fr'{atom_type}\S?$')
+                            elif wc_code == '*':
+                                pattern = re.compile(fr'{atom_type}\S+')
+                            elif self.__verbose:
+                                self.__log.write(f"+{self.__class_name__}.get_star_atom() "
+                                                 f"++ Error  - Invalid NEF atom nomenclature {nef_atom} found.\n")
                     else:
                         _wc_code = atom_type[0]
-                        atom_type = atom_type[1:]
+                        atom_type = atom_type[1:].lstrip('*').rstrip('*')
 
                         if _wc_code == '%':
                             if wc_code == '%':
-                                pattern =\
-                                    re.compile(fr'\d+{atom_type}\d+') if is_std_comp_id else re.compile(fr'\S?{atom_type}\S?$')
+                                pattern = re.compile(fr'\d+{atom_type}\d+')\
+                                    if is_std_comp_id else re.compile(fr'\S?{atom_type}\S?$')
                             elif wc_code == '*':
-                                pattern =\
-                                    re.compile(fr'\d+{atom_type}\S+') if is_std_comp_id else re.compile(fr'\S?{atom_type}\S+$')
+                                pattern = re.compile(fr'\d+{atom_type}\S+')\
+                                    if is_std_comp_id else re.compile(fr'\S?{atom_type}\S+$')
                             elif self.__verbose:
                                 self.__log.write(f"+{self.__class_name__}.get_star_atom() "
                                                  f"++ Error  - Invalid NEF atom nomenclature {nef_atom} found.\n")
                         elif _wc_code == '*':
                             if wc_code == '%':
-                                pattern =\
-                                    re.compile(fr'\S+{atom_type}\d+') if is_std_comp_id else re.compile(fr'\S+{atom_type}\S?$')
+                                pattern = re.compile(fr'\S+{atom_type}\d+')\
+                                    if is_std_comp_id else re.compile(fr'\S+{atom_type}\S?$')
                             elif wc_code == '*':
                                 pattern = re.compile(fr'\S+{atom_type}\S+')
                             elif self.__verbose:
@@ -8912,7 +8916,7 @@ class NefTranslator:
 
                 elif atm_set == [7, 8]:  # startswith [%*]
 
-                    atom_type = ref_atom[8]
+                    atom_type = ref_atom[8].lstrip('*')
                     wc_code = ref_atom[7]
 
                     if wc_code == '%':

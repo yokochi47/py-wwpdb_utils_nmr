@@ -5295,6 +5295,10 @@ class AmberMRParserListener(ParseTreeListener):
             _array = numpy.array([self.lowerLimit, self.upperLimit, self.lowerLinearLimit, self.upperLinearLimit],
                                  dtype=float)
 
+            if numpy.isnan(_array).all():
+                self.lastComment = None
+                return None
+
             shift = None
             if numpy.nanmin(_array) >= THRESHOLD_FOR_CIRCULAR_SHIFT:
                 shift = -(numpy.nanmax(_array) // 360) * 360
@@ -7576,6 +7580,8 @@ class AmberMRParserListener(ParseTreeListener):
                     rawIntArray = str(ctx.Integers()).split(',')
                     numIatCol = 0
                     for col, rawInt in enumerate(rawIntArray):
+                        if col >= 8:
+                            break
                         val = int(rawInt)
                         if val == 0:
                             break
@@ -7607,6 +7613,8 @@ class AmberMRParserListener(ParseTreeListener):
                             return
                         val = int(rawMultInt[1])
                         for col in range(0, numIatCol):
+                            if offset + col >= 8:
+                                break
                             self.iat[offset + col] = val
                         if val != 0:
                             self.numIatCol = offset + numIatCol
@@ -7782,6 +7790,8 @@ class AmberMRParserListener(ParseTreeListener):
                                         f"The length of '{varName}={','.join(rawRealArray)}' must not exceed {MAX_COL_RSTWT}.")
                         return
                     for col, rawReal in enumerate(rawRealArray):
+                        if col >= 4:
+                            break
                         val = float(rawReal)
                         self.rstwt[col] = val
                         if col == 1:
@@ -7798,6 +7808,8 @@ class AmberMRParserListener(ParseTreeListener):
                             return
                         val = float(rawMultReal[1])
                         for col in range(0, numCol):
+                            if offset + col >= 4:
+                                break
                             self.rstwt[offset + col] = val
                             if offset + col == 1:
                                 self.decideRestraintType(True)
@@ -7847,6 +7859,8 @@ class AmberMRParserListener(ParseTreeListener):
                 rawStrArray = str(ctx.Qstrings()).split(',')
                 numAtnamCol = 0
                 for col, rawStr in enumerate(rawStrArray):
+                    if col >= 8:
+                        break
                     val = stripQuot(rawStr)
                     if len(val) == 0:
                         break

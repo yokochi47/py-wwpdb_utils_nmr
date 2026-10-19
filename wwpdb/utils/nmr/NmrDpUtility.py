@@ -351,6 +351,7 @@
 #                           6pts: -16%, DAOTHER-10315: -6%) (DAOTHER-7829, 9785)
 # 14-Oct-2026  M. Yokochi - admit a compiled accelerator only when it matches its Python code (AccelUtil.py), and build
 #                           binary wheels with the accelerators next to the pure-Python package (cibuildwheel.toml) (DAOTHER-9785)
+# 16-Oct-2026  M. Yokochi - add 'permit_missing_cs_file' input parameter (DAOTHER-7829, 8905, NMR data remediation Phase 3)
 ##
 """ Main class for NMR data processing.
     @author: Masashi Yokochi
@@ -1140,6 +1141,16 @@ class NmrDpUtility:
             else:
                 self.__reg.bmrb_only = self.__reg.inputParamDict['bmrb_only'] in TRUE_VALUE
 
+        if has_key_value(self.__reg.inputParamDict, 'permit_missing_cs_file'):
+            if isinstance(self.__reg.inputParamDict['permit_missing_cs_file'], bool):
+                self.__reg.permit_missing_cs_file = self.__reg.inputParamDict['permit_missing_cs_file']
+            else:
+                self.__reg.permit_missing_cs_file = self.__reg.inputParamDict['permit_missing_cs_file'] in TRUE_VALUE
+
+        if self.__reg.permit_missing_cs_file:
+            self.__reg.nefT.permit_missing_chem_shift(True)
+            self.__reg.bmrb_only = True
+
         self.__reg.combined_mode = 'cs' not in op or op == 'nmr-str-replace-cs'\
             or self.__reg.conversion_server and self.__reg.srcPath is not None
 
@@ -1166,10 +1177,12 @@ class NmrDpUtility:
                     self.__reg.file_path_list_len = 1
 
             if CS_FILE_PATH_LIST_KEY not in self.__reg.inputParamDict:
-                raise ValueError(f"+{self.__class_name__}.op() ++ Error  - No input provided for workflow operation {op}.")
+                if not self.__reg.permit_missing_cs_file:
+                    raise ValueError(f"+{self.__class_name__}.op() ++ Error  - No input provided for workflow operation {op}.")
 
-            self.__reg.cs_file_path_list_len = len(self.__reg.inputParamDict[CS_FILE_PATH_LIST_KEY])
-            self.__reg.file_path_list_len = self.__reg.cs_file_path_list_len
+            else:
+                self.__reg.cs_file_path_list_len = len(self.__reg.inputParamDict[CS_FILE_PATH_LIST_KEY])
+                self.__reg.file_path_list_len = self.__reg.cs_file_path_list_len
 
             if MR_FILE_PATH_LIST_KEY in self.__reg.inputParamDict:
                 self.__reg.file_path_list_len += len(self.__reg.inputParamDict[MR_FILE_PATH_LIST_KEY])
@@ -1679,6 +1692,14 @@ class NmrDpUtility:
 
         def proc_cs_file_path_list(offset):
 
+            if not has_key_value(self.__reg.inputParamDict, CS_FILE_PATH_LIST_KEY) and self.__reg.permit_missing_cs_file:
+                input_source = self.__reg.report.input_sources[0]
+                input_source.setItemValue('file_type', 'nmr-star')
+                input_source.setItemValue('content_type', 'nmr-chemical-shifts')
+                input_source.setItemValue('ignore_error', False)
+
+                return True
+
             for csListId, cs in enumerate(self.__reg.inputParamDict[CS_FILE_PATH_LIST_KEY], start=offset):
 
                 if csListId > 0:
@@ -1856,7 +1877,7 @@ class NmrDpUtility:
 
                             except Exception as e:  # pylint: disable=broad-exception-caught
 
-                                self.__reg.report.error.appendDescription('internal_error'
+                                self.__reg.report.error.appendDescription('internal_error',
                                                                           f"+{self.__class_name__}.__initializeDpReport() "
                                                                           "++ Error  - " + str(e))
 
