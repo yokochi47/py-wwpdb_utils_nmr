@@ -4452,34 +4452,36 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             self.genResNumSelection.clear()
             self.genSimpleNameSelection.clear()
 
-    def enterQconvr_distance_restraints(self, ctx: CyanaMRParser.Qconvr_distance_restraintsContext
-                                        ):  # pylint: disable=unused-argument
-        """ Enter a parse tree produced by CyanaMRParser#qconvr_distance_restraints.
+    def enterDiana_distance_restraints(self, ctx: CyanaMRParser.Diana_distance_restraintsContext
+                                       ):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by CyanaMRParser#diana_distance_restraints.
         """
 
         self.cur_subtype = 'dist'
 
-    def exitQconvr_distance_restraints(self, ctx: CyanaMRParser.Qconvr_distance_restraintsContext
-                                       ):  # pylint: disable=unused-argument
-        """ Exit a parse tree produced by CyanaMRParser#qconvr_distance_restraints.
+    def exitDiana_distance_restraints(self, ctx: CyanaMRParser.Diana_distance_restraintsContext
+                                      ):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by CyanaMRParser#diana_distance_restraints.
         """
 
-    def enterQconvr_distance_restraint(self, ctx: CyanaMRParser.Qconvr_distance_restraintContext
-                                       ):  # pylint: disable=unused-argument
-        """ Enter a parse tree produced by CyanaMRParser#qconvr_distance_restraint.
+    def enterDiana_distance_restraint(self, ctx: CyanaMRParser.Diana_distance_restraintContext
+                                      ):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by CyanaMRParser#diana_distance_restraint.
         """
 
         self.distRestraints += 1
 
         self.atomSelectionSet.clear()
 
-    def exitQconvr_distance_restraint(self, ctx: CyanaMRParser.Qconvr_distance_restraintContext):  # pylint: disable=unused-argument
-        """ Exit a parse tree produced by CyanaMRParser#qconvr_distance_restraint.
+    def exitDiana_distance_restraint(self, ctx: CyanaMRParser.Diana_distance_restraintContext):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by CyanaMRParser#diana_distance_restraint.
         """
 
         try:
 
-            upl = bool(ctx.NoeUpp())
+            upl = bool(ctx.NoeUpp()) if self.cur_subtype == 'dist' else bool(ctx.SSUpp())
+            if self.cur_subtype == 'ssbond':
+                self.cur_subtype = 'dist'
 
             seqId1, chainId1 = self.genResNumSelection[0]
             compId1 = self.genSimpleNameSelection[0].upper()
@@ -4487,6 +4489,14 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             seqId2, chainId2 = self.genResNumSelection[1]
             compId2 = self.genSimpleNameSelection[2].upper()
             atomId2 = self.genSimpleNameSelection[3].upper()
+
+            if len(self.genSimpleNameSelection) > 6 and len(self.getResNumSelection) > 2:
+                atomId3 = self.genSimpleNameSelection[4].upper()
+                seqId4, chainId4 = self.genResNumSelection[2]
+                compId4 = self.genSimpleNameSelection[5].upper()
+                atomId4 = self.genSimpleNameSelection[6].upper()
+            else:
+                atomId3 = chainId4 = seqId4 = compId4 = atomId4 = None
 
             target_value = None
             lower_limit = None
@@ -4630,6 +4640,153 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             if self.createSfDict and sf is not None and isinstance(memberId, int) and memberId == 1:
                 sf['loop'].data[-1] = resetMemberId(self.cur_subtype, sf['loop'].data[-1])
 
+            if None in (atomId3, atomId4) or len(self.numberSelection) != 2:
+                return
+
+            atomId1, chainId2, seqId2, compId2, atomId2 = atomId3, chainId4, seqId4, compId4, atomId4
+
+            self.atomSelectionSet.clear()
+
+            self.distRestraints += 1
+
+            target_value = None
+            lower_limit = None
+            upper_limit = None
+
+            value = self.numberSelection[1]
+            weight = 1.0
+
+            if not self.hasPolySeq and not self.hasNonPolySeq:
+                return
+
+            if DIST_RANGE_MIN <= value <= DIST_RANGE_MAX:
+                if upl and value > self.max_dist_value:
+                    self.max_dist_value = value
+                if not upl and value < self.min_dist_value:
+                    self.min_dist_value = value
+
+            if upl:
+                upper_limit = value
+            else:
+                lower_limit = value
+
+            self.retrieveLocalSeqScheme()
+
+            chainAssign1, asis1 = self.assignCoordPolymerSequenceWithChainId(chainId1, seqId1, compId1, atomId1.split('|', 1)[0])
+            chainAssign2, asis2 = self.assignCoordPolymerSequenceWithChainId(chainId2, seqId2, compId2, atomId2.split('|', 1)[0])
+
+            if 0 in (len(chainAssign1), len(chainAssign2)):
+                return
+
+            self.selectCoordAtoms(chainAssign1, seqId1, compId1, atomId1)
+            self.selectCoordAtoms(chainAssign2, seqId2, compId2, atomId2)
+
+            if len(self.atomSelectionSet) < 2:
+                return
+
+            self.allowZeroUpperLimit = False
+            if self.reasons is not None and 'model_chain_id_ext' in self.reasons\
+               and len(self.atomSelectionSet[0]) > 0\
+               and len(self.atomSelectionSet[0]) == len(self.atomSelectionSet[1]):
+                chain_id_1 = self.atomSelectionSet[0][0]['chain_id']
+                seq_id_1 = self.atomSelectionSet[0][0]['seq_id']
+                atom_id_1 = self.atomSelectionSet[0][0]['atom_id']
+
+                chain_id_2 = self.atomSelectionSet[1][0]['chain_id']
+                seq_id_2 = self.atomSelectionSet[1][0]['seq_id']
+                atom_id_2 = self.atomSelectionSet[1][0]['atom_id']
+
+                if chain_id_1 != chain_id_2 and seq_id_1 == seq_id_2 and atom_id_1 == atom_id_2\
+                   and ((chain_id_1 in self.reasons['model_chain_id_ext']
+                         and chain_id_2 in self.reasons['model_chain_id_ext'][chain_id_1])
+                        or (chain_id_2 in self.reasons['model_chain_id_ext']
+                            and chain_id_1 in self.reasons['model_chain_id_ext'][chain_id_2])):
+                    self.allowZeroUpperLimit = True
+            self.allowZeroUpperLimit |= hasInterChainRestraint(self.atomSelectionSet)
+
+            dstFunc = self.validateDistanceRange(weight, target_value, lower_limit, upper_limit,
+                                                 None,
+                                                 self.omitDistLimitOutlier)
+
+            if dstFunc is None:
+                return
+
+            if self.createSfDict:
+                sf = self.getSf(constraintType=getDistConstraintType(self.atomSelectionSet, dstFunc,
+                                                                     self.csStat, self.originalFileName),
+                                potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                sf['id'] += 1
+                memberLogicCode = 'OR' if len(self.atomSelectionSet[0]) * len(self.atomSelectionSet[1]) > 1 else '.'
+
+            has_intra_chain, rep_chain_id_set = hasIntraChainRestraint(self.atomSelectionSet)
+
+            memberId = '.'
+            if self.createSfDict:
+                if memberLogicCode == 'OR' and has_intra_chain and len(rep_chain_id_set) == 1:
+                    memberLogicCode = '.'
+
+                if memberLogicCode == 'OR':
+                    if len(self.atomSelectionSet[0]) * len(self.atomSelectionSet[1]) > 1\
+                       and (isAmbigAtomSelection(self.atomSelectionSet[0], self.csStat)
+                            or isAmbigAtomSelection(self.atomSelectionSet[1], self.csStat)):
+                        memberId = 0
+                        _atom1 = _atom2 = None
+
+            for atom1, atom2 in itertools.product(self.atomSelectionSet[0],
+                                                  self.atomSelectionSet[1]):
+                atoms = [atom1, atom2]
+                if isIdenticalRestraint(atoms, self.nefT):
+                    continue
+                if self.createSfDict and isinstance(memberId, int):
+                    star_atom1 = getStarAtom(self.authToStarSeq, self.authToOrigSeq, self.offsetHolder, copy.copy(atom1))
+                    star_atom2 = getStarAtom(self.authToStarSeq, self.authToOrigSeq, self.offsetHolder, copy.copy(atom2))
+                    if None in (star_atom1, star_atom2) or isIdenticalRestraint([star_atom1, star_atom2], self.nefT):
+                        continue
+                if has_intra_chain and (atom1['chain_id'] != atom2['chain_id'] or atom1['chain_id'] not in rep_chain_id_set):
+                    continue
+                if self.createSfDict and memberLogicCode == '.':
+                    altAtomId1, altAtomId2 = getAltProtonIdInBondConstraint(atoms, self.csStat)
+                    if altAtomId1 is not None or altAtomId2 is not None:
+                        atom1, atom2 =\
+                            self.selectRealisticBondConstraint(atom1, atom2,
+                                                               altAtomId1, altAtomId2,
+                                                               dstFunc)
+                if self.debug:
+                    print(f"subtype={self.cur_subtype} id={self.distRestraints} "
+                          f"atom1={atom1} atom2={atom2} {dstFunc}")
+                if self.createSfDict and sf is not None:
+                    if isinstance(memberId, int):
+                        if _atom1 is None or isAmbigAtomSelection([_atom1, atom1], self.csStat)\
+                           or isAmbigAtomSelection([_atom2, atom2], self.csStat):
+                            memberId += 1
+                            _atom1, _atom2 = atom1, atom2
+                    sf['index_id'] += 1
+                    row = getRow(self.cur_subtype, sf['id'], sf['index_id'],
+                                 '.', memberId, memberLogicCode,
+                                 sf['list_id'], self.entryId, dstFunc,
+                                 self.authToStarSeq, self.authToOrigSeq, self.authToInsCode, self.offsetHolder,
+                                 atom1, atom2, asis1=asis1, asis2=asis2)
+                    sf['loop'].add_data(row)
+
+                    if sf['constraint_subsubtype'] == 'ambi':
+                        continue
+
+                    if self.cur_constraint_type is not None and self.cur_constraint_type.startswith('ambiguous'):
+                        sf['constraint_subsubtype'] = 'ambi'
+
+                    if memberLogicCode == 'OR'\
+                       and (isAmbigAtomSelection(self.atomSelectionSet[0], self.csStat)
+                            or isAmbigAtomSelection(self.atomSelectionSet[1], self.csStat)):
+                        sf['constraint_subsubtype'] = 'ambi'
+
+                    if 'upper_limit' in dstFunc and dstFunc['upper_limit'] is not None:
+                        upperLimit = float(dstFunc['upper_limit'])
+                        if upperLimit <= DIST_AMBIG_LOW or upperLimit >= DIST_AMBIG_UP:
+                            sf['constraint_subsubtype'] = 'ambi'
+
+            if self.createSfDict and sf is not None and isinstance(memberId, int) and memberId == 1:
+                sf['loop'].data[-1] = resetMemberId(self.cur_subtype, sf['loop'].data[-1])
+
         except (ValueError, AttributeError):
             self.distRestraints -= 1
 
@@ -4637,6 +4794,104 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             self.numberSelection.clear()
             self.genResNumSelection.clear()
             self.genSimpleNameSelection.clear()
+
+    def enterDiana_ssbond_restraints(self, ctx: CyanaMRParser.Diana_ssbond_restraintsContext):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by CyanaMRParser#diana_ssbond_restraints.
+        """
+
+        self.cur_subtype = 'ssbond'
+
+    def exitDiana_ssbond_restraints(self, ctx: CyanaMRParser.Diana_ssbond_restraintsContext):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by CyanaMRParser#diana_ssbond_restraints.
+        """
+
+    def enterDiana_ssbond_restraint(self, ctx: CyanaMRParser.Diana_ssbond_restraintContext):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by CyanaMRParser#diana_ssbond_restraint.
+        """
+
+        self.distRestraints += 1
+
+        self.atomSelectionSet.clear()
+
+    def exitDiana_ssbond_restraint(self, ctx: CyanaMRParser.Diana_ssbond_restraintContext):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by CyanaMRParser#diana_ssbond_restraint.
+        """
+
+        self.exitDiana_distance_restraint(ctx)
+
+    def enterDiana_torsion_angle_restraints(self, ctx: CyanaMRParser.Diana_torsion_angle_restraintsContext
+                                            ):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by CyanaMRParser#diana_torsion_angle_restraints.
+        """
+
+        self.cur_subtype = 'dihed'
+
+    def exitDiana_torsion_angle_restraints(self, ctx: CyanaMRParser.Diana_torsion_angle_restraintsContext
+                                           ):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by CyanaMRParser#diana_torsion_angle_restraints.
+        """
+
+    def enterDiana_torsion_angle_restraint(self, ctx: CyanaMRParser.Diana_torsion_angle_restraintContext
+                                           ):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by CyanaMRParser#diana_torsion_angle_restraint.
+        """
+
+        self.dihedRestraints += 1
+
+        self.atomSelectionSet.clear()
+
+    def exitDiana_torsion_angle_restraint(self, ctx: CyanaMRParser.Diana_torsion_angle_restraintContext
+                                          ):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by CyanaMRParser#diana_torsion_angle_restraint.
+        """
+
+        self.exitTorsion_angle_restraint(ctx)
+
+    def enterDiana_coupling_constant_restraints(self, ctx: CyanaMRParser.Diana_coupling_constant_restraintsContext
+                                                ):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by CyanaMRParser#diana_coupling_constant_restraints.
+        """
+
+        self.cur_subtype = 'jcoup'
+
+        self.cur_subtype_altered = False
+
+    def exitDiana_coupling_constant_restraints(self, ctx: CyanaMRParser.Diana_coupling_constant_restraintsContext
+                                               ):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by CyanaMRParser#diana_coupling_constant_restraints.
+        """
+
+    def enterDiana_coupling_constant_restraint(self, ctx: CyanaMRParser.Diana_coupling_constant_restraintContext
+                                               ):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by CyanaMRParser#diana_coupling_constant_restraint.
+        """
+
+        self.jcoupRestraints += 1
+
+        self.atomSelectionSet.clear()
+
+    def exitDiana_coupling_constant_restraint(self, ctx: CyanaMRParser.Diana_coupling_constant_restraintContext
+                                              ):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by CyanaMRParser#diana_coupling_constant_restraint.
+        """
+
+        self.exitCco_restraint(ctx)
+
+    def enterDiana_chemical_shifts(self, ctx: CyanaMRParser.Diana_chemical_shiftsContext):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by CyanaMRParser#diana_chemical_shifts.
+        """
+
+    def exitDiana_chemical_shifts(self, ctx: CyanaMRParser.Diana_chemical_shiftsContext):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by CyanaMRParser#diana_chemical_shifts.
+        """
+
+    def enterDiana_chemical_shift(self, ctx: CyanaMRParser.Diana_chemical_shiftContext):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by CyanaMRParser#diana_chemical_shift.
+        """
+
+    def exitDiana_chemical_shift(self, ctx: CyanaMRParser.Diana_chemical_shiftContext):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by CyanaMRParser#diana_distance_restraint.
+        """
 
     def enterDistance_w_chain_restraints(self, ctx: CyanaMRParser.Distance_w_chain_restraintsContext
                                          ):  # pylint: disable=unused-argument

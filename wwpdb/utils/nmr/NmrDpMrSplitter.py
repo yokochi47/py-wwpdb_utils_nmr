@@ -3239,7 +3239,8 @@ class NmrDpMrSplitter:
                 if file_type in LINEAR_MR_FILE_TYPES:
                     with open(src_file, 'r', encoding='utf-8', errors='ignore') as ifh:
                         for line in ifh:
-                            if 'Submitted Coord H atom name' in line:
+                            if 'Submitted Coord H atom name' in line\
+                               or 'Entry H atom name' in line:
                                 input_source.setItemValue('file_type', 'nm-res-mr')
                                 return self.extractPublicMrFileIntoLegacyMr()
 
@@ -3467,7 +3468,8 @@ class NmrDpMrSplitter:
                                 has_cif_format = True
 
                         # skip MR footer
-                        if 'Submitted Coord H atom name' in line:
+                        if 'Submitted Coord H atom name' in line\
+                           or 'Entry H atom name' in line:
                             fofh.write(line)
                             footer = True
                             continue
@@ -3600,7 +3602,8 @@ class NmrDpMrSplitter:
                                     continue
 
                                 # skip MR footer
-                                if 'Submitted Coord H atom name' in line:
+                                if 'Submitted Coord H atom name' in line\
+                                   or 'Entry H atom name' in line:
                                     break
 
                                 ofh.write(line)
@@ -3788,7 +3791,8 @@ class NmrDpMrSplitter:
                                             continue
 
                                 # skip MR footer
-                                if 'Submitted Coord H atom name' in line:
+                                if 'Submitted Coord H atom name' in line\
+                                   or 'Entry H atom name' in line:
                                     break
 
                                 ofh.write(line)
@@ -7756,6 +7760,13 @@ class NmrDpMrSplitter:
                 self.__detectOtherPossibleFormatAsErrorOfLegacyMr__(file_path, file_name, file_type, dismiss_err_lines,
                                                                     'nm-res-cha', agreed_w_cns=agreed_w_cns)
 
+            if _is_valid and '-div_try' in file_path\
+               and 'assi' in _err.lower() and '(' in _err and ')' in _err:  # improve error message (2f40)
+                _is_valid = False
+                _err = ''
+                _valid_types = {}
+                _possible_types = {}
+
             is_valid |= _is_valid
             err += _err
             if _genuine_type is not None:
@@ -7962,6 +7973,13 @@ class NmrDpMrSplitter:
             _is_valid, _err, _genuine_type, _valid_types, _possible_types =\
                 self.__detectOtherPossibleFormatAsErrorOfLegacyMr__(file_path, file_name, file_type, dismiss_err_lines,
                                                                     'nm-res-cya')
+
+            if _is_valid and '-div_try' in file_path\
+               and 'assi' in _err.lower() and '(' in _err and ')' in _err:  # improve error message (1pg9)
+                _is_valid = False
+                _err = ''
+                _valid_types = {}
+                _possible_types = {}
 
             is_valid |= _is_valid
             err += _err
@@ -8259,7 +8277,9 @@ class NmrDpMrSplitter:
                                         _err += f"{description['input']}\n"
                                         _err += f"{description['marker']}\n"
 
-                        if len(_err) > 0:
+                        # improve error message (1pg9, 2f40)
+                        if len(_err) > 0\
+                           and not (('XPLOR-NIH' in err or 'CNS' in err) and _mr_format_name in ('CYANA', 'CHARMM')):
                             err += f"\nEven assuming that the format is the {_mr_format_name!r}, "\
                                 "the following issues need to be fixed.\n" + _err[:-1]
                         elif file_type != 'nm-res-oth'\

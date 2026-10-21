@@ -420,14 +420,32 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             chainId = int(atomSel[0])
             residue = atomSel[1].split('_')
             compId = residue[0]
+
+            if compId.endswith("5'") or compId.endswith("3'") and (self.polyDeoxyribonucleotide or self.polyRibonucleotide):
+                compId = compId[:-2]
+
+            if self.hasPolySeq and len(compId) == 1 and self.polyDeoxyribonucleotide and not self.polyRibonucleotide\
+               and not any(compId in ps['comp_id'] for ps in self.polySeq):
+                if any('D' + compId in ps['comp_id'] for ps in self.polySeq):
+                    compId = 'D' + compId
+
             try:
                 seqId = int(residue[1])
             except ValueError:
                 seqId = int(''.join(c for c in residue[1] if c.isdigit()))
-                chainId = ''.join(c for c in residue[1] if not c.isdigit())
-                if len(chainId) == 0:
-                    chainId = None
+                for c in residue[1]:
+                    if c.isdigit():
+                        continue
+                    chainId = c
+                    break
+
             atomId = atomSel[2]
+
+            if isinstance(chainId, int):
+                if self.hasPolySeq and 1 < chainId <= len(self.polySeq):
+                    chainId = self.polySeq[chainId-1]['auth_chain_id']
+                else:
+                    chainId = str(chainId)
 
             return chainId, seqId, compId, atomId
 

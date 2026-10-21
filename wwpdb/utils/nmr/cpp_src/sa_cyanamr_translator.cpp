@@ -35,8 +35,16 @@ SA_CyanaMRTranslator::~SA_CyanaMRTranslator() {
     Py_XDECREF(Fixatmw_distance_restraintContext_cls);
     Py_XDECREF(Fixatmw2_distance_restraintsContext_cls);
     Py_XDECREF(Fixatmw2_distance_restraintContext_cls);
-    Py_XDECREF(Qconvr_distance_restraintsContext_cls);
-    Py_XDECREF(Qconvr_distance_restraintContext_cls);
+    Py_XDECREF(Diana_distance_restraintsContext_cls);
+    Py_XDECREF(Diana_distance_restraintContext_cls);
+    Py_XDECREF(Diana_ssbond_restraintsContext_cls);
+    Py_XDECREF(Diana_ssbond_restraintContext_cls);
+    Py_XDECREF(Diana_torsion_angle_restraintsContext_cls);
+    Py_XDECREF(Diana_torsion_angle_restraintContext_cls);
+    Py_XDECREF(Diana_coupling_constant_restraintsContext_cls);
+    Py_XDECREF(Diana_coupling_constant_restraintContext_cls);
+    Py_XDECREF(Diana_chemical_shiftsContext_cls);
+    Py_XDECREF(Diana_chemical_shiftContext_cls);
     Py_XDECREF(Distance_w_chain_restraintsContext_cls);
     Py_XDECREF(Distance_w_chain_restraintContext_cls);
     Py_XDECREF(Distance_w_chain2_restraintsContext_cls);
@@ -210,15 +218,63 @@ antlrcpp::Any SA_CyanaMRTranslator::visitFixatmw2_distance_restraint(CyanaMRPars
     return py_ctx;
 }
 
-antlrcpp::Any SA_CyanaMRTranslator::visitQconvr_distance_restraints(CyanaMRParser::Qconvr_distance_restraintsContext *ctx){
-    if(!Qconvr_distance_restraintsContext_cls) Qconvr_distance_restraintsContext_cls = PyObject_GetAttrString(translator->parser_cls, "Qconvr_distance_restraintsContext");
-    PyObject *py_ctx = translator->convert_ctx(this, ctx, Qconvr_distance_restraintsContext_cls);
+antlrcpp::Any SA_CyanaMRTranslator::visitDiana_distance_restraints(CyanaMRParser::Diana_distance_restraintsContext *ctx){
+    if(!Diana_distance_restraintsContext_cls) Diana_distance_restraintsContext_cls = PyObject_GetAttrString(translator->parser_cls, "Diana_distance_restraintsContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Diana_distance_restraintsContext_cls);
     return py_ctx;
 }
 
-antlrcpp::Any SA_CyanaMRTranslator::visitQconvr_distance_restraint(CyanaMRParser::Qconvr_distance_restraintContext *ctx){
-    if(!Qconvr_distance_restraintContext_cls) Qconvr_distance_restraintContext_cls = PyObject_GetAttrString(translator->parser_cls, "Qconvr_distance_restraintContext");
-    PyObject *py_ctx = translator->convert_ctx(this, ctx, Qconvr_distance_restraintContext_cls);
+antlrcpp::Any SA_CyanaMRTranslator::visitDiana_distance_restraint(CyanaMRParser::Diana_distance_restraintContext *ctx){
+    if(!Diana_distance_restraintContext_cls) Diana_distance_restraintContext_cls = PyObject_GetAttrString(translator->parser_cls, "Diana_distance_restraintContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Diana_distance_restraintContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_CyanaMRTranslator::visitDiana_ssbond_restraints(CyanaMRParser::Diana_ssbond_restraintsContext *ctx){
+    if(!Diana_ssbond_restraintsContext_cls) Diana_ssbond_restraintsContext_cls = PyObject_GetAttrString(translator->parser_cls, "Diana_ssbond_restraintsContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Diana_ssbond_restraintsContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_CyanaMRTranslator::visitDiana_ssbond_restraint(CyanaMRParser::Diana_ssbond_restraintContext *ctx){
+    if(!Diana_ssbond_restraintContext_cls) Diana_ssbond_restraintContext_cls = PyObject_GetAttrString(translator->parser_cls, "Diana_ssbond_restraintContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Diana_ssbond_restraintContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_CyanaMRTranslator::visitDiana_torsion_angle_restraints(CyanaMRParser::Diana_torsion_angle_restraintsContext *ctx){
+    if(!Diana_torsion_angle_restraintsContext_cls) Diana_torsion_angle_restraintsContext_cls = PyObject_GetAttrString(translator->parser_cls, "Diana_torsion_angle_restraintsContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Diana_torsion_angle_restraintsContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_CyanaMRTranslator::visitDiana_torsion_angle_restraint(CyanaMRParser::Diana_torsion_angle_restraintContext *ctx){
+    if(!Diana_torsion_angle_restraintContext_cls) Diana_torsion_angle_restraintContext_cls = PyObject_GetAttrString(translator->parser_cls, "Diana_torsion_angle_restraintContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Diana_torsion_angle_restraintContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_CyanaMRTranslator::visitDiana_coupling_constant_restraints(CyanaMRParser::Diana_coupling_constant_restraintsContext *ctx){
+    if(!Diana_coupling_constant_restraintsContext_cls) Diana_coupling_constant_restraintsContext_cls = PyObject_GetAttrString(translator->parser_cls, "Diana_coupling_constant_restraintsContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Diana_coupling_constant_restraintsContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_CyanaMRTranslator::visitDiana_coupling_constant_restraint(CyanaMRParser::Diana_coupling_constant_restraintContext *ctx){
+    if(!Diana_coupling_constant_restraintContext_cls) Diana_coupling_constant_restraintContext_cls = PyObject_GetAttrString(translator->parser_cls, "Diana_coupling_constant_restraintContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Diana_coupling_constant_restraintContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_CyanaMRTranslator::visitDiana_chemical_shifts(CyanaMRParser::Diana_chemical_shiftsContext *ctx){
+    if(!Diana_chemical_shiftsContext_cls) Diana_chemical_shiftsContext_cls = PyObject_GetAttrString(translator->parser_cls, "Diana_chemical_shiftsContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Diana_chemical_shiftsContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_CyanaMRTranslator::visitDiana_chemical_shift(CyanaMRParser::Diana_chemical_shiftContext *ctx){
+    if(!Diana_chemical_shiftContext_cls) Diana_chemical_shiftContext_cls = PyObject_GetAttrString(translator->parser_cls, "Diana_chemical_shiftContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Diana_chemical_shiftContext_cls);
     return py_ctx;
 }
 

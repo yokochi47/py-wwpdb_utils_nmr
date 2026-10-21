@@ -36,8 +36,16 @@ class SA_CyanaMRTranslator : public CyanaMRParserBaseVisitor {
     PyObject *Fixatmw_distance_restraintContext_cls = NULL;
     PyObject *Fixatmw2_distance_restraintsContext_cls = NULL;
     PyObject *Fixatmw2_distance_restraintContext_cls = NULL;
-    PyObject *Qconvr_distance_restraintsContext_cls = NULL;
-    PyObject *Qconvr_distance_restraintContext_cls = NULL;
+    PyObject *Diana_distance_restraintsContext_cls = NULL;
+    PyObject *Diana_distance_restraintContext_cls = NULL;
+    PyObject *Diana_ssbond_restraintsContext_cls = NULL;
+    PyObject *Diana_ssbond_restraintContext_cls = NULL;
+    PyObject *Diana_torsion_angle_restraintsContext_cls = NULL;
+    PyObject *Diana_torsion_angle_restraintContext_cls = NULL;
+    PyObject *Diana_coupling_constant_restraintsContext_cls = NULL;
+    PyObject *Diana_coupling_constant_restraintContext_cls = NULL;
+    PyObject *Diana_chemical_shiftsContext_cls = NULL;
+    PyObject *Diana_chemical_shiftContext_cls = NULL;
     PyObject *Distance_w_chain_restraintsContext_cls = NULL;
     PyObject *Distance_w_chain_restraintContext_cls = NULL;
     PyObject *Distance_w_chain2_restraintsContext_cls = NULL;
@@ -116,9 +124,25 @@ class SA_CyanaMRTranslator : public CyanaMRParserBaseVisitor {
 
     antlrcpp::Any visitFixatmw2_distance_restraint(CyanaMRParser::Fixatmw2_distance_restraintContext *ctx);
 
-    antlrcpp::Any visitQconvr_distance_restraints(CyanaMRParser::Qconvr_distance_restraintsContext *ctx);
+    antlrcpp::Any visitDiana_distance_restraints(CyanaMRParser::Diana_distance_restraintsContext *ctx);
 
-    antlrcpp::Any visitQconvr_distance_restraint(CyanaMRParser::Qconvr_distance_restraintContext *ctx);
+    antlrcpp::Any visitDiana_distance_restraint(CyanaMRParser::Diana_distance_restraintContext *ctx);
+
+    antlrcpp::Any visitDiana_ssbond_restraints(CyanaMRParser::Diana_ssbond_restraintsContext *ctx);
+
+    antlrcpp::Any visitDiana_ssbond_restraint(CyanaMRParser::Diana_ssbond_restraintContext *ctx);
+
+    antlrcpp::Any visitDiana_torsion_angle_restraints(CyanaMRParser::Diana_torsion_angle_restraintsContext *ctx);
+
+    antlrcpp::Any visitDiana_torsion_angle_restraint(CyanaMRParser::Diana_torsion_angle_restraintContext *ctx);
+
+    antlrcpp::Any visitDiana_coupling_constant_restraints(CyanaMRParser::Diana_coupling_constant_restraintsContext *ctx);
+
+    antlrcpp::Any visitDiana_coupling_constant_restraint(CyanaMRParser::Diana_coupling_constant_restraintContext *ctx);
+
+    antlrcpp::Any visitDiana_chemical_shifts(CyanaMRParser::Diana_chemical_shiftsContext *ctx);
+
+    antlrcpp::Any visitDiana_chemical_shift(CyanaMRParser::Diana_chemical_shiftContext *ctx);
 
     antlrcpp::Any visitDistance_w_chain_restraints(CyanaMRParser::Distance_w_chain_restraintsContext *ctx);
 

@@ -1054,7 +1054,9 @@ class NmrDpFirstAid:
                             atom_type = row[atom_name_col][0]
                             if atom_type in ('Q', 'M'):
                                 atom_type = 'H'
-                            row.append(str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type][0]))
+                            iso_num = str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type][0])\
+                                if atom_type in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS else '?'
+                            row.append(iso_num)
 
                         loop.add_tag(f'{lp_category}.isotope_number')
 
@@ -1071,7 +1073,9 @@ class NmrDpFirstAid:
                             atom_type = row[atom_name_col][0]
                             if atom_type in ('Q', 'M'):
                                 atom_type = 'H'
-                            row[iso_num_col] = str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type][0])
+                            iso_num = str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type][0])\
+                                if atom_type in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS else '?'
+                            row[iso_num_col] = iso_num
 
             elif content_subtype == 'dihed_restraint':
 
@@ -1348,7 +1352,9 @@ class NmrDpFirstAid:
                             atom_type = row[atom_name_col][0]
                             if atom_type in ('Q', 'M'):
                                 atom_type = 'H'
-                            row.append(str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type][0]))
+                            iso_num = str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type][0])\
+                                if atom_type in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS else '?'
+                            row.append(iso_num)
 
                         loop.add_tag(f'{lp_category}.Atom_isotope_number')
 
@@ -1365,7 +1371,9 @@ class NmrDpFirstAid:
                             atom_type = row[atom_name_col][0]
                             if atom_type in ('Q', 'M'):
                                 atom_type = 'H'
-                            row[iso_num_col] = str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type][0])
+                            iso_num = str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type][0])\
+                                if atom_type in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS else '?'
+                            row[iso_num_col] = str(iso_num)
 
             elif content_subtype == 'dist_restraint':  # backward compatibility
 
@@ -1463,7 +1471,13 @@ class NmrDpFirstAid:
 
                         for row in loop:
                             atom_type = re.sub(r'\d+', '', row[axis_code_name_col])
-                            row.append(str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type][0]))
+                            iso_num = '?'
+                            if len(atom_type) > 0:
+                                if atom_type in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS:
+                                    iso_num = str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type][0])
+                                elif atom_type[0] in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS:
+                                    iso_num = str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type[0]][0])
+                            row.append(iso_num)
 
                         loop.add_tag(f'{lp_category}.Atom_isotope_number')
 

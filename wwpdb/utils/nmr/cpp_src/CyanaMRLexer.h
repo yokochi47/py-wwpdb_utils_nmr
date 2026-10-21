@@ -14,17 +14,18 @@ public:
   enum {
     Ambig_code = 1, Integer = 2, Float = 3, Float_DecimalComma = 4, Orientation_header = 5, 
     Tensor_header = 6, SMCLN_COMMENT = 7, COMMENT = 8, NoeUpp = 9, NoeLow = 10, 
-    Type = 11, Equ_op = 12, Or = 13, Ssbond = 14, Ssbond_resids = 15, Hbond = 16, 
-    Link = 17, Atom_stereo = 18, Var = 19, Unset = 20, SetVar = 21, Print = 22, 
-    Residue = 23, Mapping = 24, Ambig = 25, Capital_integer = 26, Integer_capital = 27, 
-    Simple_name = 28, SPACE = 29, ENCLOSE_COMMENT = 30, SECTION_COMMENT = 31, 
-    LINE_COMMENT = 32, Any_name = 33, SPACE_CM = 34, RETURN_CM = 35, Atom1 = 36, 
-    Atom2 = 37, Residue1 = 38, Residue2 = 39, Equ_op_HB = 40, Integer_HB = 41, 
-    Simple_name_HB = 42, SPACE_HB = 43, RETURN_HB = 44, LINE_COMMENT_HB = 45, 
-    Double_quote_string = 46, SPACE_PR = 47, RETURN_PR = 48, LINE_COMMENT_PR = 49, 
-    Simple_name_VA = 50, SPACE_VA = 51, RETURN_VA = 52, LINE_COMMENT_VA = 53, 
-    Ambig_code_MP = 54, Integer_MP = 55, Simple_name_MP = 56, Equ_op_MP = 57, 
-    SPACE_MP = 58, RETURN_MP = 59, LINE_COMMENT_MP = 60
+    SSUpp = 11, SSLow = 12, JCoupl = 13, Angle = 14, Shifts = 15, Type = 16, 
+    Equ_op = 17, Or = 18, Ssbond = 19, Ssbond_resids = 20, Hbond = 21, Link = 22, 
+    Atom_stereo = 23, Var = 24, Unset = 25, SetVar = 26, Print = 27, Residue = 28, 
+    Mapping = 29, Ambig = 30, Capital_integer = 31, Integer_capital = 32, 
+    Simple_name = 33, SPACE = 34, ENCLOSE_COMMENT = 35, SECTION_COMMENT = 36, 
+    LINE_COMMENT = 37, Any_name = 38, SPACE_CM = 39, RETURN_CM = 40, Atom1 = 41, 
+    Atom2 = 42, Residue1 = 43, Residue2 = 44, Equ_op_HB = 45, Integer_HB = 46, 
+    Simple_name_HB = 47, SPACE_HB = 48, RETURN_HB = 49, LINE_COMMENT_HB = 50, 
+    Double_quote_string = 51, SPACE_PR = 52, RETURN_PR = 53, LINE_COMMENT_PR = 54, 
+    Simple_name_VA = 55, SPACE_VA = 56, RETURN_VA = 57, LINE_COMMENT_VA = 58, 
+    Ambig_code_MP = 59, Integer_MP = 60, Simple_name_MP = 61, Equ_op_MP = 62, 
+    SPACE_MP = 63, RETURN_MP = 64, LINE_COMMENT_MP = 65
   };
 
   enum {

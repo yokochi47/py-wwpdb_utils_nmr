@@ -67,9 +67,25 @@ public:
 
     virtual std::any visitFixatmw2_distance_restraint(CyanaMRParser::Fixatmw2_distance_restraintContext *context) = 0;
 
-    virtual std::any visitQconvr_distance_restraints(CyanaMRParser::Qconvr_distance_restraintsContext *context) = 0;
+    virtual std::any visitDiana_distance_restraints(CyanaMRParser::Diana_distance_restraintsContext *context) = 0;
 
-    virtual std::any visitQconvr_distance_restraint(CyanaMRParser::Qconvr_distance_restraintContext *context) = 0;
+    virtual std::any visitDiana_distance_restraint(CyanaMRParser::Diana_distance_restraintContext *context) = 0;
+
+    virtual std::any visitDiana_ssbond_restraints(CyanaMRParser::Diana_ssbond_restraintsContext *context) = 0;
+
+    virtual std::any visitDiana_ssbond_restraint(CyanaMRParser::Diana_ssbond_restraintContext *context) = 0;
+
+    virtual std::any visitDiana_torsion_angle_restraints(CyanaMRParser::Diana_torsion_angle_restraintsContext *context) = 0;
+
+    virtual std::any visitDiana_torsion_angle_restraint(CyanaMRParser::Diana_torsion_angle_restraintContext *context) = 0;
+
+    virtual std::any visitDiana_coupling_constant_restraints(CyanaMRParser::Diana_coupling_constant_restraintsContext *context) = 0;
+
+    virtual std::any visitDiana_coupling_constant_restraint(CyanaMRParser::Diana_coupling_constant_restraintContext *context) = 0;
+
+    virtual std::any visitDiana_chemical_shifts(CyanaMRParser::Diana_chemical_shiftsContext *context) = 0;
+
+    virtual std::any visitDiana_chemical_shift(CyanaMRParser::Diana_chemical_shiftContext *context) = 0;
 
     virtual std::any visitDistance_w_chain_restraints(CyanaMRParser::Distance_w_chain_restraintsContext *context) = 0;
 

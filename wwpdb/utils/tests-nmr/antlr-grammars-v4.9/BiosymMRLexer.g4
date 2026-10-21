@@ -60,7 +60,7 @@ EXCLM_COMMENT:		'!'+ ~[\r\n]* '!'* ~[\r\n]* -> channel(HIDDEN);
 SMCLN_COMMENT:		';'+ ~[\r\n]* ';'* ~[\r\n]* -> channel(HIDDEN);
 
 Chiral_code:		R | S;
-Atom_selection:		DECIMAL ':' SIMPLE_NAME '_' (DECIMAL ALPHA? | ALPHA? DECIMAL) ':' SIMPLE_NAME;
+Atom_selection:		DECIMAL ':' SIMPLE_NAME '_' ALPHA? DECIMAL ALPHA? ':' SIMPLE_NAME;
 //Simple_name:		SIMPLE_NAME;
 //Residue_number:	Integer;
 //Residue_name:		SIMPLE_NAME;

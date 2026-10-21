@@ -790,7 +790,9 @@ class NmrDpValidationInput(NmrDpValidationBase):
                 if self._reg.op == 'nmr-str-replace-cs'\
                    or (self._reg.op == 'nmr-cs-mr-merge' and self._reg.bmrb_only and self._reg.internal_mode
                        and CS_FILE_PATH_LIST_KEY in self._reg.inputParamDict):
+
                     is_done, star_data_type, star_data = self._reg.nefT.read_input_file(srcPath)
+
                     if is_done and star_data_type == 'Entry':
                         self._reg.star_data_type.append(star_data_type)
                         self._reg.star_data.append(star_data)

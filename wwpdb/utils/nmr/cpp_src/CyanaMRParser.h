@@ -14,17 +14,18 @@ public:
   enum {
     Ambig_code = 1, Integer = 2, Float = 3, Float_DecimalComma = 4, Orientation_header = 5, 
     Tensor_header = 6, SMCLN_COMMENT = 7, COMMENT = 8, NoeUpp = 9, NoeLow = 10, 
-    Type = 11, Equ_op = 12, Or = 13, Ssbond = 14, Ssbond_resids = 15, Hbond = 16, 
-    Link = 17, Atom_stereo = 18, Var = 19, Unset = 20, SetVar = 21, Print = 22, 
-    Residue = 23, Mapping = 24, Ambig = 25, Capital_integer = 26, Integer_capital = 27, 
-    Simple_name = 28, SPACE = 29, ENCLOSE_COMMENT = 30, SECTION_COMMENT = 31, 
-    LINE_COMMENT = 32, Any_name = 33, SPACE_CM = 34, RETURN_CM = 35, Atom1 = 36, 
-    Atom2 = 37, Residue1 = 38, Residue2 = 39, Equ_op_HB = 40, Integer_HB = 41, 
-    Simple_name_HB = 42, SPACE_HB = 43, RETURN_HB = 44, LINE_COMMENT_HB = 45, 
-    Double_quote_string = 46, SPACE_PR = 47, RETURN_PR = 48, LINE_COMMENT_PR = 49, 
-    Simple_name_VA = 50, SPACE_VA = 51, RETURN_VA = 52, LINE_COMMENT_VA = 53, 
-    Ambig_code_MP = 54, Integer_MP = 55, Simple_name_MP = 56, Equ_op_MP = 57, 
-    SPACE_MP = 58, RETURN_MP = 59, LINE_COMMENT_MP = 60
+    SSUpp = 11, SSLow = 12, JCoupl = 13, Angle = 14, Shifts = 15, Type = 16, 
+    Equ_op = 17, Or = 18, Ssbond = 19, Ssbond_resids = 20, Hbond = 21, Link = 22, 
+    Atom_stereo = 23, Var = 24, Unset = 25, SetVar = 26, Print = 27, Residue = 28, 
+    Mapping = 29, Ambig = 30, Capital_integer = 31, Integer_capital = 32, 
+    Simple_name = 33, SPACE = 34, ENCLOSE_COMMENT = 35, SECTION_COMMENT = 36, 
+    LINE_COMMENT = 37, Any_name = 38, SPACE_CM = 39, RETURN_CM = 40, Atom1 = 41, 
+    Atom2 = 42, Residue1 = 43, Residue2 = 44, Equ_op_HB = 45, Integer_HB = 46, 
+    Simple_name_HB = 47, SPACE_HB = 48, RETURN_HB = 49, LINE_COMMENT_HB = 50, 
+    Double_quote_string = 51, SPACE_PR = 52, RETURN_PR = 53, LINE_COMMENT_PR = 54, 
+    Simple_name_VA = 55, SPACE_VA = 56, RETURN_VA = 57, LINE_COMMENT_VA = 58, 
+    Ambig_code_MP = 59, Integer_MP = 60, Simple_name_MP = 61, Equ_op_MP = 62, 
+    SPACE_MP = 63, RETURN_MP = 64, LINE_COMMENT_MP = 65
   };
 
   enum {
@@ -37,17 +38,21 @@ public:
     RuleFixresw2_distance_restraint = 17, RuleFixatm_distance_restraints = 18, 
     RuleFixatm_distance_restraint = 19, RuleFixatmw_distance_restraints = 20, 
     RuleFixatmw_distance_restraint = 21, RuleFixatmw2_distance_restraints = 22, 
-    RuleFixatmw2_distance_restraint = 23, RuleQconvr_distance_restraints = 24, 
-    RuleQconvr_distance_restraint = 25, RuleDistance_w_chain_restraints = 26, 
-    RuleDistance_w_chain_restraint = 27, RuleDistance_w_chain2_restraints = 28, 
-    RuleDistance_w_chain2_restraint = 29, RuleDistance_w_chain3_restraints = 30, 
-    RuleDistance_w_chain3_restraint = 31, RuleTorsion_angle_w_chain_restraints = 32, 
-    RuleTorsion_angle_w_chain_restraint = 33, RuleCco_restraints = 34, RuleCco_restraint = 35, 
-    RuleSsbond_macro = 36, RuleHbond_macro = 37, RuleLink_statement = 38, 
-    RuleStereoassign_macro = 39, RuleDeclare_variable = 40, RuleSet_variable = 41, 
-    RuleUnset_variable = 42, RulePrint_macro = 43, RuleUnambig_atom_name_mapping = 44, 
-    RuleMapping_list = 45, RuleAmbig_atom_name_mapping = 46, RuleAmbig_list = 47, 
-    RuleNumber = 48, RuleGen_res_num = 49, RuleGen_simple_name = 50, RuleGen_atom_name = 51
+    RuleFixatmw2_distance_restraint = 23, RuleDiana_distance_restraints = 24, 
+    RuleDiana_distance_restraint = 25, RuleDiana_ssbond_restraints = 26, 
+    RuleDiana_ssbond_restraint = 27, RuleDiana_torsion_angle_restraints = 28, 
+    RuleDiana_torsion_angle_restraint = 29, RuleDiana_coupling_constant_restraints = 30, 
+    RuleDiana_coupling_constant_restraint = 31, RuleDiana_chemical_shifts = 32, 
+    RuleDiana_chemical_shift = 33, RuleDistance_w_chain_restraints = 34, 
+    RuleDistance_w_chain_restraint = 35, RuleDistance_w_chain2_restraints = 36, 
+    RuleDistance_w_chain2_restraint = 37, RuleDistance_w_chain3_restraints = 38, 
+    RuleDistance_w_chain3_restraint = 39, RuleTorsion_angle_w_chain_restraints = 40, 
+    RuleTorsion_angle_w_chain_restraint = 41, RuleCco_restraints = 42, RuleCco_restraint = 43, 
+    RuleSsbond_macro = 44, RuleHbond_macro = 45, RuleLink_statement = 46, 
+    RuleStereoassign_macro = 47, RuleDeclare_variable = 48, RuleSet_variable = 49, 
+    RuleUnset_variable = 50, RulePrint_macro = 51, RuleUnambig_atom_name_mapping = 52, 
+    RuleMapping_list = 53, RuleAmbig_atom_name_mapping = 54, RuleAmbig_list = 55, 
+    RuleNumber = 56, RuleGen_res_num = 57, RuleGen_simple_name = 58, RuleGen_atom_name = 59
   };
 
   explicit CyanaMRParser(antlr4::TokenStream *input);
@@ -91,8 +96,16 @@ public:
   class Fixatmw_distance_restraintContext;
   class Fixatmw2_distance_restraintsContext;
   class Fixatmw2_distance_restraintContext;
-  class Qconvr_distance_restraintsContext;
-  class Qconvr_distance_restraintContext;
+  class Diana_distance_restraintsContext;
+  class Diana_distance_restraintContext;
+  class Diana_ssbond_restraintsContext;
+  class Diana_ssbond_restraintContext;
+  class Diana_torsion_angle_restraintsContext;
+  class Diana_torsion_angle_restraintContext;
+  class Diana_coupling_constant_restraintsContext;
+  class Diana_coupling_constant_restraintContext;
+  class Diana_chemical_shiftsContext;
+  class Diana_chemical_shiftContext;
   class Distance_w_chain_restraintsContext;
   class Distance_w_chain_restraintContext;
   class Distance_w_chain2_restraintsContext;
@@ -143,8 +156,16 @@ public:
     Fixatmw_distance_restraintsContext* fixatmw_distance_restraints(size_t i);
     std::vector<Fixatmw2_distance_restraintsContext *> fixatmw2_distance_restraints();
     Fixatmw2_distance_restraintsContext* fixatmw2_distance_restraints(size_t i);
-    std::vector<Qconvr_distance_restraintsContext *> qconvr_distance_restraints();
-    Qconvr_distance_restraintsContext* qconvr_distance_restraints(size_t i);
+    std::vector<Diana_distance_restraintsContext *> diana_distance_restraints();
+    Diana_distance_restraintsContext* diana_distance_restraints(size_t i);
+    std::vector<Diana_ssbond_restraintsContext *> diana_ssbond_restraints();
+    Diana_ssbond_restraintsContext* diana_ssbond_restraints(size_t i);
+    std::vector<Diana_torsion_angle_restraintsContext *> diana_torsion_angle_restraints();
+    Diana_torsion_angle_restraintsContext* diana_torsion_angle_restraints(size_t i);
+    std::vector<Diana_coupling_constant_restraintsContext *> diana_coupling_constant_restraints();
+    Diana_coupling_constant_restraintsContext* diana_coupling_constant_restraints(size_t i);
+    std::vector<Diana_chemical_shiftsContext *> diana_chemical_shifts();
+    Diana_chemical_shiftsContext* diana_chemical_shifts(size_t i);
     std::vector<Distance_w_chain_restraintsContext *> distance_w_chain_restraints();
     Distance_w_chain_restraintsContext* distance_w_chain_restraints(size_t i);
     std::vector<Distance_w_chain2_restraintsContext *> distance_w_chain2_restraints();
@@ -596,38 +617,178 @@ public:
 
   Fixatmw2_distance_restraintContext* fixatmw2_distance_restraint();
 
-  class  Qconvr_distance_restraintsContext : public antlr4::ParserRuleContext {
+  class  Diana_distance_restraintsContext : public antlr4::ParserRuleContext {
   public:
-    Qconvr_distance_restraintsContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    Diana_distance_restraintsContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
-    std::vector<Qconvr_distance_restraintContext *> qconvr_distance_restraint();
-    Qconvr_distance_restraintContext* qconvr_distance_restraint(size_t i);
+    std::vector<Diana_distance_restraintContext *> diana_distance_restraint();
+    Diana_distance_restraintContext* diana_distance_restraint(size_t i);
 
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
    
   };
 
-  Qconvr_distance_restraintsContext* qconvr_distance_restraints();
+  Diana_distance_restraintsContext* diana_distance_restraints();
 
-  class  Qconvr_distance_restraintContext : public antlr4::ParserRuleContext {
+  class  Diana_distance_restraintContext : public antlr4::ParserRuleContext {
   public:
-    Qconvr_distance_restraintContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    Diana_distance_restraintContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
     std::vector<Gen_simple_nameContext *> gen_simple_name();
     Gen_simple_nameContext* gen_simple_name(size_t i);
     std::vector<Gen_res_numContext *> gen_res_num();
     Gen_res_numContext* gen_res_num(size_t i);
-    NumberContext *number();
+    std::vector<NumberContext *> number();
+    NumberContext* number(size_t i);
     antlr4::tree::TerminalNode *NoeUpp();
     antlr4::tree::TerminalNode *NoeLow();
+    antlr4::tree::TerminalNode *Simple_name();
+    antlr4::tree::TerminalNode *Integer();
 
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
    
   };
 
-  Qconvr_distance_restraintContext* qconvr_distance_restraint();
+  Diana_distance_restraintContext* diana_distance_restraint();
+
+  class  Diana_ssbond_restraintsContext : public antlr4::ParserRuleContext {
+  public:
+    Diana_ssbond_restraintsContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    std::vector<Diana_ssbond_restraintContext *> diana_ssbond_restraint();
+    Diana_ssbond_restraintContext* diana_ssbond_restraint(size_t i);
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Diana_ssbond_restraintsContext* diana_ssbond_restraints();
+
+  class  Diana_ssbond_restraintContext : public antlr4::ParserRuleContext {
+  public:
+    Diana_ssbond_restraintContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    std::vector<Gen_simple_nameContext *> gen_simple_name();
+    Gen_simple_nameContext* gen_simple_name(size_t i);
+    std::vector<Gen_res_numContext *> gen_res_num();
+    Gen_res_numContext* gen_res_num(size_t i);
+    std::vector<NumberContext *> number();
+    NumberContext* number(size_t i);
+    antlr4::tree::TerminalNode *SSUpp();
+    antlr4::tree::TerminalNode *SSLow();
+    antlr4::tree::TerminalNode *Simple_name();
+    antlr4::tree::TerminalNode *Integer();
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Diana_ssbond_restraintContext* diana_ssbond_restraint();
+
+  class  Diana_torsion_angle_restraintsContext : public antlr4::ParserRuleContext {
+  public:
+    Diana_torsion_angle_restraintsContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    std::vector<Diana_torsion_angle_restraintContext *> diana_torsion_angle_restraint();
+    Diana_torsion_angle_restraintContext* diana_torsion_angle_restraint(size_t i);
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Diana_torsion_angle_restraintsContext* diana_torsion_angle_restraints();
+
+  class  Diana_torsion_angle_restraintContext : public antlr4::ParserRuleContext {
+  public:
+    Diana_torsion_angle_restraintContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode *Angle();
+    std::vector<Gen_simple_nameContext *> gen_simple_name();
+    Gen_simple_nameContext* gen_simple_name(size_t i);
+    Gen_res_numContext *gen_res_num();
+    std::vector<NumberContext *> number();
+    NumberContext* number(size_t i);
+    antlr4::tree::TerminalNode *Simple_name();
+    antlr4::tree::TerminalNode *Integer();
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Diana_torsion_angle_restraintContext* diana_torsion_angle_restraint();
+
+  class  Diana_coupling_constant_restraintsContext : public antlr4::ParserRuleContext {
+  public:
+    Diana_coupling_constant_restraintsContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    std::vector<Diana_coupling_constant_restraintContext *> diana_coupling_constant_restraint();
+    Diana_coupling_constant_restraintContext* diana_coupling_constant_restraint(size_t i);
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Diana_coupling_constant_restraintsContext* diana_coupling_constant_restraints();
+
+  class  Diana_coupling_constant_restraintContext : public antlr4::ParserRuleContext {
+  public:
+    Diana_coupling_constant_restraintContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode *JCoupl();
+    std::vector<Gen_simple_nameContext *> gen_simple_name();
+    Gen_simple_nameContext* gen_simple_name(size_t i);
+    Gen_res_numContext *gen_res_num();
+    NumberContext *number();
+    antlr4::tree::TerminalNode *Simple_name();
+    antlr4::tree::TerminalNode *Integer();
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Diana_coupling_constant_restraintContext* diana_coupling_constant_restraint();
+
+  class  Diana_chemical_shiftsContext : public antlr4::ParserRuleContext {
+  public:
+    Diana_chemical_shiftsContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    std::vector<Diana_chemical_shiftContext *> diana_chemical_shift();
+    Diana_chemical_shiftContext* diana_chemical_shift(size_t i);
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Diana_chemical_shiftsContext* diana_chemical_shifts();
+
+  class  Diana_chemical_shiftContext : public antlr4::ParserRuleContext {
+  public:
+    Diana_chemical_shiftContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode *Shifts();
+    std::vector<Gen_simple_nameContext *> gen_simple_name();
+    Gen_simple_nameContext* gen_simple_name(size_t i);
+    Gen_res_numContext *gen_res_num();
+    std::vector<NumberContext *> number();
+    NumberContext* number(size_t i);
+    antlr4::tree::TerminalNode *Simple_name();
+    antlr4::tree::TerminalNode *Integer();
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Diana_chemical_shiftContext* diana_chemical_shift();
 
   class  Distance_w_chain_restraintsContext : public antlr4::ParserRuleContext {
   public:

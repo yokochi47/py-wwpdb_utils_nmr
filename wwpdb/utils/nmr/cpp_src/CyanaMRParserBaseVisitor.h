@@ -111,11 +111,43 @@ public:
     return visitChildren(ctx);
   }
 
-  virtual std::any visitQconvr_distance_restraints(CyanaMRParser::Qconvr_distance_restraintsContext *ctx) override {
+  virtual std::any visitDiana_distance_restraints(CyanaMRParser::Diana_distance_restraintsContext *ctx) override {
     return visitChildren(ctx);
   }
 
-  virtual std::any visitQconvr_distance_restraint(CyanaMRParser::Qconvr_distance_restraintContext *ctx) override {
+  virtual std::any visitDiana_distance_restraint(CyanaMRParser::Diana_distance_restraintContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitDiana_ssbond_restraints(CyanaMRParser::Diana_ssbond_restraintsContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitDiana_ssbond_restraint(CyanaMRParser::Diana_ssbond_restraintContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitDiana_torsion_angle_restraints(CyanaMRParser::Diana_torsion_angle_restraintsContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitDiana_torsion_angle_restraint(CyanaMRParser::Diana_torsion_angle_restraintContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitDiana_coupling_constant_restraints(CyanaMRParser::Diana_coupling_constant_restraintsContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitDiana_coupling_constant_restraint(CyanaMRParser::Diana_coupling_constant_restraintContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitDiana_chemical_shifts(CyanaMRParser::Diana_chemical_shiftsContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitDiana_chemical_shift(CyanaMRParser::Diana_chemical_shiftContext *ctx) override {
     return visitChildren(ctx);
   }
 
