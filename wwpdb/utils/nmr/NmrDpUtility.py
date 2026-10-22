@@ -352,6 +352,9 @@
 # 14-Oct-2026  M. Yokochi - admit a compiled accelerator only when it matches its Python code (AccelUtil.py), and build
 #                           binary wheels with the accelerators next to the pure-Python package (cibuildwheel.toml) (DAOTHER-9785)
 # 16-Oct-2026  M. Yokochi - add 'permit_missing_cs_file' input parameter (DAOTHER-7829, 8905, NMR data remediation Phase 3)
+# 21-Oct-2026  M. Yokochi - fix system clash whole handling case of missing _Spectral_dim.Atom_isotope_number tag (DAOTHER-11129)
+# 22-Oct-2026  M. Yokochi - enable in-place remediation in nmr-str-consistency-check workflow
+#                           when sequence mismatch errors are raised for cs and mr loops (DAOTHER-11129)
 ##
 """ Main class for NMR data processing.
     @author: Masashi Yokochi
@@ -1494,6 +1497,32 @@ class NmrDpUtility:
                     end_time = time.time()
                     if end_time - start_time > 1.0:
                         self.__reg.log.write(f"op: {op}, task: {task.__name__}, elapsed time: {end_time - start_time:.1f} sec\n")
+
+            # rerun workflow to check whether remediation task resolved existing sequence mismatch errors (DAOTHER-11129)
+
+            if self.__reg.native_combined and self.__reg.dstPath is None and op == 'nmr-str-consistency-check'\
+               and (self.__reg.report.error.hasSequenceMismatchErrorInCsLoop()
+                    or self.__reg.report.error.hasSequenceMismatchErrorInMrLoop()):
+
+                self.__reg.star_data[0].write_to_file(self.__reg.srcPath,
+                                                      show_comments=(self.__reg.bmrb_only and self.__reg.internal_mode),
+                                                      skip_empty_loops=True, skip_empty_tags=False)
+
+                for task in self.__procTasksDict['consistency-check']:
+
+                    if self.__reg.verbose:
+                        self.__reg.log.write(f"+{self.__class_name__}.op() starting op {op} - task {task.__name__}\n")
+
+                    start_time = time.time()
+
+                    if not task():
+                        pass
+
+                    if self.__reg.verbose:
+                        end_time = time.time()
+                        if end_time - start_time > 1.0:
+                            self.__reg.log.write(f"op: {op}, task: {task.__name__}, "
+                                                 f"elapsed time: {end_time - start_time:.1f} sec\n")
 
         elif op.endswith('deposit') or op.endswith('release'):
 
@@ -6813,7 +6842,7 @@ class NmrDpUtility:
         """ Remediate assigned chemical shift loop based on coordinates.
         """
 
-        if not self.__reg.combined_mode and self.__reg.has_star_entity\
+        if not self.__reg.combined_mode and not self.__reg.bmrb_only and self.__reg.has_star_entity\
            and self.__reg.report.error.hasSequenceMismatchErrorInCsLoop():  # DAOTHER-10487
             return False
 

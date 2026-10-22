@@ -872,7 +872,7 @@ class NmrDpFirstAid:
                     if not any(True for loop in sf.loops if loop.category == lp_category):
                         continue
 
-                    self.__rescueFormerNef__(file_name, file_type, content_subtype, sf, sf_framecode, sf_category, lp_category)
+                    self.__rescueFormerNef__(file_name, file_type, content_subtype, sf, sf_framecode, lp_category)
 
             return True
 
@@ -905,7 +905,7 @@ class NmrDpFirstAid:
                 sf = self.__reg.star_data[file_list_id]
                 sf_framecode = ''
 
-                self.__rescueFormerNef__(file_name, file_type, content_subtype, sf, sf_framecode, sf_category, lp_category)
+                self.__rescueFormerNef__(file_name, file_type, content_subtype, sf, sf_framecode, lp_category)
 
             else:
 
@@ -915,13 +915,13 @@ class NmrDpFirstAid:
                 sf = self.__reg.star_data[file_list_id]
                 sf_framecode = get_first_sf_tag(sf, 'sf_framecode')
 
-                self.__rescueFormerNef__(file_name, file_type, content_subtype, sf, sf_framecode, sf_category, lp_category)
+                self.__rescueFormerNef__(file_name, file_type, content_subtype, sf, sf_framecode, lp_category)
 
         return True
 
     def __rescueFormerNef__(self, file_name: str, file_type: str, content_subtype: str,
                             sf: Union[pynmrstar.Entry, pynmrstar.Saveframe, pynmrstar.Loop],
-                            sf_framecode: str, sf_category: str, lp_category: str) -> None:
+                            sf_framecode: str, lp_category: str) -> None:
         """ Rescue former NEF version prior to 1.0.
         """
 
@@ -975,7 +975,7 @@ class NmrDpFirstAid:
                         for idx, row in enumerate(loop, start=1):
                             row.append(idx)
 
-                        loop.add_tag(f'{lp_category}.index')
+                        loop.add_tag('index')
 
                     except ValueError:
                         pass
@@ -1015,7 +1015,7 @@ class NmrDpFirstAid:
                                 atom_type = 'H'
                             row.append(atom_type)
 
-                        loop.add_tag(f'{lp_category}.element')
+                        loop.add_tag('element')
 
                     except ValueError:
                         pass
@@ -1058,7 +1058,7 @@ class NmrDpFirstAid:
                                 if atom_type in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS else '?'
                             row.append(iso_num)
 
-                        loop.add_tag(f'{lp_category}.isotope_number')
+                        loop.add_tag('isotope_number')
 
                     except ValueError:
                         pass
@@ -1095,7 +1095,7 @@ class NmrDpFirstAid:
 
                     try:
 
-                        loop.add_tag(f'{lp_category}.name', update_data=True)
+                        loop.add_tag('name', update_data=True)
 
                     except ValueError:
                         pass
@@ -1105,7 +1105,7 @@ class NmrDpFirstAid:
                 try:
 
                     tag = next(tag for tag in sf.tags if tag[0] == 'tensor_residue_type')
-                    sf.add_tag(f'{sf_category}.tensor_residue_name', tag[1])
+                    sf.add_tag('tensor_residue_name', tag[1])
                     sf.remove_tag('tensor_residue_type')
 
                 except StopIteration:
@@ -1308,7 +1308,7 @@ class NmrDpFirstAid:
                                 atom_type = 'H'
                             row.append(atom_type)
 
-                        loop.add_tag(f'{lp_category}.Atom_type')
+                        loop.add_tag('Atom_type')
 
                     except ValueError:
                         pass
@@ -1356,7 +1356,7 @@ class NmrDpFirstAid:
                                 if atom_type in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS else '?'
                             row.append(iso_num)
 
-                        loop.add_tag(f'{lp_category}.Atom_isotope_number')
+                        loop.add_tag('Atom_isotope_number')
 
                     except ValueError:
                         pass
@@ -1417,7 +1417,7 @@ class NmrDpFirstAid:
 
                     try:
 
-                        loop.add_tag(f'{lp_category}.Torsion_angle_name', update_data=True)
+                        loop.add_tag('Torsion_angle_name', update_data=True)
 
                     except ValueError:
                         pass
@@ -1440,16 +1440,27 @@ class NmrDpFirstAid:
 
                     try:
 
-                        axis_code_name_col = loop.tags.index('Axis_code')
+                        axis_code_col = loop.tags.index('Axis_code')
 
                         for row in loop:
-                            atom_type = re.sub(r'\d+', '', row[axis_code_name_col])
+                            atom_type = re.sub(r'\d+', '', row[axis_code_col])
                             row.append(atom_type)
 
-                        loop.add_tag(f'{lp_category}.Atom_type')
+                        loop.add_tag('Atom_type')
 
                     except ValueError:
                         pass
+
+                else:
+
+                    atom_type_col = loop.tags.index('Atom_type')
+
+                    for idx, row in enumerate(loop):
+                        atom_type = row[atom_type_col]
+                        if atom_type not in EMPTY_VALUE:
+                            if len(atom_type) > 1 and atom_type not in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS\
+                               and atom_type[0] in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS:
+                                loop.data[idx][atom_type_col] = atom_type[0]
 
                 if 'Atom_isotope_number' not in loop.tags:
 
@@ -1467,19 +1478,37 @@ class NmrDpFirstAid:
 
                     try:
 
-                        axis_code_name_col = loop.tags.index('Axis_code')
+                        if 'Atom_type' in loop.tags:
 
-                        for row in loop:
-                            atom_type = re.sub(r'\d+', '', row[axis_code_name_col])
-                            iso_num = '?'
-                            if len(atom_type) > 0:
-                                if atom_type in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS:
-                                    iso_num = str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type][0])
-                                elif atom_type[0] in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS:
-                                    iso_num = str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type[0]][0])
-                            row.append(iso_num)
+                            axis_type_col = loop.tags.index('Atom_type')
 
-                        loop.add_tag(f'{lp_category}.Atom_isotope_number')
+                            for row in loop:
+                                atom_type = row[axis_type_col]
+                                iso_num = '?'
+                                if len(atom_type) > 0:
+                                    if atom_type in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS:
+                                        iso_num = str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type][0])
+                                    elif atom_type[0] in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS:
+                                        iso_num = str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type[0]][0])
+                                row.append(iso_num)
+
+                            loop.add_tag('Atom_isotope_number')
+
+                        elif 'Axis_code' in loop.tags:
+
+                            axis_code_col = loop.tags.index('Axis_code')
+
+                            for row in loop:
+                                atom_type = re.sub(r'\d+', '', row[axis_code_col])
+                                iso_num = '?'
+                                if len(atom_type) > 0:
+                                    if atom_type in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS:
+                                        iso_num = str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type][0])
+                                    elif atom_type[0] in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS:
+                                        iso_num = str(ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS[atom_type[0]][0])
+                                row.append(iso_num)
+
+                            loop.add_tag('Atom_isotope_number')
 
                     except ValueError:
                         pass
@@ -1500,15 +1529,15 @@ class NmrDpFirstAid:
 
                     try:
 
-                        atom_type_name_col = loop.tags.index('Atom_type')
-                        iso_num_name_col = loop.tags.index('Atom_isotope_number')
+                        atom_type_col = loop.tags.index('Atom_type')
+                        iso_num_col = loop.tags.index('Atom_isotope_number')
 
                         for row in loop:
-                            atom_type = row[atom_type_name_col]
-                            iso_num = row[iso_num_name_col]
+                            atom_type = row[atom_type_col]
+                            iso_num = row[iso_num_col]
                             row.append(iso_num + atom_type)
 
-                        loop.add_tag(f'{lp_category}.Axis_code')
+                        loop.add_tag('Axis_code')
 
                     except ValueError:
                         pass

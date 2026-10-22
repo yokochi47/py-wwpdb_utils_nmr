@@ -2426,6 +2426,19 @@ class NmrDpValidationMr(NmrDpValidationBase):
             else:
                 lp.add_data(_row)
 
+        # erase pointless Combination_ID (DAOTHER-11129)
+
+        id_list = lp.get_tag('ID')
+
+        for idx, row in enumerate(lp):
+            combination_id = row[combination_id_col]
+            if combination_id in EMPTY_VALUE:
+                continue
+            ref_id = row[id_col]
+            if id_list.count(ref_id) == 1:
+                lp[idx][combination_id_col] = None
+                modified = True
+
         if not modified:
             return True
 

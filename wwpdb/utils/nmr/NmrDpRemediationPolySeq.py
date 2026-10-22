@@ -449,18 +449,18 @@ class NmrDpRemediationPolySeq(NmrDpRemediationBase):
         has_index_tag = INDEX_TAGS[file_type][content_subtype] is not None
 
         if has_index_tag:
-            loop.add_tag(f'{lp_category}.{INDEX_TAGS[file_type][content_subtype]}')
+            loop.add_tag(INDEX_TAGS[file_type][content_subtype])
 
         for key_item in key_items:
-            loop.add_tag(f"{lp_category}.{key_item['name']}")
+            loop.add_tag(key_item['name'])
 
         for data_item in data_items:
             data_name = data_item['name']
             if data_name != 'NEF_index' or (data_name == 'NEF_index' and has_nef_index):
-                loop.add_tag(f'{lp_category}.{data_name}')
+                loop.add_tag(data_name)
 
         if has_entry_id:
-            loop.add_tag(f'{lp_category}.Entry_ID')
+            loop.add_tag('Entry_ID')
 
         cif_poly_seq = self._reg.caC['polymer_sequence']
         entity_assembly = self._reg.caC['entity_assembly']

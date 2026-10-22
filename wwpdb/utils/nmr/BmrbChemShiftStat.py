@@ -2823,8 +2823,13 @@ class BmrbChemShiftStat:
                         ret['error'] += 1
 
                     else:
-                        print(f'[Error] {comp_id}:{atom_id} did not match with any atom in CCD.')
-                        ret['error'] += 1
+                        # DATAQUALITY-2320
+                        if comp_id != 'TUV':
+                            print(f'[Error] {comp_id}:{atom_id} did not match with any atom in CCD.')
+                            ret['error'] += 1
+                        else:
+                            print(f'[Warning] {comp_id}:{atom_id} did not match with any atom in CCD.')
+                            ret['warning'] += 1
 
             return ret
 

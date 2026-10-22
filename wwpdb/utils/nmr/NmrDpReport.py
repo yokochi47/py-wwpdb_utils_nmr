@@ -140,6 +140,7 @@
 # 30-Jun-2026  M. Yokochi - add 'nm-csp-*' file type to support chemical shift perturbation (DAOTHER-9785)
 # 10-Jul-2026  M. Yokochi - add 'ensemble_composition' item in NmrDpReportInputSource class (DAOTHER-9785)
 # 29-Sep-2026  M. Yokochi - stream the report to its JSON file in writeFile() (DAOTHER-7829, 9785)
+# 21-Oct-2026  M. Yokochi - fix hasSequenceMismatchErrorInCsLoop() and add hasSequenceMismatchErrorsInMrLoop() (DAOTHER-11129)
 ##
 """ Wrapper class for NMR data processing report.
     @author: Masashi Yokochi
@@ -2581,7 +2582,28 @@ class NmrDpReportError:
             if k != 'sequence_mismatch' or v is None or len(v) == 0:
                 continue
             for c in v:
-                if 'category' in c and c['category'] in ('_nef_chemical_shift', '_Atom_chem_shift'):
+                if 'category' in c and c['category'] in ('nef_chemical_shift', 'Atom_chem_shift'):
+                    return True
+
+        return False
+
+    def hasSequenceMismatchErrorInMrLoop(self) -> bool:
+        """ Return whether sequence mismatch error exists in common restraints.
+        """
+
+        if self.__contents is None:
+            return False
+
+        for k, v in self.__contents.items():
+            if k != 'sequence_mismatch' or v is None or len(v) == 0:
+                continue
+            for c in v:
+                if 'category' in c and c['category'] in ('nef_distance_restraint',
+                                                         'nef_dihedral_restraint',
+                                                         'nef_rdc_restraint',
+                                                         'Gen_dist_constraint',
+                                                         'Torsion_angle_constraint',
+                                                         'RDC_constraint'):
                     return True
 
         return False
