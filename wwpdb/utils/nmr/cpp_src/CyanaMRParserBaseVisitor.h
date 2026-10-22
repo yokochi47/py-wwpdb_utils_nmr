@@ -143,6 +143,10 @@ public:
     return visitChildren(ctx);
   }
 
+  virtual std::any visitDiana_stereoassign_macro(CyanaMRParser::Diana_stereoassign_macroContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
   virtual std::any visitDiana_chemical_shifts(CyanaMRParser::Diana_chemical_shiftsContext *ctx) override {
     return visitChildren(ctx);
   }

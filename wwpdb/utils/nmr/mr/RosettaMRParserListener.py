@@ -1364,14 +1364,7 @@ class RosettaMRParserListener(ParseTreeListener):
         """ Validate distance value range.
         """
 
-        target_value = None
-        lower_limit = None
-        upper_limit = None
-        lower_linear_limit = None
-        upper_linear_limit = None
-
-        firstFunc = None
-        srcFunc = None
+        target_value = lower_limit = upper_limit = lower_linear_limit = upper_linear_limit = firstFunc = srcFunc = None
 
         level = 0
         while self.stackFuncs:
@@ -3038,14 +3031,7 @@ class RosettaMRParserListener(ParseTreeListener):
         """ Validate angle value range.
         """
 
-        target_value = None
-        lower_limit = None
-        upper_limit = None
-        lower_linear_limit = None
-        upper_linear_limit = None
-
-        firstFunc = None
-        srcFunc = None
+        target_value = lower_limit = upper_limit = lower_linear_limit = upper_linear_limit = firstFunc = srcFunc = None
 
         level = 0
         while self.stackFuncs:

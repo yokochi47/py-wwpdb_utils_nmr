@@ -1217,10 +1217,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                               f"The weight value '{scale}' should be a positive value.")
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
-            lower_linear_limit = None
-            upper_linear_limit = None
+            lower_limit = upper_limit = lower_linear_limit = upper_linear_limit = None
 
             if self.noePotential == 'biharmonic':
                 lower_limit = target - dminus
@@ -1503,10 +1500,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 exponent = 2
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
-            lower_linear_limit = None
-            upper_linear_limit = None
+            lower_limit = upper_limit = lower_linear_limit = upper_linear_limit = None
 
             if delta > 0.0:
                 if exponent in (2, 4):
@@ -1729,8 +1723,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 delta = 0.0
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
+            lower_limit = upper_limit = None
 
             if self.potential == 'square' and delta > 0.0:
                 lower_limit = target - delta
@@ -2053,10 +2046,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
             delta = abs(self.numberSelection[1])
 
             if len(self.numberSelection) > 3:
-                lower_limit_1 = None
-                upper_limit_1 = None
-                lower_limit_2 = None
-                upper_limit_2 = None
+                lower_limit_1 = upper_limit_1 = lower_limit_2 = upper_limit_2 = None
 
                 target_value_1 = self.numberSelection[0]
                 target_value_2 = self.numberSelection[3]
@@ -2079,8 +2069,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                     return
 
             else:
-                lower_limit = None
-                upper_limit = None
+                lower_limit = upper_limit = None
 
                 if self.potential == 'square' and delta > 0.0:
                     target_value = target
@@ -2483,8 +2472,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 delta = 0.0
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
+            lower_limit = upper_limit = None
 
             if self.potential == 'square' and delta > 0.0:
                 lower_limit = target - delta
@@ -2688,8 +2676,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 delta = 0.0
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
+            lower_limit = upper_limit = None
 
             if self.potential == 'square' and delta > 0.0:
                 lower_limit = target - delta
@@ -3167,8 +3154,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
             delta = abs(self.numberSelection[1])
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
+            lower_limit = upper_limit = None
 
             if len(self.atomSelectionSet) == 4 and self.hasPolySeq and not self.in_block:
 
@@ -3224,8 +3210,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 delta = abs(self.numberSelection[3])
 
                 target_value = target
-                lower_limit = None
-                upper_limit = None
+                lower_limit = upper_limit = None
 
                 if self.potential != 'harmonic' and delta > 0.0:
                     lower_limit = target - delta
@@ -4454,8 +4439,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 delta = 0.0
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
+            lower_limit = upper_limit = None
 
             if self.potential == 'square' and delta > 0.0:
                 lower_limit = target - delta
@@ -4910,8 +4894,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 cminus = cplus = 0.0
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
+            lower_limit = upper_limit = None
 
             if self.potential == 'square':
                 lower_limit = target - cminus
@@ -5300,8 +5283,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 delta = 0.0
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
+            lower_limit = upper_limit = None
 
             if self.potential == 'square' and delta > 0.0:
                 lower_limit = target - delta
@@ -5447,8 +5429,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 delta = 0.0
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
+            lower_limit = upper_limit = None
 
             if delta > 0.0:
                 lower_limit = target - delta
@@ -5537,8 +5518,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 delta = 0.0
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
+            lower_limit = upper_limit = None
 
             if delta > 0.0:
                 lower_limit = target - delta
@@ -5892,8 +5872,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 delta = 0.0
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
+            lower_limit = upper_limit = None
 
             if delta > 0.0:
                 lower_limit = target - delta
@@ -8354,8 +8333,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                                                         'enum': (self.representativeAltId,)}
                                                        ])
 
-                    lastCompId = None
-                    pseudoAtoms = None
+                    lastCompId = pseudoAtoms = None
 
                     for _atom in _atomSelection:
                         compId = _atom['comp_id']

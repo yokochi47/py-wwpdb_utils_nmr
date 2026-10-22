@@ -285,10 +285,7 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                         self.exitDistance_wo_comp_restraint(compId1, seqId1, atomId1, compId2, seqId2, atomId2)
                         return
 
-            target_value = None
-            lower_limit = None
-            upper_limit = None
-            target_value_uncertainty = None
+            target_value = lower_limit = upper_limit = target_value_uncertainty = None
 
             if len(self.numberSelection) == 0 or None in self.numberSelection:
                 if self.cur_subtype == 'dist':
@@ -929,10 +926,7 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
         try:
 
-            target_value = None
-            lower_limit = None
-            upper_limit = None
-            target_value_uncertainty = None
+            target_value = lower_limit = upper_limit = target_value_uncertainty = None
 
             if len(self.numberSelection) == 0 or None in self.numberSelection:
                 if self.cur_subtype == 'dist':
@@ -1761,8 +1755,7 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                                       "of which CYANA residue library should be uploaded.")
                         return
 
-                    atomNames = None
-                    seqOffset = None
+                    atomNames = seqOffset = None
 
                     if carbohydrate:
                         atomNames = KNOWN_ANGLE_CARBO_ATOM_NAMES[angleName]
@@ -1780,8 +1773,7 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                         atomNames = KNOWN_ANGLE_ATOM_NAMES[angleName]
                         seqOffset = KNOWN_ANGLE_SEQ_OFFSET[angleName]
 
-                    prevCifAtomId = None
-                    prevOffset = None
+                    prevCifAtomId = prevOffset = None
 
                     for col, (atomId, offset) in enumerate(zip(atomNames, seqOffset)):
 
@@ -2608,9 +2600,7 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                 compId2 = self.genSimpleNameSelection[str_col + 1].upper()
                 atomId2 = self.genSimpleNameSelection[str_col + 2].upper()
 
-                target_value = None
-                lower_limit = None
-                upper_limit = None
+                target_value = lower_limit = upper_limit = None
 
                 if self.cur_subtype == 'dist':
 
@@ -2917,10 +2907,7 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                 else:
                     has_square = True
 
-                target_value = None
-                lower_limit = None
-                upper_limit = None
-                target_value_uncertainty = None
+                target_value = lower_limit = upper_limit = target_value_uncertainty = None
 
                 if self.cur_subtype == 'dist':
 
@@ -3294,9 +3281,7 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                     self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
                                   f"The relative weight value of '{weight}' should be a positive value.")
 
-                target_value = None
-                lower_limit = None
-                upper_limit = None
+                target_value = lower_limit = upper_limit = None
 
                 if self.cur_subtype == 'dist':
 
@@ -3560,9 +3545,7 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                 compId2 = self.genSimpleNameSelection[str_col].upper()
                 atomId2 = self.genSimpleNameSelection[str_col + 1].upper()
 
-                target_value = None
-                lower_limit = None
-                upper_limit = None
+                target_value = lower_limit = upper_limit = None
 
                 if self.cur_subtype == 'dist':
 
@@ -3869,10 +3852,7 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                 else:
                     has_square = True
 
-                target_value = None
-                lower_limit = None
-                upper_limit = None
-                target_value_uncertainty = None
+                target_value = lower_limit = upper_limit = target_value_uncertainty = None
 
                 if self.cur_subtype == 'dist':
 
@@ -4246,9 +4226,7 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                     self.f.append(f"[Range value warning] {self.getCurrentRestraint()}"
                                   f"The relative weight value of '{weight}' should be a positive value.")
 
-                target_value = None
-                lower_limit = None
-                upper_limit = None
+                target_value = lower_limit = upper_limit = None
 
                 if self.cur_subtype == 'dist':
 
@@ -4490,7 +4468,7 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             compId2 = self.genSimpleNameSelection[2].upper()
             atomId2 = self.genSimpleNameSelection[3].upper()
 
-            if len(self.genSimpleNameSelection) > 6 and len(self.getResNumSelection) > 2:
+            if len(self.genSimpleNameSelection) > 6 and len(self.genResNumSelection) > 2:
                 atomId3 = self.genSimpleNameSelection[4].upper()
                 seqId4, chainId4 = self.genResNumSelection[2]
                 compId4 = self.genSimpleNameSelection[5].upper()
@@ -4498,9 +4476,7 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             else:
                 atomId3 = chainId4 = seqId4 = compId4 = atomId4 = None
 
-            target_value = None
-            lower_limit = None
-            upper_limit = None
+            target_value = lower_limit = upper_limit = None
 
             if len(self.numberSelection) == 0 or None in self.numberSelection:
                 self.distRestraints -= 1
@@ -4643,15 +4619,11 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             if None in (atomId3, atomId4) or len(self.numberSelection) != 2:
                 return
 
-            atomId1, chainId2, seqId2, compId2, atomId2 = atomId3, chainId4, seqId4, compId4, atomId4
-
             self.atomSelectionSet.clear()
 
-            self.distRestraints += 1
+            atomId1, chainId2, seqId2, compId2, atomId2 = atomId3, chainId4, seqId4, compId4, atomId4
 
-            target_value = None
-            lower_limit = None
-            upper_limit = None
+            target_value = lower_limit = upper_limit = None
 
             value = self.numberSelection[1]
             weight = 1.0
@@ -4710,6 +4682,8 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
             if dstFunc is None:
                 return
+
+            self.distRestraints += 1
 
             if self.createSfDict:
                 sf = self.getSf(constraintType=getDistConstraintType(self.atomSelectionSet, dstFunc,
@@ -4845,7 +4819,1084 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
         """ Exit a parse tree produced by CyanaMRParser#diana_torsion_angle_restraint.
         """
 
-        self.exitTorsion_angle_restraint(ctx)
+        try:
+
+            _compId = self.genSimpleNameSelection[0].upper()
+            compId = translateToStdResName(_compId, ccU=self.ccU)
+            if _compId != compId:
+                _types = self.csStat.getTypeOfCompId(_compId)
+                if any(t for t in _types) and _types != self.csStat.getTypeOfCompId(compId):
+                    compId = _compId
+
+            seqId, chainId = self.genResNumSelection[0]
+            angleName = self.genSimpleNameSelection[1].upper()
+
+            if len(self.numberSelection) == 0 or None in self.numberSelection:
+                self.dihedRestraints -= 1
+                return
+
+            combinations = len(self.numberSelection) / 2
+
+            if len(self.numberSelection) not in (2, 4):
+                self.dihedRestraints -= 1
+                return
+
+            target_value = None
+            lower_limit = self.numberSelection[0]
+            upper_limit = self.numberSelection[1]
+
+            if self.remediate and self.reasons is not None and 'dihed_unusual_order' in self.reasons:
+                target_value, deviation = lower_limit, upper_limit
+                if deviation > 0.0:
+                    lower_limit = target_value - deviation
+                    upper_limit = target_value + deviation
+                else:
+                    lower_limit = upper_limit = None
+
+            weight = 1.0
+
+            if self.remediate and upper_limit < 0.0:
+                self.dihed_ub_always_positive = False
+
+            dstFunc = self.validateAngleRange(weight, target_value, lower_limit, upper_limit)
+
+            if dstFunc is None:
+                return
+
+            if not self.hasPolySeq and not self.hasNonPolySeq:
+                return
+
+            # support AMBER's dihedral angle naming convention for nucleic acids
+            # http://ambermd.org/tutorials/advanced/tutorial4/
+            if angleName in ('EPSILN', 'EPSLN'):
+                angleName = 'EPSILON'
+
+            # nucleic CHI angle
+            if angleName == 'CHIN':
+                angleName = 'CHI'
+
+            if angleName not in KNOWN_ANGLE_NAMES:
+                lenAngleName = len(angleName)
+                try:
+                    # For the case 'EPSIL' could be standard name 'EPSILON'
+                    angleName = next(name for name in KNOWN_ANGLE_NAMES
+                                     if len(name) >= lenAngleName and name[:lenAngleName] == angleName)
+                except StopIteration:
+                    self.f.append(f"[Insufficient angle selection] {self.getCurrentRestraint()}"
+                                  f"The angle identifier {self.genSimpleNameSelection[1]!r} is unknown "
+                                  f"for the residue {_compId!r}, "
+                                  "of which CYANA residue library should be uploaded.")
+                    return
+
+            peptide, nucleotide, carbohydrate = self.csStat.getTypeOfCompId(compId)
+
+            if carbohydrate:
+                chainAssign, _ = self.assignCoordPolymerSequence(seqId, compId, 'CA', False)
+                if len(chainAssign) > 0:
+                    ps = next((ps for ps in self.polySeq if ps['auth_chain_id'] == chainAssign[0][0]), None)
+                    if ps is not None and 'type' in ps and 'polypeptide' in ps['type']:
+                        peptide = True
+                        nucleotide = carbohydrate = False
+
+            if carbohydrate and angleName in KNOWN_ANGLE_CARBO_ATOM_NAMES:
+                atomNames = KNOWN_ANGLE_CARBO_ATOM_NAMES[angleName]
+                seqOffset = KNOWN_ANGLE_CARBO_SEQ_OFFSET[angleName]
+            else:
+                atomNames = KNOWN_ANGLE_ATOM_NAMES[angleName]
+                seqOffset = KNOWN_ANGLE_SEQ_OFFSET[angleName]
+
+            if angleName != 'PPA':
+
+                if isinstance(atomNames, list):
+                    atomId = next(name for name, offset in zip(atomNames, seqOffset) if offset == 0)
+                else:  # nucleic CHI angle
+                    atomId = next(name for name, offset in zip(atomNames['Y'], seqOffset['Y']) if offset == 0)
+
+                if not isinstance(atomId, str):
+                    self.ccU.updateChemCompDict(compId)
+                    atomId = next((cca['atom_id'] for cca in self.ccU.lastAtomDictList if atomId.match(cca['atom_id'])), None)
+                    if atomId is None and carbohydrate:
+                        atomNames = KNOWN_ANGLE_ATOM_NAMES[angleName]
+                        seqOffset = KNOWN_ANGLE_SEQ_OFFSET[angleName]
+
+                        if isinstance(atomNames, list):
+                            atomId = next(name for name, offset in zip(atomNames, seqOffset) if offset == 0)
+                        else:  # nucleic CHI angle
+                            atomId = next(name for name, offset in zip(atomNames['Y'], seqOffset['Y']) if offset == 0)
+
+                        if not isinstance(atomId, str):
+                            atomId = next((cca['atom_id'] for cca in self.ccU.lastAtomDictList
+                                           if atomId.match(cca['atom_id'])), None)
+                            if atomId is None:
+                                resKey = (seqId, _compId)
+                                if resKey not in self.extResKey:
+                                    self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
+                                                  f"{seqId}:{_compId} is not present in the coordinates.")
+                                return
+
+                self.retrieveLocalSeqScheme()
+
+                if self.cur_subtype_altered:  # invoked from exitCco_restraint()
+                    chainAssign, _ = self.assignCoordPolymerSequenceWithChainId(chainId, seqId, compId, atomId)
+                else:
+                    chainAssign, _ = self.assignCoordPolymerSequence(seqId, compId, atomId)
+
+                if len(chainAssign) == 0:
+                    resKey = (seqId, _compId)
+                    if resKey not in self.extResKey:
+                        self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
+                                      f"{seqId}:{_compId} is not present in the coordinates.")
+                    return
+
+                for chainId, cifSeqId, cifCompId, _ in chainAssign:
+                    ps = None
+
+                    if carbohydrate:
+                        if self.branched is not None:
+                            ps = next((ps for ps in self.branched if ps['auth_chain_id'] == chainId), None)
+                            if ps is None:
+                                ps = next((ps for ps in self.polySeq if ps['auth_chain_id'] == chainId), None)
+                    else:
+                        ps = next((ps for ps in self.polySeq if ps['auth_chain_id'] == chainId), None)
+
+                    peptide, nucleotide, carbohydrate = self.csStat.getTypeOfCompId(cifCompId)
+
+                    if peptide and angleName in ('PHI', 'PSI', 'OMEGA',
+                                                 'CHI1', 'CHI2', 'CHI3', 'CHI4', 'CHI5',
+                                                 'CHI21', 'CHI22', 'CHI31', 'CHI32', 'CHI42'):
+                        pass
+                    elif nucleotide and angleName in ('ALPHA', 'BETA', 'GAMMA', 'DELTA', 'EPSILON', 'ZETA',
+                                                      'CHI', 'ETA', 'THETA', "ETA'", "THETA'",
+                                                      'NU0', 'NU1', 'NU2', 'NU3', 'NU4',
+                                                      'TAU0', 'TAU1', 'TAU2', 'TAU3', 'TAU4'):
+                        pass
+                    elif carbohydrate and angleName in ('PHI', 'PSI', 'OMEGA'):
+                        pass
+                    else:
+                        self.f.append(f"[Insufficient angle selection] {self.getCurrentRestraint()}"
+                                      f"The angle identifier {self.genSimpleNameSelection[1]!r} is unknown "
+                                      f"for the residue {_compId!r}, "
+                                      "of which CYANA residue library should be uploaded.")
+                        return
+
+                    atomNames = seqOffset = None
+
+                    if carbohydrate:
+                        atomNames = KNOWN_ANGLE_CARBO_ATOM_NAMES[angleName]
+                        seqOffset = KNOWN_ANGLE_CARBO_SEQ_OFFSET[angleName]
+                    elif nucleotide and angleName == 'CHI':
+                        if self.ccU.updateChemCompDict(cifCompId):
+                            try:
+                                next(cca for cca in self.ccU.lastAtomDictList if cca['atom_id'] == 'N9')
+                                atomNames = KNOWN_ANGLE_ATOM_NAMES['CHI']['R']
+                                seqOffset = KNOWN_ANGLE_SEQ_OFFSET['CHI']['R']
+                            except StopIteration:
+                                atomNames = KNOWN_ANGLE_ATOM_NAMES['CHI']['Y']
+                                seqOffset = KNOWN_ANGLE_SEQ_OFFSET['CHI']['Y']
+                    else:
+                        atomNames = KNOWN_ANGLE_ATOM_NAMES[angleName]
+                        seqOffset = KNOWN_ANGLE_SEQ_OFFSET[angleName]
+
+                    prevCifAtomId = prevOffset = None
+
+                    for col, (atomId, offset) in enumerate(zip(atomNames, seqOffset)):
+
+                        atomSelection = []
+
+                        if offset != 0 and ps is None:
+                            self.f.append(f"[Sequence mismatch warning] {self.getCurrentRestraint()}"
+                                          f"The residue number '{seqId+offset}' is not present in polymer sequence "
+                                          f"of chain {chainId} of the coordinates. {INSTRUCTION_FOR_FULL_SEQUENCE}")
+                            return
+
+                        _cifSeqId = cifSeqId + offset
+                        _cifCompId = cifCompId if offset == 0\
+                            else (ps['comp_id'][ps['auth_seq_id'].index(_cifSeqId)] if _cifSeqId in ps['auth_seq_id'] else None)
+
+                        seqKey, coordAtomSite = self.getCoordAtomSiteOf(chainId, _cifSeqId, _cifCompId, cifCheck=self.hasCoord)
+
+                        if _cifCompId is None and offset != 0 and 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
+                            idx = ps['auth_seq_id'].index(cifSeqId)
+                            try:
+                                _cifSeqId = ps['auth_seq_id'][idx + offset]
+                                _cifCompId = ps['comp_id'][idx + offset]
+
+                                seqKey, coordAtomSite =\
+                                    self.getCoordAtomSiteOf(chainId, _cifSeqId, _cifCompId, cifCheck=self.hasCoord)
+                            except IndexError:
+                                pass
+
+                        if _cifCompId is None:
+                            # """
+                            # try:
+                            #     _cifCompId = ps['comp_id'][ps['auth_seq_id'].index(cifSeqId) + offset]
+                            # except IndexError:
+                            #     pass
+                            # """
+                            if _cifCompId is None and not self.allow_ext_seq:
+                                self.f.append(f"[Sequence mismatch warning] {self.getCurrentRestraint()}"
+                                              f"The residue number '{seqId+offset}' is not present in polymer sequence "
+                                              f"of chain {chainId} of the coordinates. {INSTRUCTION_FOR_FULL_SEQUENCE}")
+                                return
+                                # _cifCompId = '.'
+                            cifAtomId = atomId
+
+                        else:
+                            self.ccU.updateChemCompDict(_cifCompId)
+
+                            if isinstance(atomId, str):
+                                cifAtomId = next((cca['atom_id'] for cca in self.ccU.lastAtomDictList
+                                                  if cca['atom_id'] == atomId), None)
+                                if cifAtomId is None:
+                                    if col == 0:
+                                        _cifSeqId += seqOffset[col + 1] - offset
+                                        ptnr = getStructConnPtnrAtom(self.cR, chainId, _cifSeqId, atomNames[col + 1])
+                                        if ptnr is not None and atomId[0] == ptnr['atom_id'][0]:
+                                            cifAtomId = ptnr['atom_id']
+                                    elif col == 3:
+                                        _cifSeqId += seqOffset[col - 1] - offset
+                                        ptnr = getStructConnPtnrAtom(self.cR, chainId, _cifSeqId, atomNames[col - 1])
+                                        if ptnr is not None and atomId[0] == ptnr['atom_id'][0]:
+                                            cifAtomId = ptnr['atom_id']
+                            else:
+                                cifAtomIds = [cca['atom_id'] for cca in self.ccU.lastAtomDictList
+                                              if atomId.match(cca['atom_id'])
+                                              and (coordAtomSite is None
+                                                   or (coordAtomSite is not None and cca['atom_id'] in coordAtomSite['atom_id']))]
+
+                                if len(cifAtomIds) > 0:
+                                    if prevCifAtomId is not None and offset == prevOffset:
+                                        cifAtomId = next((_cifAtomId for _cifAtomId in cifAtomIds
+                                                          if any(True for b in self.ccU.lastBondDictList
+                                                                 if ((b['atom_id_1'] == prevCifAtomId
+                                                                      and b['atom_id_2'] == _cifAtomId)
+                                                                     or (b['atom_id_1'] == _cifAtomId
+                                                                         and b['atom_id_2'] == prevCifAtomId)))), None)
+                                        if cifAtomId is None:
+                                            offset -= 1
+                                            _cifSeqId = cifSeqId + offset
+                                            _cifCompId = cifCompId if offset == 0\
+                                                else (ps['comp_id'][ps['auth_seq_id'].index(_cifSeqId)]
+                                                      if _cifSeqId in ps['auth_seq_id'] else None)
+                                            seqKey, coordAtomSite =\
+                                                self.getCoordAtomSiteOf(chainId, _cifSeqId, _cifCompId, cifCheck=self.hasCoord)
+                                            if coordAtomSite is not None:
+                                                cifAtomId = next((_cifAtomId for _cifAtomId in cifAtomIds
+                                                                  if _cifAtomId in coordAtomSite['atom_id']), None)
+
+                                    else:
+                                        cifAtomId = cifAtomIds[0]
+                                else:
+                                    cifAtomId = None
+
+                            if cifAtomId is None:
+                                if _cifCompId is None and not self.allow_ext_seq:
+                                    self.f.append(f"[Sequence mismatch warning] {self.getCurrentRestraint()}"
+                                                  f"The residue number '{seqId+offset}' is not present in polymer sequence "
+                                                  f"of chain {chainId} of the coordinates. {INSTRUCTION_FOR_FULL_SEQUENCE}")
+                                elif _compId in STD_MON_DICT:
+                                    self.f.append(f"[Insufficient angle selection] {self.getCurrentRestraint()}"
+                                                  f"The angle identifier {self.genSimpleNameSelection[1]!r} is unknown "
+                                                  f"for the residue {_compId!r}.")
+                                else:
+                                    self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
+                                                  f"{seqId+offset}:{_compId}:{atomId} involved in the {angleName} dihedral angle "
+                                                  "is not present in the coordinates.")
+                                return
+
+                        prevCifAtomId = cifAtomId
+                        prevOffset = offset
+
+                        atomSelection.append({'chain_id': chainId, 'seq_id': _cifSeqId,
+                                              'comp_id': _cifCompId, 'atom_id': cifAtomId})
+
+                        self.testCoordAtomIdConsistency(chainId, _cifSeqId, _cifCompId, cifAtomId, seqKey, coordAtomSite, True)
+
+                        if self.hasCoord and coordAtomSite is None:
+                            return
+
+                        if len(atomSelection) > 0:
+                            self.atomSelectionSet.append(atomSelection)
+
+                    if len(self.atomSelectionSet) < 4:
+                        return
+
+                    try:
+                        self.atomSelectionSet[0][0]['comp_id']
+                    except IndexError:
+                        self.areUniqueCoordAtoms('a torsion angle')
+                        return
+
+                    len_f = len(self.f)
+                    self.areUniqueCoordAtoms('a torsion angle',
+                                             allow_ambig=True, allow_ambig_warn_title='Ambiguous dihedral angle')
+                    combinationId = '.' if len_f == len(self.f) else 0
+
+                    atomSelTotal = sum(len(s) for s in self.atomSelectionSet)
+
+                    if isinstance(combinationId, int):
+                        fixedAngleName = '.'
+                        for atom1, atom2, atom3, atom4 in itertools.product(self.atomSelectionSet[0],
+                                                                            self.atomSelectionSet[1],
+                                                                            self.atomSelectionSet[2],
+                                                                            self.atomSelectionSet[3]):
+                            _angleName = getTypeOfDihedralRestraint(peptide, nucleotide, carbohydrate,
+                                                                    [atom1, atom2, atom3, atom4],
+                                                                    'plane_like' in dstFunc)
+
+                            if _angleName is not None and _angleName.startswith('pseudo'):
+                                _angleName, atom2, atom3, err = fixBackboneAtomsOfDihedralRestraint(_angleName,
+                                                                                                    [atom1, atom2, atom3, atom4],
+                                                                                                    self.getCurrentRestraint())
+                                self.f.append(err)
+
+                            if _angleName in EMPTY_VALUE and atomSelTotal != 4:
+                                continue
+
+                            fixedAngleName = _angleName
+                            break
+
+                    if self.createSfDict:
+                        sf = self.getSf(potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                        sf['id'] += 1
+
+                    for atom1, atom2, atom3, atom4 in itertools.product(self.atomSelectionSet[0],
+                                                                        self.atomSelectionSet[1],
+                                                                        self.atomSelectionSet[2],
+                                                                        self.atomSelectionSet[3]):
+                        if isLongRangeRestraint([atom1, atom2, atom3, atom4], self.polySeq if self.gapInAuthSeq else None):
+                            continue
+                        _angleName = getTypeOfDihedralRestraint(peptide, nucleotide, carbohydrate,
+                                                                [atom1, atom2, atom3, atom4],
+                                                                'plane_like' in dstFunc)
+
+                        if _angleName is not None and _angleName.startswith('pseudo'):
+                            _angleName, atom2, atom3, err = fixBackboneAtomsOfDihedralRestraint(_angleName,
+                                                                                                [atom1, atom2, atom3, atom4],
+                                                                                                self.getCurrentRestraint())
+                            self.f.append(err)
+
+                        if _angleName in EMPTY_VALUE and atomSelTotal != 4:
+                            continue
+
+                        if isinstance(combinationId, int):
+                            if _angleName != fixedAngleName:
+                                continue
+                            combinationId += 1
+                        if peptide and angleName == 'CHI2' and atom4['atom_id'] == 'CD1'\
+                           and isLikePheOrTyr(atom2['comp_id'], self.ccU):
+                            dstFunc = self.selectRealisticChi2AngleConstraint(atom1, atom2, atom3, atom4,
+                                                                              dstFunc)
+                        if self.debug:
+                            print(f"subtype={self.cur_subtype} id={self.dihedRestraints} angleName={angleName} "
+                                  f"atom1={atom1} atom2={atom2} atom3={atom3} atom4={atom4} {dstFunc}")
+                        if self.createSfDict and sf is not None:
+                            sf['index_id'] += 1
+                            row = getRow(self.cur_subtype, sf['id'], sf['index_id'],
+                                         combinationId, None, angleName,
+                                         sf['list_id'], self.entryId, dstFunc,
+                                         self.authToStarSeq, self.authToOrigSeq, self.authToInsCode, self.offsetHolder,
+                                         atom1, atom2, atom3, atom4)
+                            sf['loop'].add_data(row)
+
+                    if self.createSfDict and sf is not None and isinstance(combinationId, int) and combinationId == 1:
+                        sf['loop'].data[-1] = resetCombinationId(self.cur_subtype, sf['loop'].data[-1])
+
+            # phase angle of pseudorotation
+            else:
+
+                atomNames = KNOWN_ANGLE_ATOM_NAMES[angleName]
+                seqOffset = KNOWN_ANGLE_SEQ_OFFSET[angleName]
+
+                atomId = next(name for name, offset in zip(atomNames, seqOffset) if offset == 0)
+
+                if not isinstance(atomId, str):
+                    self.ccU.updateChemCompDict(compId)
+                    atomId = next(cca['atom_id'] for cca in self.ccU.lastAtomDictList if atomId.match(cca['atom_id']))
+
+                self.retrieveLocalSeqScheme()
+
+                chainAssign, _ = self.assignCoordPolymerSequence(seqId, compId, atomId)
+
+                if len(chainAssign) == 0:
+                    resKey = (seqId, _compId)
+                    if resKey not in self.extResKey:
+                        self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
+                                      f"{seqId}:{_compId} is not present in the coordinates.")
+                    return
+
+                for chainId, cifSeqId, cifCompId, _ in chainAssign:
+                    ps = next(ps for ps in self.polySeq if ps['auth_chain_id'] == chainId)
+
+                    peptide, nucleotide, carbohydrate = self.csStat.getTypeOfCompId(cifCompId)
+
+                    atomNames = KNOWN_ANGLE_ATOM_NAMES[angleName]
+                    seqOffset = KNOWN_ANGLE_SEQ_OFFSET[angleName]
+
+                    if nucleotide:
+                        pass
+                    else:
+                        self.f.append(f"[Insufficient angle selection] {self.getCurrentRestraint()}"
+                                      f"The angle identifier {self.genSimpleNameSelection[1]!r} did not match with "
+                                      f"residue {_compId!r}.")
+                        return
+
+                    for atomId, offset in zip(atomNames, seqOffset):
+
+                        atomSelection = []
+
+                        _cifSeqId = cifSeqId + offset
+                        _cifCompId = cifCompId if offset == 0\
+                            else (ps['comp_id'][ps['auth_seq_id'].index(_cifSeqId)] if _cifSeqId in ps['auth_seq_id'] else None)
+
+                        if _cifCompId is None and offset != 0 and 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
+                            idx = ps['auth_seq_id'].index(cifSeqId)
+                            try:
+                                _cifSeqId = ps['auth_seq_id'][idx + offset]
+                                _cifCompId = ps['comp_id'][idx + offset]
+                            except IndexError:
+                                pass
+
+                        if _cifCompId is None:
+                            try:
+                                _cifCompId = ps['comp_id'][ps['auth_seq_id'].index(cifSeqId) + offset]
+                            except IndexError:
+                                pass
+                            if _cifCompId is None and not self.allow_ext_seq:
+                                self.f.append(f"[Sequence mismatch warning] {self.getCurrentRestraint()}"
+                                              f"The residue number '{seqId+offset}' is not present in polymer sequence "
+                                              f"of chain {chainId} of the coordinates. {INSTRUCTION_FOR_FULL_SEQUENCE}")
+                                return
+                                # _cifCompId = '.'
+                            cifAtomId = atomId
+
+                        else:
+                            self.ccU.updateChemCompDict(_cifCompId)
+
+                            cifAtomId = next((cca['atom_id'] for cca in self.ccU.lastAtomDictList
+                                              if cca['atom_id'] == atomId), None)
+
+                            if cifAtomId is None:
+                                if _cifCompId is None and not self.allow_ext_seq:
+                                    self.f.append(f"[Sequence mismatch warning] {self.getCurrentRestraint()}"
+                                                  f"The residue number '{seqId+offset}' is not present in polymer sequence "
+                                                  f"of chain {chainId} of the coordinates. {INSTRUCTION_FOR_FULL_SEQUENCE}")
+                                elif _compId in STD_MON_DICT:
+                                    self.f.append(f"[Insufficient angle selection] {self.getCurrentRestraint()}"
+                                                  f"The angle identifier {self.genSimpleNameSelection[1]!r} is unknown "
+                                                  f"for the residue {_compId!r}.")
+                                else:
+                                    self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
+                                                  f"{seqId+offset}:{_compId}:{atomId} involved in the {angleName} dihedral angle "
+                                                  "is not present in the coordinates.")
+                                return
+
+                        atomSelection.append({'chain_id': chainId, 'seq_id': _cifSeqId,
+                                              'comp_id': _cifCompId, 'atom_id': cifAtomId})
+
+                        if len(atomSelection) > 0:
+                            self.atomSelectionSet.append(atomSelection)
+
+                    if len(self.atomSelectionSet) < 5:
+                        return
+
+                    try:
+                        self.atomSelectionSet[0][0]['comp_id']
+                    except IndexError:
+                        self.areUniqueCoordAtoms('a torsion angle')
+                        return
+
+                    len_f = len(self.f)
+                    self.areUniqueCoordAtoms('a torsion angle',
+                                             allow_ambig=True, allow_ambig_warn_title='Ambiguous dihedral angle')
+                    combinationId = '.' if len_f == len(self.f) else 0
+
+                    if isinstance(combinationId, int):
+                        fixedAngleName = '.'
+                        for atom1, atom2, atom3, atom4 in itertools.product(self.atomSelectionSet[0],
+                                                                            self.atomSelectionSet[1],
+                                                                            self.atomSelectionSet[2],
+                                                                            self.atomSelectionSet[3]):
+                            _angleName = getTypeOfDihedralRestraint(peptide, nucleotide, carbohydrate,
+                                                                    [atom1, atom2, atom3, atom4],
+                                                                    False)
+
+                            if _angleName in EMPTY_VALUE:
+                                continue
+
+                            fixedAngleName = _angleName
+                            break
+
+                    if self.createSfDict:
+                        sf = self.getSf(potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                        sf['id'] += 1
+
+                    for atom1, atom2, atom3, atom4, atom5 in itertools.product(self.atomSelectionSet[0],
+                                                                               self.atomSelectionSet[1],
+                                                                               self.atomSelectionSet[2],
+                                                                               self.atomSelectionSet[3],
+                                                                               self.atomSelectionSet[4]):
+                        if isLongRangeRestraint([atom1, atom2, atom3, atom4, atom5], self.polySeq if self.gapInAuthSeq else None):
+                            continue
+                        _angleName = getTypeOfDihedralRestraint(peptide, nucleotide, carbohydrate,
+                                                                [atom1, atom2, atom3, atom4],
+                                                                False)
+
+                        if isinstance(combinationId, int):
+                            if _angleName != fixedAngleName:
+                                continue
+                            combinationId += 1
+                        if self.debug:
+                            print(f"subtype={self.cur_subtype} id={self.dihedRestraints} angleName={angleName} "
+                                  f"atom1={atom1} atom2={atom2} atom3={atom3} atom4={atom4} atom5={atom5} {dstFunc}")
+                        if self.createSfDict and sf is not None:
+                            sf['index_id'] += 1
+                            row = getRow(self.cur_subtype, sf['id'], sf['index_id'],
+                                         combinationId, None, angleName,
+                                         sf['list_id'], self.entryId, dstFunc,
+                                         self.authToStarSeq, self.authToOrigSeq, self.authToInsCode, self.offsetHolder,
+                                         None, None, None, None, atom5)
+                            sf['loop'].add_data(row)
+
+                    if self.createSfDict and sf is not None and isinstance(combinationId, int) and combinationId == 1:
+                        sf['loop'].data[-1] = resetCombinationId(self.cur_subtype, sf['loop'].data[-1])
+
+            if combinations == 1:
+                return
+
+            self.atomSelectionSet.clear()
+
+            angleName = self.genSimpleNameSelection[2].upper()
+
+            target_value = None
+            lower_limit = self.numberSelection[2]
+            upper_limit = self.numberSelection[3]
+
+            if self.remediate and self.reasons is not None and 'dihed_unusual_order' in self.reasons:
+                target_value, deviation = lower_limit, upper_limit
+                if deviation > 0.0:
+                    lower_limit = target_value - deviation
+                    upper_limit = target_value + deviation
+                else:
+                    lower_limit = upper_limit = None
+
+            weight = 1.0
+
+            if self.remediate and upper_limit < 0.0:
+                self.dihed_ub_always_positive = False
+
+            dstFunc = self.validateAngleRange(weight, target_value, lower_limit, upper_limit)
+
+            if dstFunc is None:
+                return
+
+            if not self.hasPolySeq and not self.hasNonPolySeq:
+                return
+
+            # support AMBER's dihedral angle naming convention for nucleic acids
+            # http://ambermd.org/tutorials/advanced/tutorial4/
+            if angleName in ('EPSILN', 'EPSLN'):
+                angleName = 'EPSILON'
+
+            # nucleic CHI angle
+            if angleName == 'CHIN':
+                angleName = 'CHI'
+
+            if angleName not in KNOWN_ANGLE_NAMES:
+                lenAngleName = len(angleName)
+                try:
+                    # For the case 'EPSIL' could be standard name 'EPSILON'
+                    angleName = next(name for name in KNOWN_ANGLE_NAMES
+                                     if len(name) >= lenAngleName and name[:lenAngleName] == angleName)
+                except StopIteration:
+                    self.f.append(f"[Insufficient angle selection] {self.getCurrentRestraint()}"
+                                  f"The angle identifier {self.genSimpleNameSelection[2]!r} is unknown "
+                                  f"for the residue {_compId!r}, "
+                                  "of which CYANA residue library should be uploaded.")
+                    return
+
+            self.dihedRestraints += 1
+
+            peptide, nucleotide, carbohydrate = self.csStat.getTypeOfCompId(compId)
+
+            if carbohydrate:
+                chainAssign, _ = self.assignCoordPolymerSequence(seqId, compId, 'CA', False)
+                if len(chainAssign) > 0:
+                    ps = next((ps for ps in self.polySeq if ps['auth_chain_id'] == chainAssign[0][0]), None)
+                    if ps is not None and 'type' in ps and 'polypeptide' in ps['type']:
+                        peptide = True
+                        nucleotide = carbohydrate = False
+
+            if carbohydrate and angleName in KNOWN_ANGLE_CARBO_ATOM_NAMES:
+                atomNames = KNOWN_ANGLE_CARBO_ATOM_NAMES[angleName]
+                seqOffset = KNOWN_ANGLE_CARBO_SEQ_OFFSET[angleName]
+            else:
+                atomNames = KNOWN_ANGLE_ATOM_NAMES[angleName]
+                seqOffset = KNOWN_ANGLE_SEQ_OFFSET[angleName]
+
+            if angleName != 'PPA':
+
+                if isinstance(atomNames, list):
+                    atomId = next(name for name, offset in zip(atomNames, seqOffset) if offset == 0)
+                else:  # nucleic CHI angle
+                    atomId = next(name for name, offset in zip(atomNames['Y'], seqOffset['Y']) if offset == 0)
+
+                if not isinstance(atomId, str):
+                    self.ccU.updateChemCompDict(compId)
+                    atomId = next((cca['atom_id'] for cca in self.ccU.lastAtomDictList if atomId.match(cca['atom_id'])), None)
+                    if atomId is None and carbohydrate:
+                        atomNames = KNOWN_ANGLE_ATOM_NAMES[angleName]
+                        seqOffset = KNOWN_ANGLE_SEQ_OFFSET[angleName]
+
+                        if isinstance(atomNames, list):
+                            atomId = next(name for name, offset in zip(atomNames, seqOffset) if offset == 0)
+                        else:  # nucleic CHI angle
+                            atomId = next(name for name, offset in zip(atomNames['Y'], seqOffset['Y']) if offset == 0)
+
+                        if not isinstance(atomId, str):
+                            atomId = next((cca['atom_id'] for cca in self.ccU.lastAtomDictList
+                                           if atomId.match(cca['atom_id'])), None)
+                            if atomId is None:
+                                resKey = (seqId, _compId)
+                                if resKey not in self.extResKey:
+                                    self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
+                                                  f"{seqId}:{_compId} is not present in the coordinates.")
+                                return
+
+                self.retrieveLocalSeqScheme()
+
+                if self.cur_subtype_altered:  # invoked from exitCco_restraint()
+                    chainAssign, _ = self.assignCoordPolymerSequenceWithChainId(chainId, seqId, compId, atomId)
+                else:
+                    chainAssign, _ = self.assignCoordPolymerSequence(seqId, compId, atomId)
+
+                if len(chainAssign) == 0:
+                    resKey = (seqId, _compId)
+                    if resKey not in self.extResKey:
+                        self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
+                                      f"{seqId}:{_compId} is not present in the coordinates.")
+                    return
+
+                for chainId, cifSeqId, cifCompId, _ in chainAssign:
+                    ps = None
+
+                    if carbohydrate:
+                        if self.branched is not None:
+                            ps = next((ps for ps in self.branched if ps['auth_chain_id'] == chainId), None)
+                            if ps is None:
+                                ps = next((ps for ps in self.polySeq if ps['auth_chain_id'] == chainId), None)
+                    else:
+                        ps = next((ps for ps in self.polySeq if ps['auth_chain_id'] == chainId), None)
+
+                    peptide, nucleotide, carbohydrate = self.csStat.getTypeOfCompId(cifCompId)
+
+                    if peptide and angleName in ('PHI', 'PSI', 'OMEGA',
+                                                 'CHI1', 'CHI2', 'CHI3', 'CHI4', 'CHI5',
+                                                 'CHI21', 'CHI22', 'CHI31', 'CHI32', 'CHI42'):
+                        pass
+                    elif nucleotide and angleName in ('ALPHA', 'BETA', 'GAMMA', 'DELTA', 'EPSILON', 'ZETA',
+                                                      'CHI', 'ETA', 'THETA', "ETA'", "THETA'",
+                                                      'NU0', 'NU1', 'NU2', 'NU3', 'NU4',
+                                                      'TAU0', 'TAU1', 'TAU2', 'TAU3', 'TAU4'):
+                        pass
+                    elif carbohydrate and angleName in ('PHI', 'PSI', 'OMEGA'):
+                        pass
+                    else:
+                        self.f.append(f"[Insufficient angle selection] {self.getCurrentRestraint()}"
+                                      f"The angle identifier {self.genSimpleNameSelection[2]!r} is unknown "
+                                      f"for the residue {_compId!r}, "
+                                      "of which CYANA residue library should be uploaded.")
+                        return
+
+                    atomNames = seqOffset = None
+
+                    if carbohydrate:
+                        atomNames = KNOWN_ANGLE_CARBO_ATOM_NAMES[angleName]
+                        seqOffset = KNOWN_ANGLE_CARBO_SEQ_OFFSET[angleName]
+                    elif nucleotide and angleName == 'CHI':
+                        if self.ccU.updateChemCompDict(cifCompId):
+                            try:
+                                next(cca for cca in self.ccU.lastAtomDictList if cca['atom_id'] == 'N9')
+                                atomNames = KNOWN_ANGLE_ATOM_NAMES['CHI']['R']
+                                seqOffset = KNOWN_ANGLE_SEQ_OFFSET['CHI']['R']
+                            except StopIteration:
+                                atomNames = KNOWN_ANGLE_ATOM_NAMES['CHI']['Y']
+                                seqOffset = KNOWN_ANGLE_SEQ_OFFSET['CHI']['Y']
+                    else:
+                        atomNames = KNOWN_ANGLE_ATOM_NAMES[angleName]
+                        seqOffset = KNOWN_ANGLE_SEQ_OFFSET[angleName]
+
+                    prevCifAtomId = prevOffset = None
+
+                    for col, (atomId, offset) in enumerate(zip(atomNames, seqOffset)):
+
+                        atomSelection = []
+
+                        if offset != 0 and ps is None:
+                            self.f.append(f"[Sequence mismatch warning] {self.getCurrentRestraint()}"
+                                          f"The residue number '{seqId+offset}' is not present in polymer sequence "
+                                          f"of chain {chainId} of the coordinates. {INSTRUCTION_FOR_FULL_SEQUENCE}")
+                            return
+
+                        _cifSeqId = cifSeqId + offset
+                        _cifCompId = cifCompId if offset == 0\
+                            else (ps['comp_id'][ps['auth_seq_id'].index(_cifSeqId)] if _cifSeqId in ps['auth_seq_id'] else None)
+
+                        seqKey, coordAtomSite = self.getCoordAtomSiteOf(chainId, _cifSeqId, _cifCompId, cifCheck=self.hasCoord)
+
+                        if _cifCompId is None and offset != 0 and 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
+                            idx = ps['auth_seq_id'].index(cifSeqId)
+                            try:
+                                _cifSeqId = ps['auth_seq_id'][idx + offset]
+                                _cifCompId = ps['comp_id'][idx + offset]
+
+                                seqKey, coordAtomSite =\
+                                    self.getCoordAtomSiteOf(chainId, _cifSeqId, _cifCompId, cifCheck=self.hasCoord)
+                            except IndexError:
+                                pass
+
+                        if _cifCompId is None:
+                            # """
+                            # try:
+                            #     _cifCompId = ps['comp_id'][ps['auth_seq_id'].index(cifSeqId) + offset]
+                            # except IndexError:
+                            #     pass
+                            # """
+                            if _cifCompId is None and not self.allow_ext_seq:
+                                self.f.append(f"[Sequence mismatch warning] {self.getCurrentRestraint()}"
+                                              f"The residue number '{seqId+offset}' is not present in polymer sequence "
+                                              f"of chain {chainId} of the coordinates. {INSTRUCTION_FOR_FULL_SEQUENCE}")
+                                return
+                                # _cifCompId = '.'
+                            cifAtomId = atomId
+
+                        else:
+                            self.ccU.updateChemCompDict(_cifCompId)
+
+                            if isinstance(atomId, str):
+                                cifAtomId = next((cca['atom_id'] for cca in self.ccU.lastAtomDictList
+                                                  if cca['atom_id'] == atomId), None)
+                                if cifAtomId is None:
+                                    if col == 0:
+                                        _cifSeqId += seqOffset[col + 1] - offset
+                                        ptnr = getStructConnPtnrAtom(self.cR, chainId, _cifSeqId, atomNames[col + 1])
+                                        if ptnr is not None and atomId[0] == ptnr['atom_id'][0]:
+                                            cifAtomId = ptnr['atom_id']
+                                    elif col == 3:
+                                        _cifSeqId += seqOffset[col - 1] - offset
+                                        ptnr = getStructConnPtnrAtom(self.cR, chainId, _cifSeqId, atomNames[col - 1])
+                                        if ptnr is not None and atomId[0] == ptnr['atom_id'][0]:
+                                            cifAtomId = ptnr['atom_id']
+                            else:
+                                cifAtomIds = [cca['atom_id'] for cca in self.ccU.lastAtomDictList
+                                              if atomId.match(cca['atom_id'])
+                                              and (coordAtomSite is None
+                                                   or (coordAtomSite is not None and cca['atom_id'] in coordAtomSite['atom_id']))]
+
+                                if len(cifAtomIds) > 0:
+                                    if prevCifAtomId is not None and offset == prevOffset:
+                                        cifAtomId = next((_cifAtomId for _cifAtomId in cifAtomIds
+                                                          if any(True for b in self.ccU.lastBondDictList
+                                                                 if ((b['atom_id_1'] == prevCifAtomId
+                                                                      and b['atom_id_2'] == _cifAtomId)
+                                                                     or (b['atom_id_1'] == _cifAtomId
+                                                                         and b['atom_id_2'] == prevCifAtomId)))), None)
+                                        if cifAtomId is None:
+                                            offset -= 1
+                                            _cifSeqId = cifSeqId + offset
+                                            _cifCompId = cifCompId if offset == 0\
+                                                else (ps['comp_id'][ps['auth_seq_id'].index(_cifSeqId)]
+                                                      if _cifSeqId in ps['auth_seq_id'] else None)
+                                            seqKey, coordAtomSite =\
+                                                self.getCoordAtomSiteOf(chainId, _cifSeqId, _cifCompId, cifCheck=self.hasCoord)
+                                            if coordAtomSite is not None:
+                                                cifAtomId = next((_cifAtomId for _cifAtomId in cifAtomIds
+                                                                  if _cifAtomId in coordAtomSite['atom_id']), None)
+
+                                    else:
+                                        cifAtomId = cifAtomIds[0]
+                                else:
+                                    cifAtomId = None
+
+                            if cifAtomId is None:
+                                if _cifCompId is None and not self.allow_ext_seq:
+                                    self.f.append(f"[Sequence mismatch warning] {self.getCurrentRestraint()}"
+                                                  f"The residue number '{seqId+offset}' is not present in polymer sequence "
+                                                  f"of chain {chainId} of the coordinates. {INSTRUCTION_FOR_FULL_SEQUENCE}")
+                                elif _compId in STD_MON_DICT:
+                                    self.f.append(f"[Insufficient angle selection] {self.getCurrentRestraint()}"
+                                                  f"The angle identifier {self.genSimpleNameSelection[2]!r} is unknown "
+                                                  f"for the residue {_compId!r}.")
+                                else:
+                                    self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
+                                                  f"{seqId+offset}:{_compId}:{atomId} involved in the {angleName} dihedral angle "
+                                                  "is not present in the coordinates.")
+                                return
+
+                        prevCifAtomId = cifAtomId
+                        prevOffset = offset
+
+                        atomSelection.append({'chain_id': chainId, 'seq_id': _cifSeqId,
+                                              'comp_id': _cifCompId, 'atom_id': cifAtomId})
+
+                        self.testCoordAtomIdConsistency(chainId, _cifSeqId, _cifCompId, cifAtomId, seqKey, coordAtomSite, True)
+
+                        if self.hasCoord and coordAtomSite is None:
+                            return
+
+                        if len(atomSelection) > 0:
+                            self.atomSelectionSet.append(atomSelection)
+
+                    if len(self.atomSelectionSet) < 4:
+                        return
+
+                    try:
+                        self.atomSelectionSet[0][0]['comp_id']
+                    except IndexError:
+                        self.areUniqueCoordAtoms('a torsion angle')
+                        return
+
+                    len_f = len(self.f)
+                    self.areUniqueCoordAtoms('a torsion angle',
+                                             allow_ambig=True, allow_ambig_warn_title='Ambiguous dihedral angle')
+                    combinationId = '.' if len_f == len(self.f) else 0
+
+                    atomSelTotal = sum(len(s) for s in self.atomSelectionSet)
+
+                    if isinstance(combinationId, int):
+                        fixedAngleName = '.'
+                        for atom1, atom2, atom3, atom4 in itertools.product(self.atomSelectionSet[0],
+                                                                            self.atomSelectionSet[1],
+                                                                            self.atomSelectionSet[2],
+                                                                            self.atomSelectionSet[3]):
+                            _angleName = getTypeOfDihedralRestraint(peptide, nucleotide, carbohydrate,
+                                                                    [atom1, atom2, atom3, atom4],
+                                                                    'plane_like' in dstFunc)
+
+                            if _angleName is not None and _angleName.startswith('pseudo'):
+                                _angleName, atom2, atom3, err = fixBackboneAtomsOfDihedralRestraint(_angleName,
+                                                                                                    [atom1, atom2, atom3, atom4],
+                                                                                                    self.getCurrentRestraint())
+                                self.f.append(err)
+
+                            if _angleName in EMPTY_VALUE and atomSelTotal != 4:
+                                continue
+
+                            fixedAngleName = _angleName
+                            break
+
+                    if self.createSfDict:
+                        sf = self.getSf(potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                        sf['id'] += 1
+
+                    for atom1, atom2, atom3, atom4 in itertools.product(self.atomSelectionSet[0],
+                                                                        self.atomSelectionSet[1],
+                                                                        self.atomSelectionSet[2],
+                                                                        self.atomSelectionSet[3]):
+                        if isLongRangeRestraint([atom1, atom2, atom3, atom4], self.polySeq if self.gapInAuthSeq else None):
+                            continue
+                        _angleName = getTypeOfDihedralRestraint(peptide, nucleotide, carbohydrate,
+                                                                [atom1, atom2, atom3, atom4],
+                                                                'plane_like' in dstFunc)
+
+                        if _angleName is not None and _angleName.startswith('pseudo'):
+                            _angleName, atom2, atom3, err = fixBackboneAtomsOfDihedralRestraint(_angleName,
+                                                                                                [atom1, atom2, atom3, atom4],
+                                                                                                self.getCurrentRestraint())
+                            self.f.append(err)
+
+                        if _angleName in EMPTY_VALUE and atomSelTotal != 4:
+                            continue
+
+                        if isinstance(combinationId, int):
+                            if _angleName != fixedAngleName:
+                                continue
+                            combinationId += 1
+                        if peptide and angleName == 'CHI2' and atom4['atom_id'] == 'CD1'\
+                           and isLikePheOrTyr(atom2['comp_id'], self.ccU):
+                            dstFunc = self.selectRealisticChi2AngleConstraint(atom1, atom2, atom3, atom4,
+                                                                              dstFunc)
+                        if self.debug:
+                            print(f"subtype={self.cur_subtype} id={self.dihedRestraints} angleName={angleName} "
+                                  f"atom1={atom1} atom2={atom2} atom3={atom3} atom4={atom4} {dstFunc}")
+                        if self.createSfDict and sf is not None:
+                            sf['index_id'] += 1
+                            row = getRow(self.cur_subtype, sf['id'], sf['index_id'],
+                                         combinationId, None, angleName,
+                                         sf['list_id'], self.entryId, dstFunc,
+                                         self.authToStarSeq, self.authToOrigSeq, self.authToInsCode, self.offsetHolder,
+                                         atom1, atom2, atom3, atom4)
+                            sf['loop'].add_data(row)
+
+                    if self.createSfDict and sf is not None and isinstance(combinationId, int) and combinationId == 1:
+                        sf['loop'].data[-1] = resetCombinationId(self.cur_subtype, sf['loop'].data[-1])
+
+            # phase angle of pseudorotation
+            else:
+
+                atomNames = KNOWN_ANGLE_ATOM_NAMES[angleName]
+                seqOffset = KNOWN_ANGLE_SEQ_OFFSET[angleName]
+
+                atomId = next(name for name, offset in zip(atomNames, seqOffset) if offset == 0)
+
+                if not isinstance(atomId, str):
+                    self.ccU.updateChemCompDict(compId)
+                    atomId = next(cca['atom_id'] for cca in self.ccU.lastAtomDictList if atomId.match(cca['atom_id']))
+
+                self.retrieveLocalSeqScheme()
+
+                chainAssign, _ = self.assignCoordPolymerSequence(seqId, compId, atomId)
+
+                if len(chainAssign) == 0:
+                    resKey = (seqId, _compId)
+                    if resKey not in self.extResKey:
+                        self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
+                                      f"{seqId}:{_compId} is not present in the coordinates.")
+                    return
+
+                for chainId, cifSeqId, cifCompId, _ in chainAssign:
+                    ps = next(ps for ps in self.polySeq if ps['auth_chain_id'] == chainId)
+
+                    peptide, nucleotide, carbohydrate = self.csStat.getTypeOfCompId(cifCompId)
+
+                    atomNames = KNOWN_ANGLE_ATOM_NAMES[angleName]
+                    seqOffset = KNOWN_ANGLE_SEQ_OFFSET[angleName]
+
+                    if nucleotide:
+                        pass
+                    else:
+                        self.f.append(f"[Insufficient angle selection] {self.getCurrentRestraint()}"
+                                      f"The angle identifier {self.genSimpleNameSelection[2]!r} did not match with "
+                                      f"residue {_compId!r}.")
+                        return
+
+                    for atomId, offset in zip(atomNames, seqOffset):
+
+                        atomSelection = []
+
+                        _cifSeqId = cifSeqId + offset
+                        _cifCompId = cifCompId if offset == 0\
+                            else (ps['comp_id'][ps['auth_seq_id'].index(_cifSeqId)] if _cifSeqId in ps['auth_seq_id'] else None)
+
+                        if _cifCompId is None and offset != 0 and 'gap_in_auth_seq' in ps and ps['gap_in_auth_seq']:
+                            idx = ps['auth_seq_id'].index(cifSeqId)
+                            try:
+                                _cifSeqId = ps['auth_seq_id'][idx + offset]
+                                _cifCompId = ps['comp_id'][idx + offset]
+                            except IndexError:
+                                pass
+
+                        if _cifCompId is None:
+                            try:
+                                _cifCompId = ps['comp_id'][ps['auth_seq_id'].index(cifSeqId) + offset]
+                            except IndexError:
+                                pass
+                            if _cifCompId is None and not self.allow_ext_seq:
+                                self.f.append(f"[Sequence mismatch warning] {self.getCurrentRestraint()}"
+                                              f"The residue number '{seqId+offset}' is not present in polymer sequence "
+                                              f"of chain {chainId} of the coordinates. {INSTRUCTION_FOR_FULL_SEQUENCE}")
+                                return
+                                # _cifCompId = '.'
+                            cifAtomId = atomId
+
+                        else:
+                            self.ccU.updateChemCompDict(_cifCompId)
+
+                            cifAtomId = next((cca['atom_id'] for cca in self.ccU.lastAtomDictList
+                                              if cca['atom_id'] == atomId), None)
+
+                            if cifAtomId is None:
+                                if _cifCompId is None and not self.allow_ext_seq:
+                                    self.f.append(f"[Sequence mismatch warning] {self.getCurrentRestraint()}"
+                                                  f"The residue number '{seqId+offset}' is not present in polymer sequence "
+                                                  f"of chain {chainId} of the coordinates. {INSTRUCTION_FOR_FULL_SEQUENCE}")
+                                elif _compId in STD_MON_DICT:
+                                    self.f.append(f"[Insufficient angle selection] {self.getCurrentRestraint()}"
+                                                  f"The angle identifier {self.genSimpleNameSelection[2]!r} is unknown "
+                                                  f"for the residue {_compId!r}.")
+                                else:
+                                    self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
+                                                  f"{seqId+offset}:{_compId}:{atomId} involved in the {angleName} dihedral angle "
+                                                  "is not present in the coordinates.")
+                                return
+
+                        atomSelection.append({'chain_id': chainId, 'seq_id': _cifSeqId,
+                                              'comp_id': _cifCompId, 'atom_id': cifAtomId})
+
+                        if len(atomSelection) > 0:
+                            self.atomSelectionSet.append(atomSelection)
+
+                    if len(self.atomSelectionSet) < 5:
+                        return
+
+                    try:
+                        self.atomSelectionSet[0][0]['comp_id']
+                    except IndexError:
+                        self.areUniqueCoordAtoms('a torsion angle')
+                        return
+
+                    len_f = len(self.f)
+                    self.areUniqueCoordAtoms('a torsion angle',
+                                             allow_ambig=True, allow_ambig_warn_title='Ambiguous dihedral angle')
+                    combinationId = '.' if len_f == len(self.f) else 0
+
+                    if isinstance(combinationId, int):
+                        fixedAngleName = '.'
+                        for atom1, atom2, atom3, atom4 in itertools.product(self.atomSelectionSet[0],
+                                                                            self.atomSelectionSet[1],
+                                                                            self.atomSelectionSet[2],
+                                                                            self.atomSelectionSet[3]):
+                            _angleName = getTypeOfDihedralRestraint(peptide, nucleotide, carbohydrate,
+                                                                    [atom1, atom2, atom3, atom4],
+                                                                    False)
+
+                            if _angleName in EMPTY_VALUE:
+                                continue
+
+                            fixedAngleName = _angleName
+                            break
+
+                    if self.createSfDict:
+                        sf = self.getSf(potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                        sf['id'] += 1
+
+                    for atom1, atom2, atom3, atom4, atom5 in itertools.product(self.atomSelectionSet[0],
+                                                                               self.atomSelectionSet[1],
+                                                                               self.atomSelectionSet[2],
+                                                                               self.atomSelectionSet[3],
+                                                                               self.atomSelectionSet[4]):
+                        if isLongRangeRestraint([atom1, atom2, atom3, atom4, atom5], self.polySeq if self.gapInAuthSeq else None):
+                            continue
+                        _angleName = getTypeOfDihedralRestraint(peptide, nucleotide, carbohydrate,
+                                                                [atom1, atom2, atom3, atom4],
+                                                                False)
+
+                        if isinstance(combinationId, int):
+                            if _angleName != fixedAngleName:
+                                continue
+                            combinationId += 1
+                        if self.debug:
+                            print(f"subtype={self.cur_subtype} id={self.dihedRestraints} angleName={angleName} "
+                                  f"atom1={atom1} atom2={atom2} atom3={atom3} atom4={atom4} atom5={atom5} {dstFunc}")
+                        if self.createSfDict and sf is not None:
+                            sf['index_id'] += 1
+                            row = getRow(self.cur_subtype, sf['id'], sf['index_id'],
+                                         combinationId, None, angleName,
+                                         sf['list_id'], self.entryId, dstFunc,
+                                         self.authToStarSeq, self.authToOrigSeq, self.authToInsCode, self.offsetHolder,
+                                         None, None, None, None, atom5)
+                            sf['loop'].add_data(row)
+
+                    if self.createSfDict and sf is not None and isinstance(combinationId, int) and combinationId == 1:
+                        sf['loop'].data[-1] = resetCombinationId(self.cur_subtype, sf['loop'].data[-1])
+
+        except (ValueError, AttributeError):
+            self.dihedRestraints -= 1
+
+        finally:
+            self.numberSelection.clear()
+            self.genResNumSelection.clear()
+            self.genSimpleNameSelection.clear()
 
     def enterDiana_coupling_constant_restraints(self, ctx: CyanaMRParser.Diana_coupling_constant_restraintsContext
                                                 ):  # pylint: disable=unused-argument
@@ -4853,8 +5904,6 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
         """
 
         self.cur_subtype = 'jcoup'
-
-        self.cur_subtype_altered = False
 
     def exitDiana_coupling_constant_restraints(self, ctx: CyanaMRParser.Diana_coupling_constant_restraintsContext
                                                ):  # pylint: disable=unused-argument
@@ -4875,7 +5924,419 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
         """ Exit a parse tree produced by CyanaMRParser#diana_coupling_constant_restraint.
         """
 
-        self.exitCco_restraint(ctx)
+        try:
+
+            seqId1, chainId1 = self.genResNumSelection[0]
+            compId1 = self.genSimpleNameSelection[0].upper()
+            atomId1 = self.genSimpleNameSelection[1].upper()
+            atomId2 = self.genSimpleNameSelection[2].upper()
+
+            if len(self.numberSelection) == 0 or None in self.numberSelection:
+                self.jcoupRestraints -= 1
+                return
+
+            combinations = 2 if len(self.genSimpleNameSelection) == 5\
+                else 1 if len(self.genSimpleNameSelection) == 3 else 0
+
+            if combinations == 0:
+                self.jcoupRestraints -= 1
+                return
+
+            has_error = len(self.numberSelection) == 2 * combinations
+
+            target = self.numberSelection[0]
+            error = self.numberSelection[1] if has_error else None
+
+            weight = 1.0
+
+            target_value = target
+            lower_limit = target - error if error is not None else None
+            upper_limit = target + error if error is not None else None
+
+            dstFunc = self.validateRdcRange(weight, None, target_value, lower_limit, upper_limit)
+
+            if dstFunc is None:
+                return
+
+            if not self.hasPolySeq and not self.hasNonPolySeq:
+                return
+
+            self.retrieveLocalSeqScheme()
+
+            chainAssign1, asis1 = self.assignCoordPolymerSequenceWithChainId(chainId1, seqId1, compId1, atomId1)
+            chainAssign2, asis2 = self.assignCoordPolymerSequenceWithChainId(chainId1, seqId1, compId1, atomId2)
+
+            if 0 in (len(chainAssign1), len(chainAssign2)):
+                return
+
+            self.selectCoordAtoms(chainAssign1, seqId1, compId1, atomId1)
+            self.selectCoordAtoms(chainAssign2, seqId1, compId1, atomId2)
+
+            if len(self.atomSelectionSet) < 2:
+                return
+
+            if not self.areUniqueCoordAtoms('a scalar coupling'):
+                return
+
+            chain_id_1 = self.atomSelectionSet[0][0]['chain_id']
+            seq_id_1 = self.atomSelectionSet[0][0]['seq_id']
+            comp_id_1 = self.atomSelectionSet[0][0]['comp_id']
+            atom_id_1 = self.atomSelectionSet[0][0]['atom_id']
+
+            chain_id_2 = self.atomSelectionSet[1][0]['chain_id']
+            seq_id_2 = self.atomSelectionSet[1][0]['seq_id']
+            comp_id_2 = self.atomSelectionSet[1][0]['comp_id']
+            atom_id_2 = self.atomSelectionSet[1][0]['atom_id']
+
+            if (atom_id_1[0] not in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS) or (atom_id_2[0] not in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS):
+                self.f.append(f"[Invalid data] {self.getCurrentRestraint()}"
+                              "Non-magnetic susceptible spin appears in scalar coupling constant; "
+                              f"({chain_id_1}:{seq_id_1}:{comp_id_1}:{atom_id_1}, "
+                              f"{chain_id_2}:{seq_id_2}:{comp_id_2}:{atom_id_2}).")
+                return
+
+            if chain_id_1 != chain_id_2:
+                ps1 = next((ps for ps in self.polySeq
+                            if ps['auth_chain_id'] == chain_id_1 and 'identical_auth_chain_id' in ps), None)
+                ps2 = next((ps for ps in self.polySeq
+                            if ps['auth_chain_id'] == chain_id_2 and 'identical_auth_chain_id' in ps), None)
+                if ps1 is None and ps2 is None:
+                    self.f.append(f"[Invalid data] {self.getCurrentRestraint()}"
+                                  "Found inter-chain scalar coupling constant; "
+                                  f"({chain_id_1}:{seq_id_1}:{comp_id_1}:{atom_id_1}, "
+                                  f"{chain_id_2}:{seq_id_2}:{comp_id_2}:{atom_id_2}).")
+                    return
+
+            elif abs(seq_id_1 - seq_id_2) > 1:
+
+                if abs(seq_id_1 - seq_id_2) > 2 or {atom_id_1, atom_id_2} != {'H', 'N'}:
+                    self.f.append(f"[Invalid data] {self.getCurrentRestraint()}"
+                                  "Found inter-residue scalar coupling constant; "
+                                  f"({chain_id_1}:{seq_id_1}:{comp_id_1}:{atom_id_1}, "
+                                  f"{chain_id_2}:{seq_id_2}:{comp_id_2}:{atom_id_2}).")
+                    return
+
+            elif abs(seq_id_1 - seq_id_2) == 1:
+
+                if self.csStat.peptideLike(comp_id_1) and self.csStat.peptideLike(comp_id_2) and\
+                        ((seq_id_1 < seq_id_2 and atom_id_1 == 'C' and atom_id_2 in RDC_BB_PAIR_CODE)
+                         or (seq_id_1 > seq_id_2 and atom_id_1 in RDC_BB_PAIR_CODE and atom_id_2 == 'C')
+                         or (seq_id_1 < seq_id_2 and atom_id_1.startswith('HA') and atom_id_2 in ('H', 'N'))
+                         or (seq_id_1 > seq_id_2 and atom_id_1 in ('H', 'N') and atom_id_2.startswith('HA'))
+                         or {atom_id_1, atom_id_2} == {'H', 'N'}):
+                    pass
+
+                elif self.csStat.getTypeOfCompId(comp_id_1)[1] and self.csStat.getTypeOfCompId(comp_id_1)[1]\
+                        and seq_id_1 < seq_id_2 and atom_id_2 == 'P':
+                    pass
+
+                else:
+                    self.f.append(f"[Invalid data] {self.getCurrentRestraint()}"
+                                  "Found inter-residue scalar coupling constant; "
+                                  f"({chain_id_1}:{seq_id_1}:{comp_id_1}:{atom_id_1}, "
+                                  f"{chain_id_2}:{seq_id_2}:{comp_id_2}:{atom_id_2}).")
+                    return
+
+            elif atom_id_1 == atom_id_2:
+                self.f.append(f"[Invalid data] {self.getCurrentRestraint()}"
+                              "Found zero scalar coupling constant; "
+                              f"({chain_id_1}:{seq_id_1}:{comp_id_1}:{atom_id_1}, "
+                              f"{chain_id_2}:{seq_id_2}:{comp_id_2}:{atom_id_2}).")
+                return
+
+            if self.createSfDict:
+                sf = self.getSf()
+                sf['id'] += 1
+
+            for atom1, atom4 in itertools.product(self.atomSelectionSet[0],
+                                                  self.atomSelectionSet[1]):
+                if isLongRangeRestraint([atom1, atom4], self.polySeq if self.gapInAuthSeq else None):
+                    if {atom1['atom_id'], atom4['atom_id']} != {'H', 'N'}:
+                        continue
+                self.ccU.updateChemCompDict(atom1['comp_id'])
+                atom2_can = self.ccU.getBondedAtoms(atom1['comp_id'], atom1['atom_id'])
+                atom3_can = self.ccU.getBondedAtoms(atom1['comp_id'], atom4['atom_id'])
+                atom_id_2 = atom_id_3 = None
+                for ccb in self.ccU.lastBondDictList:
+                    if ccb['atom_id_1'] in atom2_can and ccb['atom_id_2'] in atom3_can:
+                        atom_id_2 = ccb['atom_id_1']
+                        atom_id_3 = ccb['atom_id_2']
+                        break
+                    if ccb['atom_id_2'] in atom2_can and ccb['atom_id_1'] in atom3_can:
+                        atom_id_2 = ccb['atom_id_2']
+                        atom_id_3 = ccb['atom_id_1']
+                        break
+                if None in (atom_id_2, atom_id_3):
+                    continue
+                atom2 = copy.copy(atom1)
+                atom2['atom_id'] = atom_id_2
+                atom3 = copy.copy(atom4)
+                atom3['atom_id'] = atom_id_3
+                if self.debug:
+                    print(f"subtype={self.cur_subtype} id={self.jcoupRestraints} "
+                          f"atom1={atom1} atom2={atom2} atom3={atom3} atom4={atom4} {dstFunc}")
+                if self.createSfDict and sf is not None:
+                    sf['index_id'] += 1
+                    row = getRow(self.cur_subtype, sf['id'], sf['index_id'],
+                                 '.', None, None,
+                                 sf['list_id'], self.entryId, dstFunc,
+                                 self.authToStarSeq, self.authToOrigSeq, self.authToInsCode, self.offsetHolder,
+                                 atom1, atom2, atom3, atom4, asis1=asis1, asis2=asis1, asis3=asis2, asis4=asis2)
+                    sf['loop'].add_data(row)
+
+            if combinations == 1:
+                return
+
+            self.atomSelectionSet.clear()
+
+            atomId1 = self.genSimpleNameSelection[3].upper()
+            atomId2 = self.genSimpleNameSelection[4].upper()
+
+            target = self.numberSelection[2 if has_error else 1]
+            error = self.numberSelection[3] if has_error else None
+
+            weight = 1.0
+
+            target_value = target
+            lower_limit = target - error if error is not None else None
+            upper_limit = target + error if error is not None else None
+
+            dstFunc = self.validateRdcRange(weight, None, target_value, lower_limit, upper_limit)
+
+            if dstFunc is None:
+                return
+
+            if not self.hasPolySeq and not self.hasNonPolySeq:
+                return
+
+            self.retrieveLocalSeqScheme()
+
+            chainAssign1, asis1 = self.assignCoordPolymerSequenceWithChainId(chainId1, seqId1, compId1, atomId1)
+            chainAssign2, asis2 = self.assignCoordPolymerSequenceWithChainId(chainId1, seqId1, compId1, atomId2)
+
+            if 0 in (len(chainAssign1), len(chainAssign2)):
+                return
+
+            self.selectCoordAtoms(chainAssign1, seqId1, compId1, atomId1)
+            self.selectCoordAtoms(chainAssign2, seqId1, compId1, atomId2)
+
+            if len(self.atomSelectionSet) < 2:
+                return
+
+            if not self.areUniqueCoordAtoms('a scalar coupling'):
+                return
+
+            chain_id_1 = self.atomSelectionSet[0][0]['chain_id']
+            seq_id_1 = self.atomSelectionSet[0][0]['seq_id']
+            comp_id_1 = self.atomSelectionSet[0][0]['comp_id']
+            atom_id_1 = self.atomSelectionSet[0][0]['atom_id']
+
+            chain_id_2 = self.atomSelectionSet[1][0]['chain_id']
+            seq_id_2 = self.atomSelectionSet[1][0]['seq_id']
+            comp_id_2 = self.atomSelectionSet[1][0]['comp_id']
+            atom_id_2 = self.atomSelectionSet[1][0]['atom_id']
+
+            if (atom_id_1[0] not in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS) or (atom_id_2[0] not in ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS):
+                self.f.append(f"[Invalid data] {self.getCurrentRestraint()}"
+                              "Non-magnetic susceptible spin appears in scalar coupling constant; "
+                              f"({chain_id_1}:{seq_id_1}:{comp_id_1}:{atom_id_1}, "
+                              f"{chain_id_2}:{seq_id_2}:{comp_id_2}:{atom_id_2}).")
+                return
+
+            if chain_id_1 != chain_id_2:
+                ps1 = next((ps for ps in self.polySeq
+                            if ps['auth_chain_id'] == chain_id_1 and 'identical_auth_chain_id' in ps), None)
+                ps2 = next((ps for ps in self.polySeq
+                            if ps['auth_chain_id'] == chain_id_2 and 'identical_auth_chain_id' in ps), None)
+                if ps1 is None and ps2 is None:
+                    self.f.append(f"[Invalid data] {self.getCurrentRestraint()}"
+                                  "Found inter-chain scalar coupling constant; "
+                                  f"({chain_id_1}:{seq_id_1}:{comp_id_1}:{atom_id_1}, "
+                                  f"{chain_id_2}:{seq_id_2}:{comp_id_2}:{atom_id_2}).")
+                    return
+
+            elif abs(seq_id_1 - seq_id_2) > 1:
+
+                if abs(seq_id_1 - seq_id_2) > 2 or {atom_id_1, atom_id_2} != {'H', 'N'}:
+                    self.f.append(f"[Invalid data] {self.getCurrentRestraint()}"
+                                  "Found inter-residue scalar coupling constant; "
+                                  f"({chain_id_1}:{seq_id_1}:{comp_id_1}:{atom_id_1}, "
+                                  f"{chain_id_2}:{seq_id_2}:{comp_id_2}:{atom_id_2}).")
+                    return
+
+            elif abs(seq_id_1 - seq_id_2) == 1:
+
+                if self.csStat.peptideLike(comp_id_1) and self.csStat.peptideLike(comp_id_2) and\
+                        ((seq_id_1 < seq_id_2 and atom_id_1 == 'C' and atom_id_2 in RDC_BB_PAIR_CODE)
+                         or (seq_id_1 > seq_id_2 and atom_id_1 in RDC_BB_PAIR_CODE and atom_id_2 == 'C')
+                         or (seq_id_1 < seq_id_2 and atom_id_1.startswith('HA') and atom_id_2 in ('H', 'N'))
+                         or (seq_id_1 > seq_id_2 and atom_id_1 in ('H', 'N') and atom_id_2.startswith('HA'))
+                         or {atom_id_1, atom_id_2} == {'H', 'N'}):
+                    pass
+
+                elif self.csStat.getTypeOfCompId(comp_id_1)[1] and self.csStat.getTypeOfCompId(comp_id_1)[1]\
+                        and seq_id_1 < seq_id_2 and atom_id_2 == 'P':
+                    pass
+
+                else:
+                    self.f.append(f"[Invalid data] {self.getCurrentRestraint()}"
+                                  "Found inter-residue scalar coupling constant; "
+                                  f"({chain_id_1}:{seq_id_1}:{comp_id_1}:{atom_id_1}, "
+                                  f"{chain_id_2}:{seq_id_2}:{comp_id_2}:{atom_id_2}).")
+                    return
+
+            elif atom_id_1 == atom_id_2:
+                self.f.append(f"[Invalid data] {self.getCurrentRestraint()}"
+                              "Found zero scalar coupling constant; "
+                              f"({chain_id_1}:{seq_id_1}:{comp_id_1}:{atom_id_1}, "
+                              f"{chain_id_2}:{seq_id_2}:{comp_id_2}:{atom_id_2}).")
+                return
+
+            self.jcoupRestraints += 1
+
+            if self.createSfDict:
+                sf = self.getSf()
+                sf['id'] += 1
+
+            for atom1, atom4 in itertools.product(self.atomSelectionSet[0],
+                                                  self.atomSelectionSet[1]):
+                if isLongRangeRestraint([atom1, atom4], self.polySeq if self.gapInAuthSeq else None):
+                    if {atom1['atom_id'], atom4['atom_id']} != {'H', 'N'}:
+                        continue
+                self.ccU.updateChemCompDict(atom1['comp_id'])
+                atom2_can = self.ccU.getBondedAtoms(atom1['comp_id'], atom1['atom_id'])
+                atom3_can = self.ccU.getBondedAtoms(atom1['comp_id'], atom4['atom_id'])
+                atom_id_2 = atom_id_3 = None
+                for ccb in self.ccU.lastBondDictList:
+                    if ccb['atom_id_1'] in atom2_can and ccb['atom_id_2'] in atom3_can:
+                        atom_id_2 = ccb['atom_id_1']
+                        atom_id_3 = ccb['atom_id_2']
+                        break
+                    if ccb['atom_id_2'] in atom2_can and ccb['atom_id_1'] in atom3_can:
+                        atom_id_2 = ccb['atom_id_2']
+                        atom_id_3 = ccb['atom_id_1']
+                        break
+                if None in (atom_id_2, atom_id_3):
+                    continue
+                atom2 = copy.copy(atom1)
+                atom2['atom_id'] = atom_id_2
+                atom3 = copy.copy(atom4)
+                atom3['atom_id'] = atom_id_3
+                if self.debug:
+                    print(f"subtype={self.cur_subtype} id={self.jcoupRestraints} "
+                          f"atom1={atom1} atom2={atom2} atom3={atom3} atom4={atom4} {dstFunc}")
+                if self.createSfDict and sf is not None:
+                    sf['index_id'] += 1
+                    row = getRow(self.cur_subtype, sf['id'], sf['index_id'],
+                                 '.', None, None,
+                                 sf['list_id'], self.entryId, dstFunc,
+                                 self.authToStarSeq, self.authToOrigSeq, self.authToInsCode, self.offsetHolder,
+                                 atom1, atom2, atom3, atom4, asis1=asis1, asis2=asis1, asis3=asis2, asis4=asis2)
+                    sf['loop'].add_data(row)
+
+        except (ValueError, AttributeError):
+            self.jcoupRestraints -= 1
+
+        finally:
+            self.numberSelection.clear()
+            self.genResNumSelection.clear()
+            self.genSimpleNameSelection.clear()
+
+    def enterDiana_stereoassign_macro(self, ctx: CyanaMRParser.Diana_stereoassign_macroContext
+                                      ):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by CyanaMRParser#diana_stereoassign_macro.
+        """
+
+        self.cur_subtype = 'fchiral'
+        self.cur_dist_type = ''
+
+        self.atomSelectionSet.clear()
+
+    def exitDiana_stereoassign_macro(self, ctx: CyanaMRParser.Diana_stereoassign_macroContext
+                                     ):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by CyanaMRParser#diana_stereoassign_macro.
+        """
+
+        try:
+
+            self.fchiralRestraints += 1
+
+            seqId, _ = self.genResNumSelection[0]
+            compId = self.genSimpleNameSelection[0].upper()
+
+            if not self.hasPolySeq and not self.hasNonPolySeq:
+                return
+
+            self.retrieveLocalSeqScheme()
+
+            for idx in range(1, len(self.genSimpleNameSelection)):
+
+                atomId = self.genSimpleNameSelection[idx].upper()
+
+                chainAssign = self.assignCoordPolymerSequenceWithoutCompId(seqId, atomId)
+
+                if len(chainAssign) == 0:
+                    break
+
+                self.selectCoordAtoms(chainAssign, seqId, compId, atomId)
+
+                if len(self.atomSelectionSet) == 0 or len(self.atomSelectionSet[0]) % 2 != 0:
+                    break
+
+                if self.createSfDict:
+                    sf = self.getSf()
+                    sf['id'] += 1
+
+                if len(self.atomSelectionSet[0]) == 2:
+
+                    atom1, atom2 = self.atomSelectionSet[0][0], self.atomSelectionSet[0][1]
+
+                    if isIdenticalRestraint([atom1, atom2], self.nefT):
+                        break
+
+                    if self.debug:
+                        print(f"subtype={self.cur_subtype} (DIANA macro: atom stereo) id={self.fchiralRestraints} "
+                              f"atom1={atom1} atom2={atom2}")
+                    if self.createSfDict and sf is not None:
+                        sf['index_id'] += 1
+                        row = getRow(self.cur_subtype, sf['id'], sf['index_id'],
+                                     '.', None, None,
+                                     sf['list_id'], self.entryId, None,
+                                     self.authToStarSeq, self.authToOrigSeq, self.authToInsCode, self.offsetHolder,
+                                     atom1, atom2, asis1=True, asis2=True)
+                        sf['loop'].add_data(row)
+
+                    self.fchiralRestraints += 1
+
+                else:
+
+                    for atom1, atom2 in itertools.combinations(self.atomSelectionSet[0], 2):
+
+                        if atom1['atom_id'][-1] != atom2['atom_id'][-1]\
+                           or atom2['atom_id'] in self.csStat.getProtonsInSameGroup(compId, atom1['atom_id']):
+                            continue
+
+                        if self.debug:
+                            print(f"subtype={self.cur_subtype} (DIANA macro: atom stereo) id={self.fchiralRestraints} "
+                                  f"atom1={atom1} atom2={atom2}")
+                        if self.createSfDict and sf is not None:
+                            sf['index_id'] += 1
+                            row = getRow(self.cur_subtype, sf['id'], sf['index_id'],
+                                         '.', None, None,
+                                         sf['list_id'], self.entryId, None,
+                                         self.authToStarSeq, self.authToOrigSeq, self.authToInsCode, self.offsetHolder,
+                                         atom1, atom2, asis1=True, asis2=True)
+                            sf['loop'].add_data(row)
+
+                        self.fchiralRestraints += 1
+
+                self.atomSelectionSet.clear()
+
+            self.fchiralRestraints -= 1
+
+        finally:
+            self.genResNumSelection.clear()
+            self.genSimpleNameSelection.clear()
 
     def enterDiana_chemical_shifts(self, ctx: CyanaMRParser.Diana_chemical_shiftsContext):  # pylint: disable=unused-argument
         """ Enter a parse tree produced by CyanaMRParser#diana_chemical_shifts.
@@ -5235,10 +6696,7 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
             if self.cur_subtype in ('dist', 'noepk'):
 
-                target_value = None
-                lower_limit = None
-                upper_limit = None
-                target_value_uncertainty = None
+                target_value = lower_limit = upper_limit = target_value_uncertainty = None
 
                 value = self.numberSelection[0]
                 weight = 1.0
@@ -6105,8 +7563,7 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                                       "of which CYANA residue library should be uploaded.")
                         return
 
-                    atomNames = None
-                    seqOffset = None
+                    atomNames = seqOffset = None
 
                     if carbohydrate:
                         atomNames = KNOWN_ANGLE_CARBO_ATOM_NAMES[angleName]
@@ -6124,8 +7581,7 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                         atomNames = KNOWN_ANGLE_ATOM_NAMES[angleName]
                         seqOffset = KNOWN_ANGLE_SEQ_OFFSET[angleName]
 
-                    prevCifAtomId = None
-                    prevOffset = None
+                    prevCifAtomId = prevOffset = None
 
                     for col, (atomId, offset) in enumerate(zip(atomNames, seqOffset)):
 

@@ -924,8 +924,7 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                 return
 
             target_value = self.numberSelection[0]
-            lower_limit = None
-            upper_limit = None
+            lower_limit = upper_limit = None
             weight = 1.0
 
             dstFunc = self.validateRdcRange(weight, 1, target_value, lower_limit, upper_limit)

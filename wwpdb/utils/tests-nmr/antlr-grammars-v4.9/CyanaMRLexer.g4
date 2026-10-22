@@ -70,8 +70,9 @@ NoeUpp:			'NOEUPP';
 NoeLow:			'NOELOW';
 SSUpp:			'SSUPP';
 SSLow:			'SSLOW';
-JCoupl:			'JCOUPL';
+Jcoupl:			'JCOUPL';
 Angle:			'ANGLE';
+Stereo:			'STEREO';
 Shifts:			'SHIFTS'; // ignored later
 
 /* extensions for torsion angle restraints */
@@ -188,6 +189,6 @@ Equ_op_MP:		'=';
 SPACE_MP:		[ \t]+ -> skip;
 RETURN_MP:		[\r\n]+ -> mode(DEFAULT_MODE);
 
-//SECTION_COMMENT_MP:	('#' | '!' | ';' | '\\' | '&' | '/' '/'+ | '*' '*'+ | '-' '-'+ | '+' '+'+ | '=' '='+ | R E M A R K S?) ' '* [\r\n]+ -> channel(HIDDEN);
-LINE_COMMENT_MP:	('#' | '!' | ';' | '\\' | '&' | '<' | '>' | '/' '/'+ | '*' '*'+ | '-' '-'+ | '+' '+'+ | '=' '='+ | R E M A R K S?) ~[\r\n]* -> channel(HIDDEN);
+//SECTION_COMMENT_MP:	('#' | '!' | ';' | '\\' | '&' | '/' '/'+ | '*' '*'+ | '-' '-'+ | '+' '+'+ | '=' '='+ | R E M A R K S? | J N R L) ' '* [\r\n]+ -> channel(HIDDEN);
+LINE_COMMENT_MP:	('#' | '!' | ';' | '\\' | '&' | '<' | '>' | '/' '/'+ | '*' '*'+ | '-' '-'+ | '+' '+'+ | '=' '='+ | R E M A R K S? | J N R L) ~[\r\n]* -> channel(HIDDEN);
 

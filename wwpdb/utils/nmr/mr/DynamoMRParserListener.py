@@ -208,9 +208,7 @@ class DynamoMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                     self.distRestraints -= 1
                     return
 
-            target_value = None
-            lower_limit = None
-            upper_limit = None
+            target_value = lower_limit = upper_limit = None
 
             if len(self.numberSelection) == 0 or None in self.numberSelection:
                 self.distRestraints -= 1
@@ -407,9 +405,7 @@ class DynamoMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             compId2 = str(ctx.Simple_name(4)).upper()
             atomId2 = str(ctx.Simple_name(5)).upper()
 
-            target_value = None
-            lower_limit = None
-            upper_limit = None
+            target_value = lower_limit = upper_limit = None
 
             if len(self.numberSelection) == 0 or None in self.numberSelection:
                 self.distRestraints -= 1
@@ -599,9 +595,7 @@ class DynamoMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             atomId2 = str(ctx.Simple_name(4)).upper()
             chainId2 = str(ctx.Simple_name(5))
 
-            target_value = None
-            lower_limit = None
-            upper_limit = None
+            target_value = lower_limit = upper_limit = None
 
             if len(self.numberSelection) == 0 or None in self.numberSelection:
                 self.distRestraints -= 1

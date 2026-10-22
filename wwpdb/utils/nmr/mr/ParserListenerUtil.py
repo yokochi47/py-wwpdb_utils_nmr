@@ -7225,11 +7225,11 @@ def getRow(mrSubtype: str, id: int, indexId: int,  # pylint: disable=redefined-b
         if star_atom1 is not None:
             row[1], row[2], row[3], row[4], row[5] =\
                 star_atom1['chain_id'], star_atom1['entity_id'], star_atom1['seq_id'], \
-                star_atom1['comp_id'], star_atom1['auth_atom_id']
+                star_atom1['comp_id'], star_atom1['atom_id' if asis1 else 'auth_atom_id']
         if star_atom2 is not None:
             row[6], row[7], row[8], row[9], row[10] =\
                 star_atom2['chain_id'], star_atom2['entity_id'], star_atom2['seq_id'], \
-                star_atom2['comp_id'], star_atom2['auth_atom_id']
+                star_atom2['comp_id'], star_atom2['atom_id' if asis2 else 'auth_atom_id']
 
     if mrSubtype in ('dist', 'dihed', 'rdc', 'hbond', 'ssbond', 'prdc'):
         row[key_size] = indexId

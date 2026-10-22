@@ -14,18 +14,18 @@ public:
   enum {
     Ambig_code = 1, Integer = 2, Float = 3, Float_DecimalComma = 4, Orientation_header = 5, 
     Tensor_header = 6, SMCLN_COMMENT = 7, COMMENT = 8, NoeUpp = 9, NoeLow = 10, 
-    SSUpp = 11, SSLow = 12, JCoupl = 13, Angle = 14, Shifts = 15, Type = 16, 
-    Equ_op = 17, Or = 18, Ssbond = 19, Ssbond_resids = 20, Hbond = 21, Link = 22, 
-    Atom_stereo = 23, Var = 24, Unset = 25, SetVar = 26, Print = 27, Residue = 28, 
-    Mapping = 29, Ambig = 30, Capital_integer = 31, Integer_capital = 32, 
-    Simple_name = 33, SPACE = 34, ENCLOSE_COMMENT = 35, SECTION_COMMENT = 36, 
-    LINE_COMMENT = 37, Any_name = 38, SPACE_CM = 39, RETURN_CM = 40, Atom1 = 41, 
-    Atom2 = 42, Residue1 = 43, Residue2 = 44, Equ_op_HB = 45, Integer_HB = 46, 
-    Simple_name_HB = 47, SPACE_HB = 48, RETURN_HB = 49, LINE_COMMENT_HB = 50, 
-    Double_quote_string = 51, SPACE_PR = 52, RETURN_PR = 53, LINE_COMMENT_PR = 54, 
-    Simple_name_VA = 55, SPACE_VA = 56, RETURN_VA = 57, LINE_COMMENT_VA = 58, 
-    Ambig_code_MP = 59, Integer_MP = 60, Simple_name_MP = 61, Equ_op_MP = 62, 
-    SPACE_MP = 63, RETURN_MP = 64, LINE_COMMENT_MP = 65
+    SSUpp = 11, SSLow = 12, Jcoupl = 13, Angle = 14, Stereo = 15, Shifts = 16, 
+    Type = 17, Equ_op = 18, Or = 19, Ssbond = 20, Ssbond_resids = 21, Hbond = 22, 
+    Link = 23, Atom_stereo = 24, Var = 25, Unset = 26, SetVar = 27, Print = 28, 
+    Residue = 29, Mapping = 30, Ambig = 31, Capital_integer = 32, Integer_capital = 33, 
+    Simple_name = 34, SPACE = 35, ENCLOSE_COMMENT = 36, SECTION_COMMENT = 37, 
+    LINE_COMMENT = 38, Any_name = 39, SPACE_CM = 40, RETURN_CM = 41, Atom1 = 42, 
+    Atom2 = 43, Residue1 = 44, Residue2 = 45, Equ_op_HB = 46, Integer_HB = 47, 
+    Simple_name_HB = 48, SPACE_HB = 49, RETURN_HB = 50, LINE_COMMENT_HB = 51, 
+    Double_quote_string = 52, SPACE_PR = 53, RETURN_PR = 54, LINE_COMMENT_PR = 55, 
+    Simple_name_VA = 56, SPACE_VA = 57, RETURN_VA = 58, LINE_COMMENT_VA = 59, 
+    Ambig_code_MP = 60, Integer_MP = 61, Simple_name_MP = 62, Equ_op_MP = 63, 
+    SPACE_MP = 64, RETURN_MP = 65, LINE_COMMENT_MP = 66
   };
 
   enum {

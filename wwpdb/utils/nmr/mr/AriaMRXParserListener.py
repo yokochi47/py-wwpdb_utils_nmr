@@ -1007,8 +1007,7 @@ class AriaMRXParserListener(ParseTreeListener, BaseLinearMRParserListener):
                                       "of which CYANA residue library should be uploaded.")
                         return
 
-                    atomNames = None
-                    seqOffset = None
+                    atomNames = seqOffset = None
 
                     if carbohydrate:
                         atomNames = KNOWN_ANGLE_CARBO_ATOM_NAMES[angleName]
@@ -1026,8 +1025,7 @@ class AriaMRXParserListener(ParseTreeListener, BaseLinearMRParserListener):
                         atomNames = KNOWN_ANGLE_ATOM_NAMES[angleName]
                         seqOffset = KNOWN_ANGLE_SEQ_OFFSET[angleName]
 
-                    prevCifAtomId = None
-                    prevOffset = None
+                    prevCifAtomId = prevOffset = None
 
                     for col, (atomId, offset) in enumerate(zip(atomNames, seqOffset)):
 

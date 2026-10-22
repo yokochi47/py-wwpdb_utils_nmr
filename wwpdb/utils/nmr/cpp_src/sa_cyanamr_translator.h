@@ -44,6 +44,7 @@ class SA_CyanaMRTranslator : public CyanaMRParserBaseVisitor {
     PyObject *Diana_torsion_angle_restraintContext_cls = NULL;
     PyObject *Diana_coupling_constant_restraintsContext_cls = NULL;
     PyObject *Diana_coupling_constant_restraintContext_cls = NULL;
+    PyObject *Diana_stereoassign_macroContext_cls = NULL;
     PyObject *Diana_chemical_shiftsContext_cls = NULL;
     PyObject *Diana_chemical_shiftContext_cls = NULL;
     PyObject *Distance_w_chain_restraintsContext_cls = NULL;
@@ -139,6 +140,8 @@ class SA_CyanaMRTranslator : public CyanaMRParserBaseVisitor {
     antlrcpp::Any visitDiana_coupling_constant_restraints(CyanaMRParser::Diana_coupling_constant_restraintsContext *ctx);
 
     antlrcpp::Any visitDiana_coupling_constant_restraint(CyanaMRParser::Diana_coupling_constant_restraintContext *ctx);
+
+    antlrcpp::Any visitDiana_stereoassign_macro(CyanaMRParser::Diana_stereoassign_macroContext *ctx);
 
     antlrcpp::Any visitDiana_chemical_shifts(CyanaMRParser::Diana_chemical_shiftsContext *ctx);
 

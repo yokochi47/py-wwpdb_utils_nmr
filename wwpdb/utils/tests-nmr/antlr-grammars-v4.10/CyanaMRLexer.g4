@@ -42,8 +42,9 @@ NoeUpp:			'NOEUPP';
 NoeLow:			'NOELOW';
 SSUpp:			'SSUPP';
 SSLow:			'SSLOW';
-JCoupl:			'JCOUPL';
+Jcoupl:			'JCOUPL';
 Angle:			'ANGLE';
+Stereo:			'STEREO';
 Shifts:			'SHIFTS'; // ignored later
 
 /* extensions for torsion angle restraints */
@@ -70,7 +71,7 @@ Link:			'LINK';
 /* CYANA 3.0 Reference Macnual - stereoassign macro
  See also http://www.cyana.org/wiki/index.php/CYANA_Macro:_stereoassign
 */
-Atom_stereo:		'ATOM' ' '+ 'STEREO' -> mode(PRINT_MODE);
+Atom_stereo:		'ATOM' ' '+ Stereo -> mode(PRINT_MODE);
 
 Var:			'VAR' -> mode(VARIABLE_MODE);
 Unset:			'UNSET' -> mode(VARIABLE_MODE);
@@ -101,8 +102,8 @@ fragment SIMPLE_NAME:	START_CHAR NAME_CHAR*;
 
 SPACE:			[ \t\r\n]+ -> skip;
 ENCLOSE_COMMENT:	'{' (ENCLOSE_COMMENT | .)*? '}' -> channel(HIDDEN);
-SECTION_COMMENT:	('#' | '!' | ';' | '\\' | '&' | '/' '/'+ | '*' '*'+ | '-' '-'+ | '+' '+'+ | '=' '='+ | 'REMARK' 'S'?) ' '* [\r\n]+ -> channel(HIDDEN);
-LINE_COMMENT:		(';' | '\\' | '&' | '<' | '>' | '/' '/'+ | '*' '*'+ | '-' '-'+ | '+' '+'+ | '=' '='+ | 'REMARK' 'S'?) ~[\r\n]* -> channel(HIDDEN);
+SECTION_COMMENT:	('#' | '!' | ';' | '\\' | '&' | '/' '/'+ | '*' '*'+ | '-' '-'+ | '+' '+'+ | '=' '='+ | 'REMARK' 'S'? | 'JNRL') ' '* [\r\n]+ -> channel(HIDDEN);
+LINE_COMMENT:		(';' | '\\' | '&' | '<' | '>' | '/' '/'+ | '*' '*'+ | '-' '-'+ | '+' '+'+ | '=' '='+ | 'REMARK' 'S'? | 'JNRL') ~[\r\n]* -> channel(HIDDEN);
 
 mode COMMENT_MODE;
 

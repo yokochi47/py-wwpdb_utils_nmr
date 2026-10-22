@@ -203,11 +203,10 @@ class CharmmMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
 
         try:
 
-            target_value = None
             lower_limit = self.rMin
             upper_limit = self.rMax
-            lower_linear_limit = None
-            upper_linear_limit = None
+
+            target_value = lower_linear_limit = upper_linear_limit = None
 
             if self.fMax is not None and self.fMax > 0.0 and self.kMax > 0.0:
                 upper_linear_limit = self.rMax + self.fMax / self.kMax
@@ -361,10 +360,8 @@ class CharmmMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
         try:
 
             target_value = self.min
-            lower_limit = None
-            upper_limit = None
-            lower_linear_limit = None
-            upper_linear_limit = None
+
+            lower_limit = upper_limit = lower_linear_limit = upper_linear_limit = None
 
             dstFunc = self.validateAngleRange(1.0, {'force': self.force, 'period': self.period},
                                               target_value, lower_limit, upper_limit,

@@ -786,10 +786,7 @@ class CnsMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                               f"The weight value '{scale}' should be a positive value.")
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
-            lower_linear_limit = None
-            upper_linear_limit = None
+            lower_limit = upper_limit = lower_linear_limit = upper_linear_limit = None
 
             if self.noePotential == 'biharmonic':
                 lower_limit = target - dminus
@@ -1070,10 +1067,7 @@ class CnsMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 exponent = 2
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
-            lower_linear_limit = None
-            upper_linear_limit = None
+            lower_limit = upper_limit = lower_linear_limit = upper_linear_limit = None
 
             if delta > 0.0:
                 if exponent in (2, 4):
@@ -1431,8 +1425,7 @@ class CnsMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 delta = 0.0
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
+            lower_limit = upper_limit = None
 
             if self.potential == 'square' and delta > 0.0:
                 lower_limit = target - delta
@@ -1712,8 +1705,7 @@ class CnsMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
             delta = abs(self.numberSelection[1])
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
+            lower_limit = upper_limit = None
 
             if self.potential != 'harmonic' and delta > 0.0:
                 lower_limit = target - delta
@@ -1732,8 +1724,7 @@ class CnsMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 delta = abs(self.numberSelection[3])
 
                 target_value = target
-                lower_limit = None
-                upper_limit = None
+                lower_limit = upper_limit = None
 
                 if self.potential != 'harmonic' and delta > 0.0:
                     lower_limit = target - delta
@@ -2819,8 +2810,7 @@ class CnsMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                 delta = 0.0
 
             target_value = target
-            lower_limit = None
-            upper_limit = None
+            lower_limit = upper_limit = None
 
             if self.potential == 'square' and delta > 0.0:
                 lower_limit = target - delta
@@ -4897,8 +4887,7 @@ class CnsMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                                                         'enum': (self.representativeAltId,)}
                                                        ])
 
-                    lastCompId = None
-                    pseudoAtoms = None
+                    lastCompId = pseudoAtoms = None
 
                     for _atom in _atomSelection:
                         compId = _atom['comp_id']

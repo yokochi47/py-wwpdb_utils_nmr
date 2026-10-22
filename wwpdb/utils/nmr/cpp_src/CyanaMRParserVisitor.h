@@ -83,6 +83,8 @@ public:
 
     virtual std::any visitDiana_coupling_constant_restraint(CyanaMRParser::Diana_coupling_constant_restraintContext *context) = 0;
 
+    virtual std::any visitDiana_stereoassign_macro(CyanaMRParser::Diana_stereoassign_macroContext *context) = 0;
+
     virtual std::any visitDiana_chemical_shifts(CyanaMRParser::Diana_chemical_shiftsContext *context) = 0;
 
     virtual std::any visitDiana_chemical_shift(CyanaMRParser::Diana_chemical_shiftContext *context) = 0;

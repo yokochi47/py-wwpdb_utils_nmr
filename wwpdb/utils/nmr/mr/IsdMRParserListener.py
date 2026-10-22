@@ -124,8 +124,7 @@ class IsdMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
         if atomId1 is None or atomId2 is None:  # syntax error
             return
 
-        target_value = None
-        lower_limit = None
+        target_value = lower_limit = None
         upper_limit = self.cur_upper_limit
 
         if not self.hasPolySeq and not self.hasNonPolySeq:
