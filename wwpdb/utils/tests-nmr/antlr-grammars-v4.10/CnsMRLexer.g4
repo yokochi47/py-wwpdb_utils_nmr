@@ -404,20 +404,8 @@ EXCLM_COMMENT:		'!'+ ~[\r\n]* '!'* ~[\r\n]* -> channel(HIDDEN);
 SMCLN_COMMENT:		';'+ ~[\r\n]* ';'* ~[\r\n]* -> channel(HIDDEN);
 
 Simple_name:		SIMPLE_NAME;
-Simple_names:		(WILDCARD | WILDCARD* SIMPLE_NAME WILDCARD+) POST_WC_CHAR*;
+Simple_names:		(WILDCARD | WILDCARD* SIMPLE_NAME WILDCARD+ (SIMPLE_NAME | WILDCARD)*) POST_WC_CHAR*;
 Integers:		(WILDCARD | WILDCARD* Integer WILDCARD+) DEC_DIGIT*;
-//Class_name:		SIMPLE_NAME;
-//Class_names:		(WILDCARD | WILDCARD* SIMPLE_NAME WILDCARD+) POST_WC_CHAR*;
-//Segment_name:		SIMPLE_NAME;
-//Segment_names:	(WILDCARD | WILDCARD* SIMPLE_NAME WILDCARD+) POST_WC_CHAR*;
-//Residue_number:	Integer;
-//Residue_numbers:	(WILDCARD | WILDCARD* Residue_number WILDCARD+) DEC_DIGIT*;
-//Residue_name:		SIMPLE_NAME;
-//Residue_names:	(WILDCARD | WILDCARD* SIMPLE_NAME WILDCARD+) POST_WC_CHAR*;
-//Atom_name:		ALPHA_NUM ATM_NAME_CHAR*;
-//Atom_names:		(WILDCARD | WILDCARD* Atom_name WILDCARD+) POST_WC_CHAR*;
-//Atom_type:		ALPHA ATM_TYPE_CHAR*;
-//Atom_types:		(WILDCARD | WILDCARD* Atom_type WILDCARD+) POST_WC_CHAR*;
 
 /* Wildcard - Syntax
  See also https://www.mrc-lmb.cam.ac.uk/public/xtal/doc/cns/cns_1.3/syntax_manual/frame.html
@@ -465,7 +453,7 @@ mode AVER_MODE; // Inside of Averaging tag
 
 Averaging_methods:	('R-6' | 'R-3' | 'SUM' | 'CENT' 'E'? 'R'?) -> popMode;
 
-Class_name_AM:		SIMPLE_NAME;
+Class_name_AM:		SIMPLE_NAME | '*';
 
 SPACE_AM:		[ \t\r\n]+ -> skip;
 
@@ -475,7 +463,7 @@ Equ_op_PT:		'=';
 
 Potential_types:	('BIHA' 'R'? 'M'? 'O'? 'N'? 'I'? 'C'? | 'LOGN' 'O'? 'R'? 'M'? 'A'? 'L'? | 'SQUA' 'R'? 'E'? '-'? 'W'? 'E'? 'L'? 'L'? | 'SOFT' '-'? 'S'? 'Q'? 'U'? 'A'? 'R'? 'E'? | 'SYMM' 'E'? 'T'? 'R'? 'Y'? | 'HIGH' | '3DPO' | 'HARM' 'O'? 'N'? 'I'? 'C'? | 'MULT' 'I'? 'P'? 'L'? 'E'?) -> popMode;
 
-Class_name_PT:		SIMPLE_NAME;
+Class_name_PT:		SIMPLE_NAME | '*';
 
 SPACE_PT:		[ \t\r\n]+ -> skip;
 

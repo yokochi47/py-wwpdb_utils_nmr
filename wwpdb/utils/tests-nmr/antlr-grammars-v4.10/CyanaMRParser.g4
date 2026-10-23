@@ -32,6 +32,7 @@ cyana_mr:
 	fixatmw2_distance_restraints |
 	diana_distance_restraints |
 	diana_ssbond_restraints |
+	diana_hbond_restraints |
 	diana_torsion_angle_restraints |
 	diana_coupling_constant_restraints |
 	diana_stereoassign_macro |
@@ -190,6 +191,17 @@ diana_ssbond_restraint:
 	(gen_simple_name gen_simple_name gen_res_num gen_simple_name number)?
 	Simple_name? Integer?;
 
+/* DIANA hydrogen bond restraints (undocumented) */
+diana_hbond_restraints:
+	diana_hbond_restraint+;
+
+diana_hbond_restraint:
+	(HBUpp | HBLow)
+	gen_simple_name gen_res_num
+	gen_simple_name gen_simple_name gen_res_num gen_simple_name number
+	(gen_simple_name gen_simple_name gen_res_num gen_simple_name number)?
+	Simple_name? Integer?;
+
 /* DIANA torsion angle restraints (undocumented) */
 diana_torsion_angle_restraints:
 	diana_torsion_angle_restraint+;
@@ -209,7 +221,7 @@ diana_coupling_constant_restraint:
 	Jcoupl
 	gen_simple_name gen_res_num
 	gen_simple_name gen_simple_name number number?
-        (gen_simple_name gen_simple_name number number?)?
+	(gen_simple_name gen_simple_name number number?)?
 	Simple_name? Integer?;
 
 /* DIANA stereoassign macro (undocumented) */

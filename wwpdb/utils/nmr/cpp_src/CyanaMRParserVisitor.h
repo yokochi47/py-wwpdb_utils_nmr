@@ -75,6 +75,10 @@ public:
 
     virtual std::any visitDiana_ssbond_restraint(CyanaMRParser::Diana_ssbond_restraintContext *context) = 0;
 
+    virtual std::any visitDiana_hbond_restraints(CyanaMRParser::Diana_hbond_restraintsContext *context) = 0;
+
+    virtual std::any visitDiana_hbond_restraint(CyanaMRParser::Diana_hbond_restraintContext *context) = 0;
+
     virtual std::any visitDiana_torsion_angle_restraints(CyanaMRParser::Diana_torsion_angle_restraintsContext *context) = 0;
 
     virtual std::any visitDiana_torsion_angle_restraint(CyanaMRParser::Diana_torsion_angle_restraintContext *context) = 0;

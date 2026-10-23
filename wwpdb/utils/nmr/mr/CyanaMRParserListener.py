@@ -4457,8 +4457,11 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
         try:
 
-            upl = bool(ctx.NoeUpp()) if self.cur_subtype == 'dist' else bool(ctx.SSUpp())
-            if self.cur_subtype == 'ssbond':
+            upl = bool(ctx.NoeUpp()) if self.cur_subtype == 'dist'\
+                else bool(ctx.SSUpp()) if self.cur_subtype == 'ssbond'\
+                else bool(ctx.HBUpp())
+
+            if self.cur_subtype != 'dist':
                 self.cur_subtype = 'dist'
 
             seqId1, chainId1 = self.genResNumSelection[0]
@@ -4628,9 +4631,6 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             value = self.numberSelection[1]
             weight = 1.0
 
-            if not self.hasPolySeq and not self.hasNonPolySeq:
-                return
-
             if DIST_RANGE_MIN <= value <= DIST_RANGE_MAX:
                 if upl and value > self.max_dist_value:
                     self.max_dist_value = value
@@ -4641,8 +4641,6 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                 upper_limit = value
             else:
                 lower_limit = value
-
-            self.retrieveLocalSeqScheme()
 
             chainAssign1, asis1 = self.assignCoordPolymerSequenceWithChainId(chainId1, seqId1, compId1, atomId1.split('|', 1)[0])
             chainAssign2, asis2 = self.assignCoordPolymerSequenceWithChainId(chainId2, seqId2, compId2, atomId2.split('|', 1)[0])
@@ -4789,6 +4787,30 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
     def exitDiana_ssbond_restraint(self, ctx: CyanaMRParser.Diana_ssbond_restraintContext):  # pylint: disable=unused-argument
         """ Exit a parse tree produced by CyanaMRParser#diana_ssbond_restraint.
+        """
+
+        self.exitDiana_distance_restraint(ctx)
+
+    def enterDiana_hbond_restraints(self, ctx: CyanaMRParser.Diana_hbond_restraintsContext):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by CyanaMRParser#diana_hbond_restraints.
+        """
+
+        self.cur_subtype = 'hbond'
+
+    def exitDiana_hbond_restraints(self, ctx: CyanaMRParser.Diana_hbond_restraintsContext):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by CyanaMRParser#diana_hbond_restraints.
+        """
+
+    def enterDiana_hbond_restraint(self, ctx: CyanaMRParser.Diana_hbond_restraintContext):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by CyanaMRParser#diana_hbond_restraint.
+        """
+
+        self.distRestraints += 1
+
+        self.atomSelectionSet.clear()
+
+    def exitDiana_hbond_restraint(self, ctx: CyanaMRParser.Diana_hbond_restraintContext):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by CyanaMRParser#diana_hbond_restraint.
         """
 
         self.exitDiana_distance_restraint(ctx)
@@ -5390,9 +5412,6 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
             if dstFunc is None:
                 return
 
-            if not self.hasPolySeq and not self.hasNonPolySeq:
-                return
-
             # support AMBER's dihedral angle naming convention for nucleic acids
             # http://ambermd.org/tutorials/advanced/tutorial4/
             if angleName in ('EPSILN', 'EPSLN'):
@@ -5462,8 +5481,6 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                                     self.f.append(f"[Atom not found] {self.getCurrentRestraint()}"
                                                   f"{seqId}:{_compId} is not present in the coordinates.")
                                 return
-
-                self.retrieveLocalSeqScheme()
 
                 if self.cur_subtype_altered:  # invoked from exitCco_restraint()
                     chainAssign, _ = self.assignCoordPolymerSequenceWithChainId(chainId, seqId, compId, atomId)
@@ -5742,8 +5759,6 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                 if not isinstance(atomId, str):
                     self.ccU.updateChemCompDict(compId)
                     atomId = next(cca['atom_id'] for cca in self.ccU.lastAtomDictList if atomId.match(cca['atom_id']))
-
-                self.retrieveLocalSeqScheme()
 
                 chainAssign, _ = self.assignCoordPolymerSequence(seqId, compId, atomId)
 
@@ -6105,11 +6120,6 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
             if dstFunc is None:
                 return
-
-            if not self.hasPolySeq and not self.hasNonPolySeq:
-                return
-
-            self.retrieveLocalSeqScheme()
 
             chainAssign1, asis1 = self.assignCoordPolymerSequenceWithChainId(chainId1, seqId1, compId1, atomId1)
             chainAssign2, asis2 = self.assignCoordPolymerSequenceWithChainId(chainId1, seqId1, compId1, atomId2)

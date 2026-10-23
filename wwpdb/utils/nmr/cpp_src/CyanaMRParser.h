@@ -14,18 +14,19 @@ public:
   enum {
     Ambig_code = 1, Integer = 2, Float = 3, Float_DecimalComma = 4, Orientation_header = 5, 
     Tensor_header = 6, SMCLN_COMMENT = 7, COMMENT = 8, NoeUpp = 9, NoeLow = 10, 
-    SSUpp = 11, SSLow = 12, Jcoupl = 13, Angle = 14, Stereo = 15, Shifts = 16, 
-    Type = 17, Equ_op = 18, Or = 19, Ssbond = 20, Ssbond_resids = 21, Hbond = 22, 
-    Link = 23, Atom_stereo = 24, Var = 25, Unset = 26, SetVar = 27, Print = 28, 
-    Residue = 29, Mapping = 30, Ambig = 31, Capital_integer = 32, Integer_capital = 33, 
-    Simple_name = 34, SPACE = 35, ENCLOSE_COMMENT = 36, SECTION_COMMENT = 37, 
-    LINE_COMMENT = 38, Any_name = 39, SPACE_CM = 40, RETURN_CM = 41, Atom1 = 42, 
-    Atom2 = 43, Residue1 = 44, Residue2 = 45, Equ_op_HB = 46, Integer_HB = 47, 
-    Simple_name_HB = 48, SPACE_HB = 49, RETURN_HB = 50, LINE_COMMENT_HB = 51, 
-    Double_quote_string = 52, SPACE_PR = 53, RETURN_PR = 54, LINE_COMMENT_PR = 55, 
-    Simple_name_VA = 56, SPACE_VA = 57, RETURN_VA = 58, LINE_COMMENT_VA = 59, 
-    Ambig_code_MP = 60, Integer_MP = 61, Simple_name_MP = 62, Equ_op_MP = 63, 
-    SPACE_MP = 64, RETURN_MP = 65, LINE_COMMENT_MP = 66
+    HBUpp = 11, HBLow = 12, SSUpp = 13, SSLow = 14, Jcoupl = 15, Angle = 16, 
+    Stereo = 17, Shifts = 18, Type = 19, Equ_op = 20, Or = 21, Ssbond = 22, 
+    Ssbond_resids = 23, Hbond = 24, Link = 25, Atom_stereo = 26, Var = 27, 
+    Unset = 28, SetVar = 29, Print = 30, Residue = 31, Mapping = 32, Ambig = 33, 
+    Capital_integer = 34, Integer_capital = 35, Simple_name = 36, SPACE = 37, 
+    ENCLOSE_COMMENT = 38, SECTION_COMMENT = 39, LINE_COMMENT = 40, Any_name = 41, 
+    SPACE_CM = 42, RETURN_CM = 43, Atom1 = 44, Atom2 = 45, Residue1 = 46, 
+    Residue2 = 47, Equ_op_HB = 48, Integer_HB = 49, Simple_name_HB = 50, 
+    SPACE_HB = 51, RETURN_HB = 52, LINE_COMMENT_HB = 53, Double_quote_string = 54, 
+    SPACE_PR = 55, RETURN_PR = 56, LINE_COMMENT_PR = 57, Simple_name_VA = 58, 
+    SPACE_VA = 59, RETURN_VA = 60, LINE_COMMENT_VA = 61, Ambig_code_MP = 62, 
+    Integer_MP = 63, Simple_name_MP = 64, Equ_op_MP = 65, SPACE_MP = 66, 
+    RETURN_MP = 67, LINE_COMMENT_MP = 68
   };
 
   enum {
@@ -40,19 +41,20 @@ public:
     RuleFixatmw_distance_restraint = 21, RuleFixatmw2_distance_restraints = 22, 
     RuleFixatmw2_distance_restraint = 23, RuleDiana_distance_restraints = 24, 
     RuleDiana_distance_restraint = 25, RuleDiana_ssbond_restraints = 26, 
-    RuleDiana_ssbond_restraint = 27, RuleDiana_torsion_angle_restraints = 28, 
-    RuleDiana_torsion_angle_restraint = 29, RuleDiana_coupling_constant_restraints = 30, 
-    RuleDiana_coupling_constant_restraint = 31, RuleDiana_stereoassign_macro = 32, 
-    RuleDiana_chemical_shifts = 33, RuleDiana_chemical_shift = 34, RuleDistance_w_chain_restraints = 35, 
-    RuleDistance_w_chain_restraint = 36, RuleDistance_w_chain2_restraints = 37, 
-    RuleDistance_w_chain2_restraint = 38, RuleDistance_w_chain3_restraints = 39, 
-    RuleDistance_w_chain3_restraint = 40, RuleTorsion_angle_w_chain_restraints = 41, 
-    RuleTorsion_angle_w_chain_restraint = 42, RuleCco_restraints = 43, RuleCco_restraint = 44, 
-    RuleSsbond_macro = 45, RuleHbond_macro = 46, RuleLink_statement = 47, 
-    RuleStereoassign_macro = 48, RuleDeclare_variable = 49, RuleSet_variable = 50, 
-    RuleUnset_variable = 51, RulePrint_macro = 52, RuleUnambig_atom_name_mapping = 53, 
-    RuleMapping_list = 54, RuleAmbig_atom_name_mapping = 55, RuleAmbig_list = 56, 
-    RuleNumber = 57, RuleGen_res_num = 58, RuleGen_simple_name = 59, RuleGen_atom_name = 60
+    RuleDiana_ssbond_restraint = 27, RuleDiana_hbond_restraints = 28, RuleDiana_hbond_restraint = 29, 
+    RuleDiana_torsion_angle_restraints = 30, RuleDiana_torsion_angle_restraint = 31, 
+    RuleDiana_coupling_constant_restraints = 32, RuleDiana_coupling_constant_restraint = 33, 
+    RuleDiana_stereoassign_macro = 34, RuleDiana_chemical_shifts = 35, RuleDiana_chemical_shift = 36, 
+    RuleDistance_w_chain_restraints = 37, RuleDistance_w_chain_restraint = 38, 
+    RuleDistance_w_chain2_restraints = 39, RuleDistance_w_chain2_restraint = 40, 
+    RuleDistance_w_chain3_restraints = 41, RuleDistance_w_chain3_restraint = 42, 
+    RuleTorsion_angle_w_chain_restraints = 43, RuleTorsion_angle_w_chain_restraint = 44, 
+    RuleCco_restraints = 45, RuleCco_restraint = 46, RuleSsbond_macro = 47, 
+    RuleHbond_macro = 48, RuleLink_statement = 49, RuleStereoassign_macro = 50, 
+    RuleDeclare_variable = 51, RuleSet_variable = 52, RuleUnset_variable = 53, 
+    RulePrint_macro = 54, RuleUnambig_atom_name_mapping = 55, RuleMapping_list = 56, 
+    RuleAmbig_atom_name_mapping = 57, RuleAmbig_list = 58, RuleNumber = 59, 
+    RuleGen_res_num = 60, RuleGen_simple_name = 61, RuleGen_atom_name = 62
   };
 
   explicit CyanaMRParser(antlr4::TokenStream *input);
@@ -100,6 +102,8 @@ public:
   class Diana_distance_restraintContext;
   class Diana_ssbond_restraintsContext;
   class Diana_ssbond_restraintContext;
+  class Diana_hbond_restraintsContext;
+  class Diana_hbond_restraintContext;
   class Diana_torsion_angle_restraintsContext;
   class Diana_torsion_angle_restraintContext;
   class Diana_coupling_constant_restraintsContext;
@@ -161,6 +165,8 @@ public:
     Diana_distance_restraintsContext* diana_distance_restraints(size_t i);
     std::vector<Diana_ssbond_restraintsContext *> diana_ssbond_restraints();
     Diana_ssbond_restraintsContext* diana_ssbond_restraints(size_t i);
+    std::vector<Diana_hbond_restraintsContext *> diana_hbond_restraints();
+    Diana_hbond_restraintsContext* diana_hbond_restraints(size_t i);
     std::vector<Diana_torsion_angle_restraintsContext *> diana_torsion_angle_restraints();
     Diana_torsion_angle_restraintsContext* diana_torsion_angle_restraints(size_t i);
     std::vector<Diana_coupling_constant_restraintsContext *> diana_coupling_constant_restraints();
@@ -691,6 +697,42 @@ public:
   };
 
   Diana_ssbond_restraintContext* diana_ssbond_restraint();
+
+  class  Diana_hbond_restraintsContext : public antlr4::ParserRuleContext {
+  public:
+    Diana_hbond_restraintsContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    std::vector<Diana_hbond_restraintContext *> diana_hbond_restraint();
+    Diana_hbond_restraintContext* diana_hbond_restraint(size_t i);
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Diana_hbond_restraintsContext* diana_hbond_restraints();
+
+  class  Diana_hbond_restraintContext : public antlr4::ParserRuleContext {
+  public:
+    Diana_hbond_restraintContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    std::vector<Gen_simple_nameContext *> gen_simple_name();
+    Gen_simple_nameContext* gen_simple_name(size_t i);
+    std::vector<Gen_res_numContext *> gen_res_num();
+    Gen_res_numContext* gen_res_num(size_t i);
+    std::vector<NumberContext *> number();
+    NumberContext* number(size_t i);
+    antlr4::tree::TerminalNode *HBUpp();
+    antlr4::tree::TerminalNode *HBLow();
+    antlr4::tree::TerminalNode *Simple_name();
+    antlr4::tree::TerminalNode *Integer();
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Diana_hbond_restraintContext* diana_hbond_restraint();
 
   class  Diana_torsion_angle_restraintsContext : public antlr4::ParserRuleContext {
   public:

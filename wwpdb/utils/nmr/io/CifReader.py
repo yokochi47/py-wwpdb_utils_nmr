@@ -2576,6 +2576,9 @@ class CifReader:
 
                     for idx in range(count):
 
+                        if idx == len(_atom_site_p):  # 1sy8
+                            break
+
                         ref_atom = _atom_site_p[idx]
                         test_atom = _atom_site_q[idx]
 
@@ -2817,8 +2820,11 @@ class CifReader:
 
                     _rmsd_ = calculate_rmsd(_bb_atom_site_p, _bb_atom_site_q) * fraction
 
-                    d_avr[ref_idx, test_idx] += _rmsd_
-                    d_avr[test_idx, ref_idx] = d_avr[ref_idx, test_idx]
+                    try:
+                        d_avr[ref_idx, test_idx] += _rmsd_
+                        d_avr[test_idx, ref_idx] = d_avr[ref_idx, test_idx]
+                    except IndexError:  # 1sy8
+                        pass
 
         max_d_avr = min(numpy.max(d_var), rmsd_cutoff_for_clustering)
 

@@ -7760,8 +7760,10 @@ class NmrDpMrSplitter:
                 self.__detectOtherPossibleFormatAsErrorOfLegacyMr__(file_path, file_name, file_type, dismiss_err_lines,
                                                                     'nm-res-cha', agreed_w_cns=agreed_w_cns)
 
+            _err_ = _err.lower()
             if _is_valid and '-div_try' in file_path\
-               and 'assi' in _err.lower() and '(' in _err and ')' in _err:  # improve error message (2f40)
+               and ('assi' in _err_ or 'resi' in _err_)\
+               and '(' in _err and ')' in _err:  # improve error message (2f40, 1hx2)
                 _is_valid = False
                 _err = ''
                 _valid_types = {}
@@ -7974,8 +7976,11 @@ class NmrDpMrSplitter:
                 self.__detectOtherPossibleFormatAsErrorOfLegacyMr__(file_path, file_name, file_type, dismiss_err_lines,
                                                                     'nm-res-cya')
 
+            _err_ = _err.lower()
             if _is_valid and '-div_try' in file_path\
-               and 'assi' in _err.lower() and '(' in _err and ')' in _err:  # improve error message (1pg9)
+               and ((('assi' in _err_ or 'resi' in _err_)
+                     and '(' in _err and ')' in _err)
+                    or ':' in _err):   # improve error message (1pg9, 1hx2, 1sy8)
                 _is_valid = False
                 _err = ''
                 _valid_types = {}
@@ -8277,9 +8282,10 @@ class NmrDpMrSplitter:
                                         _err += f"{description['input']}\n"
                                         _err += f"{description['marker']}\n"
 
-                        # improve error message (1pg9, 2f40)
+                        # improve error message (1pg9, 2f40, 1sy8)
                         if len(_err) > 0\
-                           and not (('XPLOR-NIH' in err or 'CNS' in err) and _mr_format_name in ('CYANA', 'CHARMM')):
+                           and not (('XPLOR-NIH' in err or 'CNS' in err or 'BIOSYM' in err)
+                                    and _mr_format_name in ('CYANA', 'CHARMM')):
                             err += f"\nEven assuming that the format is the {_mr_format_name!r}, "\
                                 "the following issues need to be fixed.\n" + _err[:-1]
                         elif file_type != 'nm-res-oth'\

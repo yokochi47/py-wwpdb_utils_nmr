@@ -39,6 +39,8 @@ SA_CyanaMRTranslator::~SA_CyanaMRTranslator() {
     Py_XDECREF(Diana_distance_restraintContext_cls);
     Py_XDECREF(Diana_ssbond_restraintsContext_cls);
     Py_XDECREF(Diana_ssbond_restraintContext_cls);
+    Py_XDECREF(Diana_hbond_restraintsContext_cls);
+    Py_XDECREF(Diana_hbond_restraintContext_cls);
     Py_XDECREF(Diana_torsion_angle_restraintsContext_cls);
     Py_XDECREF(Diana_torsion_angle_restraintContext_cls);
     Py_XDECREF(Diana_coupling_constant_restraintsContext_cls);
@@ -240,6 +242,18 @@ antlrcpp::Any SA_CyanaMRTranslator::visitDiana_ssbond_restraints(CyanaMRParser::
 antlrcpp::Any SA_CyanaMRTranslator::visitDiana_ssbond_restraint(CyanaMRParser::Diana_ssbond_restraintContext *ctx){
     if(!Diana_ssbond_restraintContext_cls) Diana_ssbond_restraintContext_cls = PyObject_GetAttrString(translator->parser_cls, "Diana_ssbond_restraintContext");
     PyObject *py_ctx = translator->convert_ctx(this, ctx, Diana_ssbond_restraintContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_CyanaMRTranslator::visitDiana_hbond_restraints(CyanaMRParser::Diana_hbond_restraintsContext *ctx){
+    if(!Diana_hbond_restraintsContext_cls) Diana_hbond_restraintsContext_cls = PyObject_GetAttrString(translator->parser_cls, "Diana_hbond_restraintsContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Diana_hbond_restraintsContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_CyanaMRTranslator::visitDiana_hbond_restraint(CyanaMRParser::Diana_hbond_restraintContext *ctx){
+    if(!Diana_hbond_restraintContext_cls) Diana_hbond_restraintContext_cls = PyObject_GetAttrString(translator->parser_cls, "Diana_hbond_restraintContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Diana_hbond_restraintContext_cls);
     return py_ctx;
 }
 
