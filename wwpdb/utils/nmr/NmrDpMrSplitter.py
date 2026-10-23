@@ -202,9 +202,9 @@ except ImportError:
     from nmr.pk.XwinNmrPKReader import XwinNmrPKReader
 
 
-SEL_MR_FILE_HEADER_PAT = re.compile(r'^# Restraints file \((\S+)\): (\S+)\s*')
-SEL_PK_FILE_HEADER_PAT = re.compile(r'^# Peak list file \((\S+)\): (\S+)\s*')
-SEL_CS_FILE_HEADER_PAT = re.compile(r'^# Chemical shifts file \((\S+)\): (\S+)\s*')
+SEL_MR_FILE_HEADER_PAT = re.compile(r'^# Restraints? file \((\S+)\): (\S+)\s*')
+SEL_PK_FILE_HEADER_PAT = re.compile(r'^# Peak lists? file \((\S+)\): (\S+)\s*')
+SEL_CS_FILE_HEADER_PAT = re.compile(r'^# Chemical shifts? file \((\S+)\): (\S+)\s*')
 
 PDB_FIRST_ATOM_PAT = re.compile(r'ATOM +1 .*')
 

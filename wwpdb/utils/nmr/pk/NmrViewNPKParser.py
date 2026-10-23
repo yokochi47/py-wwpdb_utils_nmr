@@ -48,7 +48,7 @@ def serializedATN():
         3,14,465,8,14,1,14,4,14,468,8,14,11,14,12,14,469,1,14,1,14,1,15,
         1,15,1,16,1,16,1,17,1,17,1,17,0,0,18,0,2,4,6,8,10,12,14,16,18,20,
         22,24,26,28,30,32,34,0,4,1,1,10,10,2,0,30,31,34,34,2,0,3,3,8,8,2,
-        0,2,3,8,8,508,0,37,1,0,0,0,2,54,1,0,0,0,4,97,1,0,0,0,6,101,1,0,0,
+        0,2,4,8,8,508,0,37,1,0,0,0,2,54,1,0,0,0,4,97,1,0,0,0,6,101,1,0,0,
         0,8,130,1,0,0,0,10,158,1,0,0,0,12,194,1,0,0,0,14,229,1,0,0,0,16,
         272,1,0,0,0,18,314,1,0,0,0,20,337,1,0,0,0,22,359,1,0,0,0,24,386,
         1,0,0,0,26,412,1,0,0,0,28,443,1,0,0,0,30,473,1,0,0,0,32,475,1,0,
@@ -2553,6 +2553,9 @@ class NmrViewNPKParser ( Parser ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
+        def Real(self):
+            return self.getToken(NmrViewNPKParser.Real, 0)
+
         def Float(self):
             return self.getToken(NmrViewNPKParser.Float, 0)
 
@@ -2585,7 +2588,7 @@ class NmrViewNPKParser ( Parser ):
             self.enterOuterAlt(localctx, 1)
             self.state = 477
             _la = self._input.LA(1)
-            if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 268) != 0)):
+            if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 284) != 0)):
                 self._errHandler.recoverInline(self)
             else:
                 self._errHandler.reportMatch(self)

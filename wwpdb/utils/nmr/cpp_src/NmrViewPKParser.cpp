@@ -108,7 +108,7 @@ void nmrviewpkparserParserInitialize() {
   	12,14,471,1,14,1,14,1,15,1,15,1,16,1,16,1,16,3,16,481,8,16,1,17,1,17,
   	1,18,1,18,5,18,487,8,18,10,18,12,18,490,9,18,1,18,1,18,1,18,0,0,19,0,
   	2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,0,3,1,1,10,10,2,0,30,
-  	31,34,34,2,0,2,3,8,8,524,0,39,1,0,0,0,2,56,1,0,0,0,4,99,1,0,0,0,6,103,
+  	31,34,34,2,0,2,4,8,8,524,0,39,1,0,0,0,2,56,1,0,0,0,4,99,1,0,0,0,6,103,
   	1,0,0,0,8,132,1,0,0,0,10,160,1,0,0,0,12,196,1,0,0,0,14,231,1,0,0,0,16,
   	274,1,0,0,0,18,316,1,0,0,0,20,339,1,0,0,0,22,361,1,0,0,0,24,388,1,0,0,
   	0,26,414,1,0,0,0,28,445,1,0,0,0,30,475,1,0,0,0,32,480,1,0,0,0,34,482,
@@ -2912,6 +2912,10 @@ NmrViewPKParser::NumberContext::NumberContext(ParserRuleContext *parent, size_t 
   : ParserRuleContext(parent, invokingState) {
 }
 
+tree::TerminalNode* NmrViewPKParser::NumberContext::Real() {
+  return getToken(NmrViewPKParser::Real, 0);
+}
+
 tree::TerminalNode* NmrViewPKParser::NumberContext::Float() {
   return getToken(NmrViewPKParser::Float, 0);
 }
@@ -2954,7 +2958,7 @@ NmrViewPKParser::NumberContext* NmrViewPKParser::number() {
     setState(482);
     _la = _input->LA(1);
     if (!((((_la & ~ 0x3fULL) == 0) &&
-      ((1ULL << _la) & 268) != 0))) {
+      ((1ULL << _la) & 284) != 0))) {
     _errHandler->recoverInline(this);
     }
     else {

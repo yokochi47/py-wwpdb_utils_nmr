@@ -1230,7 +1230,12 @@ class NmrViewPKParserListener(ParseTreeListener, BasePKParserListener):
 
         try:
 
-            if ctx.Float():
+            if ctx.Real():
+                value = str(ctx.Real())
+                self.numberSelection.append(float(value))
+                self.originalNumberSelection.append(value)
+
+            elif ctx.Float():
                 value = str(ctx.Float())
                 self.numberSelection.append(float(value))
                 self.originalNumberSelection.append(value)

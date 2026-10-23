@@ -137,7 +137,7 @@ jcoupling:
 	Float | Simple_name | enclose_data;
 
 /* number expression in peak list */
-number:	Float | Integer | Simple_name;
+number:	Real | Float | Integer | Simple_name;
 
 /* enclose data */
 enclose_data:	L_brace Any_name* R_brace;
