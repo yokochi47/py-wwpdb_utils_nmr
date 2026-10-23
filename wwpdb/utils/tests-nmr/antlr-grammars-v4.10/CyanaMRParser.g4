@@ -188,7 +188,7 @@ diana_ssbond_restraint:
 	gen_simple_name gen_res_num
 	gen_simple_name gen_simple_name gen_res_num gen_simple_name number
 	(gen_simple_name gen_simple_name gen_res_num gen_simple_name number)?
-	Simple_name? Integer;
+	Simple_name? Integer?;
 
 /* DIANA torsion angle restraints (undocumented) */
 diana_torsion_angle_restraints:
@@ -199,7 +199,7 @@ diana_torsion_angle_restraint:
 	gen_simple_name gen_res_num
 	gen_simple_name number number
 	(gen_simple_name number number)?
-	Simple_name? Integer;
+	Simple_name? Integer?;
 
 /* DIANA coupling constant restraints (undocumented) */
 diana_coupling_constant_restraints:
@@ -210,12 +210,12 @@ diana_coupling_constant_restraint:
 	gen_simple_name gen_res_num
 	gen_simple_name gen_simple_name number number?
         (gen_simple_name gen_simple_name number number?)?
-	Simple_name? Integer;
+	Simple_name? Integer?;
 
 /* DIANA stereoassign macro (undocumented) */
 diana_stereoassign_macro:
 	Stereo gen_simple_name gen_res_num gen_simple_name+
-	Integer;
+	Integer?;
 
 /* DUANA chemical shifts (undocumented) */
 diana_chemical_shifts:
@@ -225,7 +225,7 @@ diana_chemical_shift:
 	Shifts
 	gen_simple_name gen_res_num gen_simple_name number
 	(gen_simple_name number)*
-	Simple_name? Integer;
+	Simple_name? Integer?;
 
 /* CYANA (undocumented) - arbitrary order among chain_id, comp_id, and atom_id
 */

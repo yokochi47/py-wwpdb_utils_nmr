@@ -680,10 +680,10 @@ public:
     Gen_res_numContext* gen_res_num(size_t i);
     std::vector<NumberContext *> number();
     NumberContext* number(size_t i);
-    antlr4::tree::TerminalNode *Integer();
     antlr4::tree::TerminalNode *SSUpp();
     antlr4::tree::TerminalNode *SSLow();
     antlr4::tree::TerminalNode *Simple_name();
+    antlr4::tree::TerminalNode *Integer();
 
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
@@ -716,8 +716,8 @@ public:
     Gen_res_numContext *gen_res_num();
     std::vector<NumberContext *> number();
     NumberContext* number(size_t i);
-    antlr4::tree::TerminalNode *Integer();
     antlr4::tree::TerminalNode *Simple_name();
+    antlr4::tree::TerminalNode *Integer();
 
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
@@ -750,8 +750,8 @@ public:
     Gen_res_numContext *gen_res_num();
     std::vector<NumberContext *> number();
     NumberContext* number(size_t i);
-    antlr4::tree::TerminalNode *Integer();
     antlr4::tree::TerminalNode *Simple_name();
+    antlr4::tree::TerminalNode *Integer();
 
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
@@ -801,8 +801,8 @@ public:
     Gen_res_numContext *gen_res_num();
     std::vector<NumberContext *> number();
     NumberContext* number(size_t i);
-    antlr4::tree::TerminalNode *Integer();
     antlr4::tree::TerminalNode *Simple_name();
+    antlr4::tree::TerminalNode *Integer();
 
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
