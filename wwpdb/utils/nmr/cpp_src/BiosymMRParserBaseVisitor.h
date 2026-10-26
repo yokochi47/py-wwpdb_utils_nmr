@@ -35,6 +35,14 @@ public:
     return visitChildren(ctx);
   }
 
+  virtual std::any visitDistance_wo_w_constraints(BiosymMRParser::Distance_wo_w_constraintsContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitDistance_wo_w_constraint(BiosymMRParser::Distance_wo_w_constraintContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
   virtual std::any visitDihedral_angle_restraints(BiosymMRParser::Dihedral_angle_restraintsContext *ctx) override {
     return visitChildren(ctx);
   }
@@ -48,6 +56,14 @@ public:
   }
 
   virtual std::any visitDihedral_angle_constraint(BiosymMRParser::Dihedral_angle_constraintContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitDihedral_angle_wo_w_constraints(BiosymMRParser::Dihedral_angle_wo_w_constraintsContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitDihedral_angle_wo_w_constraint(BiosymMRParser::Dihedral_angle_wo_w_constraintContext *ctx) override {
     return visitChildren(ctx);
   }
 

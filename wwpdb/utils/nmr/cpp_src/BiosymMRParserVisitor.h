@@ -29,6 +29,10 @@ public:
 
     virtual std::any visitDistance_constraint(BiosymMRParser::Distance_constraintContext *context) = 0;
 
+    virtual std::any visitDistance_wo_w_constraints(BiosymMRParser::Distance_wo_w_constraintsContext *context) = 0;
+
+    virtual std::any visitDistance_wo_w_constraint(BiosymMRParser::Distance_wo_w_constraintContext *context) = 0;
+
     virtual std::any visitDihedral_angle_restraints(BiosymMRParser::Dihedral_angle_restraintsContext *context) = 0;
 
     virtual std::any visitDihedral_angle_restraint(BiosymMRParser::Dihedral_angle_restraintContext *context) = 0;
@@ -36,6 +40,10 @@ public:
     virtual std::any visitDihedral_angle_constraints(BiosymMRParser::Dihedral_angle_constraintsContext *context) = 0;
 
     virtual std::any visitDihedral_angle_constraint(BiosymMRParser::Dihedral_angle_constraintContext *context) = 0;
+
+    virtual std::any visitDihedral_angle_wo_w_constraints(BiosymMRParser::Dihedral_angle_wo_w_constraintsContext *context) = 0;
+
+    virtual std::any visitDihedral_angle_wo_w_constraint(BiosymMRParser::Dihedral_angle_wo_w_constraintContext *context) = 0;
 
     virtual std::any visitChirality_constraints(BiosymMRParser::Chirality_constraintsContext *context) = 0;
 

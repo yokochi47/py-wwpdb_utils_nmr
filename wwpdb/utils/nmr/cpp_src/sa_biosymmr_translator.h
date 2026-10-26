@@ -17,10 +17,14 @@ class SA_BiosymMRTranslator : public BiosymMRParserBaseVisitor {
     PyObject *Distance_restraintContext_cls = NULL;
     PyObject *Distance_constraintsContext_cls = NULL;
     PyObject *Distance_constraintContext_cls = NULL;
+    PyObject *Distance_wo_w_constraintsContext_cls = NULL;
+    PyObject *Distance_wo_w_constraintContext_cls = NULL;
     PyObject *Dihedral_angle_restraintsContext_cls = NULL;
     PyObject *Dihedral_angle_restraintContext_cls = NULL;
     PyObject *Dihedral_angle_constraintsContext_cls = NULL;
     PyObject *Dihedral_angle_constraintContext_cls = NULL;
+    PyObject *Dihedral_angle_wo_w_constraintsContext_cls = NULL;
+    PyObject *Dihedral_angle_wo_w_constraintContext_cls = NULL;
     PyObject *Chirality_constraintsContext_cls = NULL;
     PyObject *Chirality_constraintContext_cls = NULL;
     PyObject *Prochirality_constraintsContext_cls = NULL;
@@ -46,6 +50,10 @@ class SA_BiosymMRTranslator : public BiosymMRParserBaseVisitor {
 
     antlrcpp::Any visitDistance_constraint(BiosymMRParser::Distance_constraintContext *ctx);
 
+    antlrcpp::Any visitDistance_wo_w_constraints(BiosymMRParser::Distance_wo_w_constraintsContext *ctx);
+
+    antlrcpp::Any visitDistance_wo_w_constraint(BiosymMRParser::Distance_wo_w_constraintContext *ctx);
+
     antlrcpp::Any visitDihedral_angle_restraints(BiosymMRParser::Dihedral_angle_restraintsContext *ctx);
 
     antlrcpp::Any visitDihedral_angle_restraint(BiosymMRParser::Dihedral_angle_restraintContext *ctx);
@@ -53,6 +61,10 @@ class SA_BiosymMRTranslator : public BiosymMRParserBaseVisitor {
     antlrcpp::Any visitDihedral_angle_constraints(BiosymMRParser::Dihedral_angle_constraintsContext *ctx);
 
     antlrcpp::Any visitDihedral_angle_constraint(BiosymMRParser::Dihedral_angle_constraintContext *ctx);
+
+    antlrcpp::Any visitDihedral_angle_wo_w_constraints(BiosymMRParser::Dihedral_angle_wo_w_constraintsContext *ctx);
+
+    antlrcpp::Any visitDihedral_angle_wo_w_constraint(BiosymMRParser::Dihedral_angle_wo_w_constraintContext *ctx);
 
     antlrcpp::Any visitChirality_constraints(BiosymMRParser::Chirality_constraintsContext *ctx);
 

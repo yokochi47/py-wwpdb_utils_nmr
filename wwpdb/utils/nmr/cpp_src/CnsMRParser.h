@@ -1362,6 +1362,8 @@ public:
     antlr4::tree::TerminalNode* Simple_names(size_t i);
     std::vector<antlr4::tree::TerminalNode *> Simple_name();
     antlr4::tree::TerminalNode* Simple_name(size_t i);
+    std::vector<antlr4::tree::TerminalNode *> Double_quote_string();
+    antlr4::tree::TerminalNode* Double_quote_string(size_t i);
     antlr4::tree::TerminalNode *Integers();
     std::vector<antlr4::tree::TerminalNode *> Integer();
     antlr4::tree::TerminalNode* Integer(size_t i);
@@ -1384,8 +1386,6 @@ public:
     antlr4::tree::TerminalNode *Id();
     antlr4::tree::TerminalNode *Known();
     antlr4::tree::TerminalNode *Name();
-    std::vector<antlr4::tree::TerminalNode *> Double_quote_string();
-    antlr4::tree::TerminalNode* Double_quote_string(size_t i);
     antlr4::tree::TerminalNode *NONE();
     antlr4::tree::TerminalNode *Not_op();
     antlr4::tree::TerminalNode *Point();

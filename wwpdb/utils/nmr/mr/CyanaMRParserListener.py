@@ -8314,10 +8314,29 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
             self.hbondRestraints += 1
 
-            seqId1 = int(str(ctx.Integer_HB(0)))
-            seqId2 = int(str(ctx.Integer_HB(1)))
-            atomId1 = str(ctx.Simple_name_HB(0))
-            atomId2 = str(ctx.Simple_name_HB(1))
+            intHbIndex = simpleNameIndex = 0
+
+            if ctx.Concat_res_1():
+                seqId1 = int(str(ctx.Concat_res_1()).split('=')[1])
+            else:
+                seqId1 = int(str(ctx.Integer_HB(0)))
+                intHbIndex += 1
+
+            if ctx.Concat_res_2():
+                seqId2 = int(str(ctx.Concat_res_2()).split('=')[1])
+            else:
+                seqId2 = int(str(ctx.Integer_HB(intHbIndex)))
+
+            if ctx.Concat_atom_1():
+                atomId1 = str(ctx.Concat_atom_1()).split('=')[1]
+            else:
+                atomId1 = str(ctx.Simple_name_HB(0))
+                simpleNameIndex += 1
+
+            if ctx.Concat_atom_2():
+                atomId2 = str(ctx.Concat_atom_2()).split('=')[1]
+            else:
+                atomId2 = str(ctx.Simple_name_HB(simpleNameIndex))
 
             if not self.hasPolySeq and not self.hasNonPolySeq:
                 return

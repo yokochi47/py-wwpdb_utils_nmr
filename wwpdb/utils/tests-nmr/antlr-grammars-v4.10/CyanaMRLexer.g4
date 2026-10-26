@@ -123,6 +123,16 @@ Residue2:		'RESIDUE2';
 
 Equ_op_HB:		'=';
 
+Atom1_equ:		'ATOM1=';
+Atom2_equ:		'ATOM2=';
+Residue1_equ:		'RESIDUE1=';
+Residue2_equ:		'RESIDUE2=';
+
+Concat_atom_1:		'ATOM1=' SIMPLE_NAME;
+Concat_atom_2:		'ATOM2=' SIMPLE_NAME;
+Concat_res_1:		'RESIDUE1=' ('+' | '-')? DECIMAL;
+Concat_res_2:		'RESIDUE2=' ('+' | '-')? DECIMAL;
+
 Integer_HB:		('+' | '-')? DECIMAL;
 Simple_name_HB:		SIMPLE_NAME;
 

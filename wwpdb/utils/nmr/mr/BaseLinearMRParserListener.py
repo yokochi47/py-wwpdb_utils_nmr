@@ -3899,6 +3899,13 @@ class BaseLinearMRParserListener():
         """ Select atoms of the coordinates.
         """
 
+        def get_atom_id_list(name):
+            if '|' in name:
+                return name.split('|')
+            if ',' in name:
+                return name.split(',')
+            return [name]
+
         atomSelection = []
 
         authAtomId = atomId
@@ -4022,7 +4029,8 @@ class BaseLinearMRParserListener():
 
             _atomIdSet, _atomId = [], []
             skip = False
-            for atomId_ in atomId.split('|'):
+
+            for atomId_ in get_atom_id_list(atomId):
                 if len(_atomId) > 0:
                     _atomId = []
 

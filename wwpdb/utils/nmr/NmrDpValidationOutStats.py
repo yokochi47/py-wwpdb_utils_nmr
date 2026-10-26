@@ -78,6 +78,9 @@ class NmrDpValidationOutStats(NmrDpValidationBase):
 
         master_entry = self._reg.star_data[0]
 
+        if master_entry.frame_list is None or len(master_entry.frame_list) == 0 or master_entry.frame_list[0].category is None:
+            return False
+
         file_type = 'nef' if master_entry.frame_list[0].category.startswith('nef') else 'nmr-star'
 
         self._reg.output_statistics = NmrDpReportOutputStatistics(self._reg.verbose, self._reg.log)

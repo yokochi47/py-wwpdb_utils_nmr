@@ -50,8 +50,8 @@ Integer:		('+' | '-')? DECIMAL;
 Float:			('+' | '-')? (DECIMAL | DEC_DOT_DEC);
 Float_DecimalComma:	('+' | '-')? DEC_COM_DEC;
 Real:			('+' | '-')? (DECIMAL | DEC_DOT_DEC) (E ('+' | '-')? DECIMAL)?;
-fragment DEC_DOT_DEC:	(DECIMAL '.' DECIMAL?) | ('.' DECIMAL);
-fragment DEC_COM_DEC:	(DECIMAL ',' DECIMAL?) | (',' DECIMAL);
+fragment DEC_DOT_DEC:	(DECIMAL '.' DECIMAL) | ('.' DECIMAL);
+fragment DEC_COM_DEC:	(DECIMAL ',' DECIMAL) | (',' DECIMAL);
 fragment DEC_DIGIT:	[0-9];
 fragment DECIMAL:	DEC_DIGIT+;
 
@@ -69,7 +69,7 @@ Atom_selection:		DECIMAL ':' SIMPLE_NAME '_' ALPHA? DECIMAL ALPHA? ':' SIMPLE_NA
 fragment ALPHA:		[A-Za-z];
 fragment ALPHA_NUM:	ALPHA | DEC_DIGIT;
 fragment START_CHAR:	ALPHA_NUM | '_';
-fragment NAME_CHAR:	START_CHAR | '\'' | '-' | '+' | '.' | '"' | '*' | '#';
+fragment NAME_CHAR:	START_CHAR | '\'' | '-' | '+' | '.' | '"' | '*' | '#' | '|' | ',';
 //fragment ATM_NAME_CHAR:	ALPHA_NUM | '\'';
 fragment SIMPLE_NAME:	START_CHAR NAME_CHAR*;
 

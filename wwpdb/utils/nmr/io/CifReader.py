@@ -2178,10 +2178,76 @@ class CifReader:
                 a['v'] = to_np_array(a)
                 _bb_atom_site_dict[model_id].append(a)
 
-        size = len(_atom_site_dict[1])
+        ref_model_id = eff_model_ids[0]
+
+        size = len(_atom_site_dict[ref_model_id])
 
         if size == 0:
             return None, None, None
+
+        # 1sy8
+        is_consist_model = True
+        for model_id in eff_model_ids[1:]:
+            _size = len(_atom_site_dict[model_id])
+            if _size == size:
+                continue
+            if _size < size:
+                ref_model_id = model_id
+                size = _size
+                if size == 0:
+                    return None, None, None
+            is_consist_model = False
+
+        if not is_consist_model:
+            seq_keys = [(a['chain_id'], a['seq_id']) for a in _atom_site_dict[ref_model_id]]
+
+            for model_id in eff_model_ids:
+                _size = len(_atom_site_dict[model_id])
+                if _size == size:
+                    continue
+                del_idx = []
+                for idx, a in enumerate(_atom_site_dict[model_id]):
+                    seq_key = (a['chain_id'], a['seq_id'])
+                    if seq_key in seq_keys:
+                        continue
+                    del_idx.append(idx)
+
+                if len(del_idx) > 0:
+                    for idx in sorted(del_idx, reverse=True):
+                        del _atom_site_dict[model_id][idx]
+
+            bb_ref_model_id = ref_model_id
+            bb_size = len(_bb_atom_site_dict[bb_ref_model_id])
+
+            is_consist_model = True
+            for model_id in eff_model_ids:
+                if model_id == bb_ref_model_id:
+                    continue
+                _bb_size = len(_bb_atom_site_dict[model_id])
+                if _bb_size == bb_size:
+                    continue
+                if _bb_size < bb_size:
+                    bb_ref_model_id = model_id
+                    bb_size = _bb_size
+                is_consist_model = False
+
+            if not is_consist_model:
+                seq_keys = [(a['chain_id'], a['seq_id']) for a in _bb_atom_site_dict[bb_ref_model_id]]
+
+                for model_id in eff_model_ids:
+                    _bb_size = len(_bb_atom_site_dict[model_id])
+                    if _bb_size == bb_size:
+                        continue
+                    del_idx = []
+                    for idx, a in enumerate(_bb_atom_site_dict[model_id]):
+                        seq_key = (a['chain_id'], a['seq_id'])
+                        if seq_key in seq_keys:
+                            continue
+                        del_idx.append(idx)
+
+                    if len(del_idx) > 0:
+                        for idx in sorted(del_idx, reversed=True):
+                            del _bb_atom_site_dict[model_id][idx]
 
         matrix_size = (size, size)
 
@@ -2325,7 +2391,7 @@ class CifReader:
                             if monomers == 0 or (monomers < self.__min_monomers_for_domain and long):
                                 continue
 
-                            _atom_site_ref = _atom_site_dict[1]
+                            _atom_site_ref = _atom_site_dict[ref_model_id]
                             _atom_site_p = [_a for _a, _l in zip(_atom_site_ref, list_labels) if _l == label]
 
                             if label != -1:
@@ -2388,7 +2454,7 @@ class CifReader:
 
                         _rmsd = []
 
-                        _atom_site_ref = _atom_site_dict[1]
+                        _atom_site_ref = _atom_site_dict[ref_model_id]
                         _atom_site_p = [_a for _a, _l in zip(_atom_site_ref, list_labels) if _l == label]
 
                         for model_id in range(2, total_models + 1):
@@ -2473,7 +2539,7 @@ class CifReader:
             if monomers == 0 or (monomers < self.__min_monomers_for_domain and long):
                 continue
 
-            _atom_site_ref = _atom_site_dict[1]
+            _atom_site_ref = _atom_site_dict[ref_model_id]
             _atom_site_p = [_a for _a, _l in zip(_atom_site_ref, list_labels) if _l == label]
 
             if label != -1:
@@ -2512,8 +2578,8 @@ class CifReader:
                              f"clusters: {n_clusters} (effective domains: {len(eff_labels)}), noise: {list_labels.count(-1)}, "
                              f"score: {min_score}\n")
 
-        _chain_ids = [a['chain_id'] for a in _atom_site_dict[1]]
-        _seq_ids = [a['seq_id'] for a in _atom_site_dict[1]]
+        _chain_ids = [a['chain_id'] for a in _atom_site_dict[ref_model_id]]
+        _seq_ids = [a['seq_id'] for a in _atom_site_dict[ref_model_id]]
 
         domain_id = 1
         for label, chain_id, seq_id in zip(labels, _chain_ids, _seq_ids):
@@ -2575,9 +2641,6 @@ class CifReader:
                     _core_rmsd = []
 
                     for idx in range(count):
-
-                        if idx == len(_atom_site_p):  # 1sy8
-                            break
 
                         ref_atom = _atom_site_p[idx]
                         test_atom = _atom_site_q[idx]
@@ -2650,7 +2713,7 @@ class CifReader:
             # seq_keys is model-independent for a label; precompute the backbone
             # atom list per model once (was rebuilt for every ref/test model pair).
             _seq_keys = frozenset((_a['chain_id'], _a['seq_id'])
-                                  for _a, _l in zip(_atom_site_dict[1], list_labels) if _l == label)
+                                  for _a, _l in zip(_atom_site_dict[ref_model_id], list_labels) if _l == label)
             bb_of = {m: [_a for _a in _bb_atom_site_dict[m]
                          if (_a['chain_id'], _a['seq_id']) in _seq_keys]
                      for m in eff_model_ids}
@@ -2787,7 +2850,7 @@ class CifReader:
             # seq_keys (atoms in the effective domains) is model-independent;
             # precompute the backbone atom list per model once.
             _seq_keys = frozenset((_a['chain_id'], _a['seq_id'])
-                                  for _a, _l in zip(_atom_site_dict[1], list_labels) if _l == label)
+                                  for _a, _l in zip(_atom_site_dict[ref_model_id], list_labels) if _l == label)
             bb_of = {m: [_a for _a in _bb_atom_site_dict[m]
                          if (_a['chain_id'], _a['seq_id']) in _seq_keys]
                      for m in eff_model_ids}
@@ -2820,11 +2883,8 @@ class CifReader:
 
                     _rmsd_ = calculate_rmsd(_bb_atom_site_p, _bb_atom_site_q) * fraction
 
-                    try:
-                        d_avr[ref_idx, test_idx] += _rmsd_
-                        d_avr[test_idx, ref_idx] = d_avr[ref_idx, test_idx]
-                    except IndexError:  # 1sy8
-                        pass
+                    d_avr[ref_idx, test_idx] += _rmsd_
+                    d_avr[test_idx, ref_idx] = d_avr[ref_idx, test_idx]
 
         max_d_avr = min(numpy.max(d_var), rmsd_cutoff_for_clustering)
 

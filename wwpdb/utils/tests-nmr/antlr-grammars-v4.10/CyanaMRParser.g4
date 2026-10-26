@@ -295,8 +295,8 @@ ssbond_macro:
 */
 hbond_macro:
 	Hbond
-		(Atom1 Equ_op_HB)? Simple_name_HB (Residue1 Equ_op_HB)? Integer_HB
-		(Atom2 Equ_op_HB)? Simple_name_HB (Residue2 Equ_op_HB)? Integer_HB
+		((Atom1 Equ_op_HB | Atom1_equ)? Simple_name_HB | Concat_atom_1) ((Residue1 Equ_op_HB | Residue1_equ)? Integer_HB | Concat_res_1)
+		((Atom2 Equ_op_HB | Atom2_equ)? Simple_name_HB | Concat_atom_2) ((Residue2 Equ_op_HB | Residue2_equ)? Integer_HB | Concat_res_2)
 	RETURN_HB;
 
 /* CYANA (statement) - link

@@ -404,7 +404,7 @@ factor:
 	L_paren selection_expression R_paren |
 	All |
 	factor Around number_f |
-	Atom (Simple_names | Simple_name) (Integers | Integer) (Simple_names | Simple_name | Logical) |
+	Atom (Simple_names | Simple_name | Double_quote_string) (Integers | Integer) (Simple_names | Simple_name | Double_quote_string | Logical) |
 	Attribute Abs? Attr_properties Comparison_ops number_f |
 	BondedTo factor |
 	ByGroup factor |

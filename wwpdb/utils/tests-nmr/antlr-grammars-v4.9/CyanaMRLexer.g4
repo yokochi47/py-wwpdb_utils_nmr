@@ -151,6 +151,16 @@ Residue2:		R E S I D U E '2';
 
 Equ_op_HB:		'=';
 
+Atom1_equ:		A T O M '1=';
+Atom2_equ:		A T O M '2=';
+Residue1_equ:		R E S I D U E '1=';
+Residue2_equ:		R E S I D U E '2=';
+
+Concat_atom_1:		A T O M '1=' SIMPLE_NAME;
+Concat_atom_2:		A T O M '2=' SIMPLE_NAME;
+Concat_res_1:		R E S I D U E '1=' ('+' | '-')? DECIMAL;
+Concat_res_2:		R E S I D U E '2=' ('+' | '-')? DECIMAL;
+
 Integer_HB:		('+' | '-')? DECIMAL;
 Simple_name_HB:		SIMPLE_NAME;
 

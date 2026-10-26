@@ -21,12 +21,14 @@ public:
     Capital_integer = 34, Integer_capital = 35, Simple_name = 36, SPACE = 37, 
     ENCLOSE_COMMENT = 38, SECTION_COMMENT = 39, LINE_COMMENT = 40, Any_name = 41, 
     SPACE_CM = 42, RETURN_CM = 43, Atom1 = 44, Atom2 = 45, Residue1 = 46, 
-    Residue2 = 47, Equ_op_HB = 48, Integer_HB = 49, Simple_name_HB = 50, 
-    SPACE_HB = 51, RETURN_HB = 52, LINE_COMMENT_HB = 53, Double_quote_string = 54, 
-    SPACE_PR = 55, RETURN_PR = 56, LINE_COMMENT_PR = 57, Simple_name_VA = 58, 
-    SPACE_VA = 59, RETURN_VA = 60, LINE_COMMENT_VA = 61, Ambig_code_MP = 62, 
-    Integer_MP = 63, Simple_name_MP = 64, Equ_op_MP = 65, SPACE_MP = 66, 
-    RETURN_MP = 67, LINE_COMMENT_MP = 68
+    Residue2 = 47, Equ_op_HB = 48, Atom1_equ = 49, Atom2_equ = 50, Residue1_equ = 51, 
+    Residue2_equ = 52, Concat_atom_1 = 53, Concat_atom_2 = 54, Concat_res_1 = 55, 
+    Concat_res_2 = 56, Integer_HB = 57, Simple_name_HB = 58, SPACE_HB = 59, 
+    RETURN_HB = 60, LINE_COMMENT_HB = 61, Double_quote_string = 62, SPACE_PR = 63, 
+    RETURN_PR = 64, LINE_COMMENT_PR = 65, Simple_name_VA = 66, SPACE_VA = 67, 
+    RETURN_VA = 68, LINE_COMMENT_VA = 69, Ambig_code_MP = 70, Integer_MP = 71, 
+    Simple_name_MP = 72, Equ_op_MP = 73, SPACE_MP = 74, RETURN_MP = 75, 
+    LINE_COMMENT_MP = 76
   };
 
   enum {
@@ -1034,17 +1036,25 @@ public:
     Hbond_macroContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
     antlr4::tree::TerminalNode *Hbond();
+    antlr4::tree::TerminalNode *RETURN_HB();
     std::vector<antlr4::tree::TerminalNode *> Simple_name_HB();
     antlr4::tree::TerminalNode* Simple_name_HB(size_t i);
+    antlr4::tree::TerminalNode *Concat_atom_1();
     std::vector<antlr4::tree::TerminalNode *> Integer_HB();
     antlr4::tree::TerminalNode* Integer_HB(size_t i);
-    antlr4::tree::TerminalNode *RETURN_HB();
+    antlr4::tree::TerminalNode *Concat_res_1();
+    antlr4::tree::TerminalNode *Concat_atom_2();
+    antlr4::tree::TerminalNode *Concat_res_2();
     antlr4::tree::TerminalNode *Atom1();
     std::vector<antlr4::tree::TerminalNode *> Equ_op_HB();
     antlr4::tree::TerminalNode* Equ_op_HB(size_t i);
+    antlr4::tree::TerminalNode *Atom1_equ();
     antlr4::tree::TerminalNode *Residue1();
+    antlr4::tree::TerminalNode *Residue1_equ();
     antlr4::tree::TerminalNode *Atom2();
+    antlr4::tree::TerminalNode *Atom2_equ();
     antlr4::tree::TerminalNode *Residue2();
+    antlr4::tree::TerminalNode *Residue2_equ();
 
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
