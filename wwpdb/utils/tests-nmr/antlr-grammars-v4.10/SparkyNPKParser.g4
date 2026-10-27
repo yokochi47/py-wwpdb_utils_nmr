@@ -63,5 +63,5 @@ peak_4d_po:
 number:	Real_vol | Real | Float | Integer;
 
 /* note expression in peak list */
-note:	Simple_name | Integer | Float | Note_2d_ex | Note_3d_ex | Note_4d_ex;
+note:	Simple_name | Integer | Float | Note_2d_ex | Note_3d_ex | Note_4d_ex | Note_ex;
 

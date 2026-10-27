@@ -2686,7 +2686,7 @@ class NmrDpMrSplitter:
 
             fileListId += 1
 
-            if file_type in ('nmr-star', 'nm-res-mr', 'nm-res-bar', 'nm-res-oth', 'nm-res-sax')\
+            if file_type is None or file_type in ('nmr-star', 'nm-res-mr', 'nm-res-bar', 'nm-res-oth', 'nm-res-sax')\
                or file_type.startswith('nm-pea'):
                 continue
 
@@ -2742,6 +2742,9 @@ class NmrDpMrSplitter:
             file_type_1 = ar_list[i]['file_type']
             file_type_2 = ar_list[j]['file_type']
 
+            if None in (file_type_1, file_type_2):
+                continue
+
             if file_type_1.startswith('nm-res') and file_type_2.startswith('nm-res'):
                 file_type = 'restraint'
             elif file_type_1.startswith('nm-pea') and file_type_2.startswith('nm-pea'):
@@ -2788,6 +2791,7 @@ class NmrDpMrSplitter:
             file_type = input_source_dic['file_type']
 
             fileListId += 1
+
             if file_type is None or file_type in ('nm-res-mr', 'nm-res-sax') or file_type.startswith('nm-pea'):
                 md5_list.append(None if file_type == 'nm-res-mr' else file_md5(file_path))
                 continue
@@ -3231,7 +3235,7 @@ class NmrDpMrSplitter:
 
             fileListId += 1
 
-            if ar['file_type'] == 'nm-aux-pdb':
+            if file_type is None or ar['file_type'] == 'nm-aux-pdb':
                 continue
 
             if file_type != 'nm-res-mr':
@@ -5413,7 +5417,7 @@ class NmrDpMrSplitter:
                 file_type = input_source_dic['file_type']
                 content_type = input_source_dic['content_type']
 
-                if content_type != 'nmr-restraints':
+                if file_type is None or content_type != 'nmr-restraints':
                     continue
 
                 content_subtype = input_source_dic['content_subtype']
@@ -7761,7 +7765,7 @@ class NmrDpMrSplitter:
                                                                     'nm-res-cha', agreed_w_cns=agreed_w_cns)
 
             _err_ = _err.lower()
-            if _is_valid and '-div_try' in file_path\
+            if _is_valid and '-div_try' in file_path and '-corrected' not in file_path\
                and ('assi' in _err_ or 'resi' in _err_)\
                and '(' in _err and ')' in _err:  # improve error message (2f40, 1hx2)
                 _is_valid = False
@@ -7977,7 +7981,7 @@ class NmrDpMrSplitter:
                                                                     'nm-res-cya')
 
             _err_ = _err.lower()
-            if _is_valid and '-div_try' in file_path\
+            if _is_valid and '-div_try' in file_path and '-corrected' not in file_path\
                and ((('assi' in _err_ or 'resi' in _err_)
                      and '(' in _err and ')' in _err)
                     or ':' in _err):   # improve error message (1pg9, 1hx2, 1sy8)
