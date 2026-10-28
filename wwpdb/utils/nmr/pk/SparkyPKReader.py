@@ -265,6 +265,11 @@ class SparkyPKReader:
 if __name__ == "__main__":
     reader = SparkyPKReader(True)
     reader.setDebugMode(True)
+    reader.parse('../../tests-nmr/mock-data-remediation/2k1g/bmr15603/work/upload/temp-11-corrected',
+                 '../../tests-nmr/mock-data-remediation/2k1g/2k1g.cif')
+
+    reader = SparkyPKReader(True)
+    reader.setDebugMode(True)
     reader.parse('../../tests-nmr/mock-data-remediation/2kzn/bmr17008/work/data/cch_noesy_final.list',
                  '../../tests-nmr/mock-data-remediation/2kzn/2kzn.cif')
 

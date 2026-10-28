@@ -61,7 +61,7 @@ Asymptote:		A S Y M P? T? O? T? E?;			// Class_names Real
 Average:		A V E R A? G? ((I? N? G?) | E?) -> pushMode(AVER_MODE);	// Class_names Noe_avr_methods
 Bhig:			B H I G;				// Class_names Real
 Ceiling:		C E I L I? N? G?;			// = Real
-Classification:		C L A S S? I? F? I? C? A? T? I? O? N?;	// Class_name
+Classification:		C L A S S? I? F? I? C? A? T? I? O? N? -> pushMode(CLAS_MODE);	// Class_name
 CountViol:		C O U N T? V? I? O? L?;			// Class_name
 Cv:			C V;					// = Integer
 Den:			D E N;					// Initialize | ( Update Gamma = Real Kappa = Real )
@@ -142,7 +142,7 @@ Group:			G R O U P?;				// Group { planar_group_statement } End
 //Print_any:		'?';
 
 // group_statement
-Selection:		S E L E C? T? I? O? N?;			// = selection
+Selection:		S E L E C? T? I? O? N? '='?;		// = selection
 Weight:			W E I G H? T?;				// = Real
 
 /* CNS: Plane restraints - Syntax - restraints/harmonic
@@ -314,7 +314,7 @@ Ncs:			N C S;
 //Initialize:		I N I T I? A? L? I? Z? E?;
 //Print_any:		'?';
 
-Equivalence:		E Q U I V? A? L? E? N? C? E?;		// = selection
+Equivalence:		E Q U I V? A? L? E? N? C? E? '='?;	// = selection
 Sigb:			S I G B;				// = Real
 //Weight:		W E I G H? T?;				// = Real
 
@@ -405,8 +405,8 @@ Loop:			L O O P -> pushMode(LOOP_LABEL_MODE);
 /* Three-dimentional vectors - Syntax
  See also https://www.mrc-lmb.cam.ac.uk/public/xtal/doc/cns/cns_1.3/syntax_manual/frame.html
 */
-Tail:			T A I L;
-Head:			H E A D;
+Tail:			T A I L '='?;
+Head:			H E A D '='?;
 
 // Logical operations
 Or_op:			O R;
@@ -476,6 +476,14 @@ Comparison_ops:		(Equ_op | Lt_op | Gt_op | Leq_op | Geq_op | Neq_op) -> popMode;
 
 SPACE_AP:		[ \t\r\n]+ -> skip;
 
+mode CLAS_MODE; // Inside of Classification tag
+
+Equ_op_CL:		'=';
+
+Class_name:		(SIMPLE_NAME | '*') -> popMode;
+
+SPACE_CL:		[ \t\r\n]+ -> skip;
+
 mode AVER_MODE; // Inside of Averaging tag
 
 Averaging_methods:	(R '-6' | R '-3' | S U M | C E N T E? R?) -> popMode;
@@ -507,7 +515,7 @@ Include:		I N C L U? D? E?;			// Class_name*
 
 End_FL:			E N D -> popMode;
 
-Class_name:		SIMPLE_NAME;
+Class_name_FL:		SIMPLE_NAME;
 Any_class:		'*';
 
 SPACE_FL:		[ \t\r\n]+ -> skip;

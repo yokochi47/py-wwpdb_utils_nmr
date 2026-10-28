@@ -60,8 +60,8 @@ RETURN:			[\r\n]+;
 fragment COMMENT_START_CHAR:	('!' | ';' | '\\' | '&' | '/' | '*' | '=');
 
 ENCLOSE_COMMENT:	'{' (ENCLOSE_COMMENT | .)*? '}' -> channel(HIDDEN);
-SECTION_COMMENT:	('#' | COMMENT_START_CHAR | '/' '/'+ | '*' '*'+ | '-' '-'+ | '+' '+'+ | '=' '='+ | 'REMARK' 'S'?) ' '* RETURN -> channel(HIDDEN);
-LINE_COMMENT:		(('#' (' ' | ALPHA_NUM)) | COMMENT_START_CHAR | '/' '/'+ | '*' '*'+ | '-' '-'+ | '+' '+'+ | '=' '='+ | 'REMARK' 'S'?) ~[\r\n]* RETURN -> channel(HIDDEN);
+SECTION_COMMENT:	('#' | COMMENT_START_CHAR | '/' '/'+ | '*' '*'+ | '-' '-'+ | '+' '+'+ | '=' '='+ | 'REMARK' 'S'?) ' '* -> channel(HIDDEN);
+LINE_COMMENT:		(('#' (' ' | ALPHA_NUM)) | COMMENT_START_CHAR | '/' '/'+ | '*' '*'+ | '-' '-'+ | '+' '+'+ | '=' '='+ | 'REMARK' 'S'?) ~[\r\n]* -> channel(HIDDEN);
 
 mode LABEL_MODE;
 

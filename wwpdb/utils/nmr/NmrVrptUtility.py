@@ -3891,6 +3891,16 @@ class NmrVrptUtility:
                     return
 
                 if seq_key not in self.__entityInstance[auth_chain_id]:
+                    # DAOTHER-9875, 10987 in case missing of caC['coord_unobs_res']
+                    if self.__inputReport is not None:
+                        unmapped_seq_keys = self.__inputReport.getUnmappedSeqKeyOfModelChainId(auth_chain_id, False)
+                        if unmapped_seq_keys is not None:
+                            if seq_key in unmapped_seq_keys:
+                                if list_id not in self.__chemShiftUnmodeled:
+                                    self.__chemShiftUnmodeled[list_id] = []
+                                self.__chemShiftUnmodeled[list_id].append(_cs)
+                                return
+
                     if list_id not in self.__chemShiftUnmapped:
                         self.__chemShiftUnmapped[list_id] = []
                     self.__chemShiftUnmapped[list_id].append(_cs)

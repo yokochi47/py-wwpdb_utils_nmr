@@ -8890,7 +8890,7 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
         """ Enter a parse tree produced by XplorMRParser#classification.
         """
 
-        self.classification = self.getClass_name(ctx.class_name())
+        self.classification = str(ctx.Class_name())
 
     def exitClassification(self, ctx: XplorMRParser.ClassificationContext):  # pylint: disable=unused-argument
         """ Exit a parse tree produced by XplorMRParser#classification.
@@ -8931,6 +8931,9 @@ class XplorMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
 
         if ctx.Improper():
             return str(ctx.Improper())
+
+        if ctx.Average():
+            return str(ctx.Average())
 
         return None
 

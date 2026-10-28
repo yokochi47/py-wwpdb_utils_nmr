@@ -1,333 +1,362 @@
-﻿# NmrDpUtility - NMR data processing utility for OneDep and bmrb_extract systems
+# NmrDpUtility - NMR data processing utility for OneDep and bmrb_extract systems
 
-[NmrDpUtility class](NmrDpUtility.py) is backend tool of OneDep/bmrb_extract systems utilized for NMR deposition and validation. It accepts a coordinate file and various NMR data files, and generates combined NMR data file in either NEF or NMR-STAR format. Data processing status is reported through a JSON file. The software package can run outside of the OneDep system, called as standalone mode, for which see [instruction](#standalone-mode) for details.
+The [NmrDpUtility class](NmrDpUtility.py) is the backend tool of the OneDep and bmrb_extract systems for NMR deposition and validation. It accepts a coordinate file and various NMR data files, and generates a combined NMR data file in either NEF or NMR-STAR format. Data processing status is reported through a JSON file. The package can also run outside of the OneDep system, in what is called standalone mode; see the [instructions](#standalone-mode) for details.
 
 ## How to use
 
-1. Instantiate NmrDpUtility class
+### 1. Instantiate the NmrDpUtility class
 
 ```python
 try:
     from wwpdb.utils.nmr.NmrDpUtility import NmrDpUtility  # OneDep environment
 except ImportError:
-    from nmr.NmrDpUtility import NmrDpUtility  # Standalone mode
+    from nmr.NmrDpUtility import NmrDpUtility  # standalone mode
 
-    util = NmrDpUtility()
+util = NmrDpUtility()
 ```
 
-2. Set primary NMR data source file and log file path (when you already have unified NMR data file in NEF or NMR-STAR format)
+### 2. Set the primary NMR data source file and the log file path
 
-NmrDpUtility accepts unified NMR data file as primary data source by default. The unified NMR data file must contain assigned chemical shifts and restraints in a file. The validation results for the data source is reported into designated log file.
+This step applies when you already have a unified NMR data file in NEF or NMR-STAR format.
+
+By default, NmrDpUtility accepts a unified NMR data file as its primary data source. The unified NMR data file must contain both assigned chemical shifts and restraints. The validation results for the data source are written to the designated log file.
 
 ```python
-    data_dir_path = 'wwpdb/utils/tests-nmr/mock-data/'
-    entry_id = '2l9r'
-    util.setSource(data_dir_path + entry_id + '.nef')  # primary data source must be unified NMR data
-    util.setLog(data_dir_path + entry_id + '-nef-consistency-log.json')
-    util.op('nmr-nef-consistency-check')
+data_dir_path = 'wwpdb/utils/tests-nmr/mock-data/'
+entry_id = '2l9r'
+util.setSource(data_dir_path + entry_id + '.nef')  # the primary data source must be unified NMR data
+util.setLog(data_dir_path + entry_id + '-nef-consistency-log.json')
+util.op('nmr-nef-consistency-check')
 ```
-where **setSource(fPath: str, originalName: str = None)** and **setLog(fPath: str)** are methods to add unified NMR data file and log file. The last **op(op: str)** runs designated tasks. The other source files, such as coordinate file, chemical shift files, and restraint files, should be set through the following method. NmrDpUtility supports combining assigned chemical shifts and NMR restraints into single NMR data file.
 
-3. Add input file path and parameters
+- **setSource(fPath: str, originalName: str = None)** sets the unified NMR data file.
+- **setLog(fPath: str)** sets the log (report) file.
+- **op(op: str)** runs the designated workflow operation.
 
-Any input file paths and parameters should be set through **addInput(name: Optional[str] = None, value: Any = None, type: str = 'file')** method:
+Other source files, such as the coordinate file, chemical shift files and restraint files, are set with **addInput()**, described next. NmrDpUtility can combine assigned chemical shifts and NMR restraints into a single NMR data file.
 
-The **name** argument should be chosen from effective names shown in a table below, and the **type** argument should be chosen from (`param`, `file`, `file_list`, and `file_dict_list`). At first, 'param' is used to set a named parameter, Next, `file` and `file_list` are used to specify single file path and multiple file paths respectively, whereas their file types are automatically decided by the **name**. For example, `pdbx` for coordinate file and `nmr-star` for chemical shift file(s). Finally, `file_dict_list` indicates **value** is a list of dictionary,
+### 3. Add input file paths and parameters
+
+Input file paths and parameters are set with the **addInput(name: Optional[str] = None, value: Any = None, type: str = 'file')** method.
+
+**name** must be one of the names in the table below, and **type** must be one of `param`, `file`, `file_list` and `file_dict_list`:
+
+- `param` sets a named parameter.
+- `file` and `file_list` set a single file path and multiple file paths, respectively. The file type is determined by **name**, e.g. `pdbx` for the coordinate file and `nmr-star` for chemical shift files.
+- `file_dict_list` sets multiple file paths, each with its own file type and, optionally, the original file name provided by the author. **value** is then a list of dictionaries of the form:
+
 ```python
-    {'file_name': ?, 'file_type': ?, 'original_file_name' (optional): ?}
+{'file_name': ..., 'file_type': ..., 'original_file_name': ...}  # 'original_file_name' is optional
 ```
-, and used to set multiple file paths with each file type and optionally the author provided original file name.
 
 name|type|description
-----|--------------|-----------
+----|----|-----------
 `coordinate_file_path`|`file`|Set a PDBx/mmCIF coordinate file. The file type is `pdbx` by default.
-`proc_coord_file_path`|`file`|Set spare coordinate file for the case `coordinate_file_path` is not accessible. Otherwise, it is **unnecessary**,
-`chem_shift_file_path_list`|`file_list`, `file_dict_list`|Set chemical shift file(s), formally we accepted multiple chemical shift files. The file type is `nmr-star`.
-`restraint_file_path_list`|`file_list`, `file_dict_list`|Set NMR restraint files in NMR-STAR format so that the file type is `nmr-star`.
-`atypical_restraint_file_path_list`|`file_dict_list`|Set software-native formatted NMR restraint files or spectral peak list files. The file types are set by the dictionary as described above. `ignore_error': bool value can be set in `file_dict_list` to ignore the file when syntac error occurs.
-`atypical_chem_shift_file_path_list`|`file_dict_list`|Set software-native formatted chemical shift files. NOTE: used for standalone NMR data conversion service
-`report_file_path`|`file`|Set input report file path of generated by the previous data checking task (`cs-mr-merge`, `nmr-nef-consistency-check`, `nmr-str-consistency-check`, `nmr-cs-nef-consistency-check`, `nmr-cs-str-consistency-check`).
-`nmr_cif_file_path`|`file`|Set CIF formatted NMR unified data file path. NOTE: used for BMRB internal processing.
-`nmrif_file_path`|`file`|Set CIF formatted NMR metadata (aka. NMRIF) file path. NOTE: used only for OneDep workflow (`nmr-if-merge-merge-deposit`)
-`remediation`|`param`|Boolean value. True for legacy separated data file deposition. False for native NMR unified data file deposition.
-`internal`|`param`|Boolean value. Set internal mode. NOTE: used for internal only.
-`bmrb_only`|`param`|Boolean value. Set BMRB only mode. NOTE: used for BMRB only.
-`bmrb_id`|`param`|Set BMRB ID. NOTE: used for BMRB only.
-`merge_any_pk_as_is`|`param`|Boolean value. True until NMR data remediation (Phase 2). NOTE: used only for OneDep workflow
-`enforce_peak_row_format`|`param`|Boolean value. Whether to enforce to use _Peak_row_format loop for spectral peak list remediation (default value is False)
-`nonblk_anomalous_cs`|`param`|Boolean value. True for OneDep system because any anomalous chemical shift values should not be blocker.
-`nonblk_bad_nterm`|`param`|Boolean value. True for OneDep system because biocurator can handle atom name inconsistency of N-terminus residue.
-`update_poly_seq`|`param`|Boolean value. True for OneDep system.
-`resolve_conflict`|`param`|Boolean value. True for OneDep system.
-`check_mandatory_tag`|`param`|Boolean value. True for OneDep system.
-`check_auth_seq`|`param`|Boolean value. False for OneDep system.
-`validation_server`|`param`|Boolean value. False for OneDep system. True for standalone validation server.
-`conversion_server`|`param`|Boolean value, False for OneDep system. True for standalone NMR data conversion server.
-`transl_pseudo_name`|`param`|Boolean value. False for OneDep system. Whether to convert pseudoatom nomenclature in NMR unified data file.
-`tolerant_seq_align`|`param`|Boolean value. Set True for `nmr-str-consistency-check`, `nmr-str2str-deposit`, `nmr-str2cif-deposit`, `nmr-str2nef-release`, and `nmr-str2cif-annotate` workflow operations. Whether to ignore sequence alignment error due to residue variant.
-`fix_format_issue`|`param`|Boolean value. True for legacy separated file data file deposition or release mode.
-`excl_missing_data`|`param`|Boolean value. True for legacy separated file data file deposition. Whether to exclude missing mandatory data.
-`cmpl_missing_data`|`param`|Boolean value. True for legacy separated file data file deposition. Whether to complement missing data. (add missing pseudoatoms in NMR restraints in actual)
-`trust_pdbx_nmr_ens`|`param`|Boolean value. True for release mode. Whether to trust pdbx_nmr_ensemble to get total number of models.
-`rmsd_not_superimposed`|`param`|Positive floating-point value. Criterion for detection of not superimposed model. (default value is 2.0 Å)
-`rmsd_overlaid_exactly`|`param`|Positive floating-potnt value. Criterion for detection of exactly overlaid models. (default value is 0.01 Å)
-`secret_key`|`param`|Token used for signing in standalone NMR data conversion service.
-`service_host`|`param`|Host name of standalone NMR data conversion service as signer.
-`dep_sys_name`|`param`|Target deposition system name of standalone NMR data conversion service.
-`permit_missing_cs_file`|`param`|Boolean value. Permit missing CS file. NOTE: used for internal only.
+`proc_coord_file_path`|`file`|Set a spare coordinate file, used when `coordinate_file_path` is not accessible. Otherwise **unnecessary**.
+`chem_shift_file_path_list`|`file_list`, `file_dict_list`|Set chemical shift file(s). Multiple chemical shift files are accepted. The file type is `nmr-star`.
+`restraint_file_path_list`|`file_list`, `file_dict_list`|Set NMR restraint files in NMR-STAR format. The file type is `nmr-star`.
+`atypical_restraint_file_path_list`|`file_dict_list`|Set software-native NMR restraint files or spectral peak list files. The file types are given in the dictionaries as described above. Setting `'ignore_error': True` in a dictionary skips that file when a syntax error occurs.
+`atypical_chem_shift_file_path_list`|`file_dict_list`|Set software-native chemical shift files. NOTE: used for the standalone NMR data conversion service.
+`report_file_path`|`file`|Set the report file generated by a preceding data checking task (`nmr-cs-mr-merge`, `nmr-nef-consistency-check`, `nmr-str-consistency-check`, `nmr-cs-nef-consistency-check`, `nmr-cs-str-consistency-check`).
+`nmr_cif_file_path`|`file`|Set a CIF formatted NMR unified data file. NOTE: used for BMRB internal processing.
+`nmrif_file_path`|`file`|Set a CIF formatted NMR metadata (aka. NMRIF) file. NOTE: used only in the OneDep workflow (`nmr-if-merge-deposit`).
+`remediation`|`param`|Boolean. True for legacy separated data file deposition; False for native NMR unified data file deposition.
+`internal`|`param`|Boolean. Set internal mode. NOTE: for internal use only.
+`bmrb_only`|`param`|Boolean. Set BMRB-only mode. NOTE: used by BMRB only.
+`bmrb_id`|`param`|Set the BMRB ID. NOTE: used by BMRB only.
+`merge_any_pk_as_is`|`param`|Boolean. True until NMR data remediation (Phase 2). NOTE: used only in the OneDep workflow.
+`enforce_peak_row_format`|`param`|Boolean. Whether to enforce the `_Peak_row_format` loop in spectral peak list remediation. (default: False)
+`nonblk_anomalous_cs`|`param`|Boolean. True for the OneDep system, so that anomalous chemical shift values are not blockers.
+`nonblk_bad_nterm`|`param`|Boolean. True for the OneDep system, because biocurators can handle atom name inconsistencies of the N-terminal residue.
+`update_poly_seq`|`param`|Boolean. True for the OneDep system.
+`resolve_conflict`|`param`|Boolean. True for the OneDep system.
+`check_mandatory_tag`|`param`|Boolean. True for the OneDep system.
+`check_auth_seq`|`param`|Boolean. False for the OneDep system.
+`validation_server`|`param`|Boolean. False for the OneDep system; True for the standalone validation server.
+`conversion_server`|`param`|Boolean. False for the OneDep system; True for the standalone NMR data conversion server.
+`transl_pseudo_name`|`param`|Boolean. False for the OneDep system. Whether to convert pseudoatom nomenclature in the NMR unified data file.
+`tolerant_seq_align`|`param`|Boolean. Set True for the `nmr-str-consistency-check`, `nmr-str2str-deposit`, `nmr-str2cif-deposit`, `nmr-str2nef-release` and `nmr-str2cif-annotate` workflow operations. Whether to ignore sequence alignment errors caused by residue variants.
+`fix_format_issue`|`param`|Boolean. True for legacy separated data file deposition or release mode.
+`excl_missing_data`|`param`|Boolean. True for legacy separated data file deposition. Whether to exclude missing mandatory data.
+`cmpl_missing_data`|`param`|Boolean. True for legacy separated data file deposition. Whether to complement missing data (in practice, add missing pseudoatoms to NMR restraints).
+`trust_pdbx_nmr_ens`|`param`|Boolean. True for release mode. Whether to trust `pdbx_nmr_ensemble` for the total number of models.
+`rmsd_not_superimposed`|`param`|Positive float. Criterion for detecting models that are not superimposed. (default: 2.0 Å)
+`rmsd_overlaid_exactly`|`param`|Positive float. Criterion for detecting exactly overlaid models. (default: 0.01 Å)
+`secret_key`|`param`|Token used for signing in the standalone NMR data conversion service.
+`service_host`|`param`|Host name of the standalone NMR data conversion service, as signer.
+`dep_sys_name`|`param`|Target deposition system name of the standalone NMR data conversion service.
+`permit_missing_cs_file`|`param`|Boolean. Permit a missing chemical shift file. NOTE: for internal use only.
 
-4. Add primary output file path, other output file path and parameters
+### 4. Add the primary output file path, other output file paths and parameters
 
-NmrDpUtility outputs processed primary input data source set by the **setSource()** as primary output file, which is specified by **setDestination(fPath: str)** method. When you select NEF as the input resource, the primary output should be converted NEF file. The other output file paths (e.g. NMR-STAR and CIF formatted NMR-STAR) and parameters should be set through **addOutput(name: Optional[str] = None, value: Any = None, type: str = 'file')** method:
+NmrDpUtility writes the processed primary data source (set by **setSource()**) to the primary output file, which is specified with the **setDestination(fPath: str)** method. When NEF is the input, the primary output is the converted NEF file. Other output file paths (e.g. NMR-STAR and CIF formatted NMR-STAR) and parameters are set with the **addOutput(name: Optional[str] = None, value: Any = None, type: str = 'file')** method.
 
-The argument **name** should be chosen from effective names shown in a table below, and the **type** argument should be chosen from (`param` and `file`). At first, `param` is used to set a named parameter, Next, `file` is used to specify output file path.
+**name** must be one of the names in the table below, and **type** must be either `param` (a named parameter) or `file` (an output file path).
 
 name|type|description
-----|--------------|-----------
-`nmr_cif_file_path`|`file`|Set CIF formatted NMR-STAR unified data file. Effective in `nmr-nef2cif-deposit`, `nmr-str2cif-deposit`, and `nmr-str2cif-annotate` workflow operations.
-`nef_file_path`|`file`|Set NEF unified data file. Effective in `nmr-str2nef-release` workflow operations.
-`nmr-star_file_path`|`file`|Set NMR-STAR unified data file. Effective in `nmr-nef2str-deposit`, and `nmr-nef2cif-deposit` workflow operations.
-`nmrif_file_path`|`file`|Set CIF formatted NMR metadata (aka. NMRIF) file path. NOTE: used only for OneDep workflows (`nmr-cs-mr-merge`, `nmr-str2str-deposit`, and `nmr-str2cif-deposit`, `nmr-nef2str-deposit`, `nmr-nef2cif-deposit`)
-`report_file_path`|`file`|Set auxiliary report file path when setLog() is occupied for the previous main task.
-`entry_id`|`param`|Set entry ID. (default value is extracted from coordinate file if available, otherwise, 'UNNAMED')
-`retain_original`|`param`|Boolean value. True by default. Whether to retain original content if possible.
-`leave_intl_note`|`param`|Boolean value. True by default. Whether to leave internal commentary note in processed NMR-STAR file.
-`reduced_atom_notation`|`param`|Boolean value. True by default. Whether to use reduced atom notation in warning/error message.
+----|----|-----------
+`nmr_cif_file_path`|`file`|Set the CIF formatted NMR-STAR unified data file. Effective in the `nmr-nef2cif-deposit`, `nmr-str2cif-deposit` and `nmr-str2cif-annotate` workflow operations.
+`nef_file_path`|`file`|Set the NEF unified data file. Effective in the `nmr-str2nef-release` workflow operation.
+`nmr-star_file_path`|`file`|Set the NMR-STAR unified data file. Effective in the `nmr-nef2str-deposit` and `nmr-nef2cif-deposit` workflow operations.
+`nmrif_file_path`|`file`|Set the CIF formatted NMR metadata (aka. NMRIF) file. NOTE: used only in the OneDep workflows (`nmr-cs-mr-merge`, `nmr-str2str-deposit`, `nmr-str2cif-deposit`, `nmr-nef2str-deposit`, `nmr-nef2cif-deposit`).
+`report_file_path`|`file`|Set an auxiliary report file, used when **setLog()** is already taken by the preceding main task.
+`entry_id`|`param`|Set the entry ID. (default: extracted from the coordinate file if available, otherwise `UNNAMED`)
+`retain_original`|`param`|Boolean. True by default. Whether to retain the original content where possible.
+`leave_intl_note`|`param`|Boolean. True by default. Whether to leave internal commentary notes in the processed NMR-STAR file.
+`reduced_atom_notation`|`param`|Boolean. True by default. Whether to use reduced atom notation in warning/error messages.
 
-5. Invoke defined workflow operation
+### 5. Invoke a workflow operation
 
-Once the input and output resources are ready, calling the **op()** on a specific workflow operation will execute a series of data processing steps.
+Once the inputs and outputs are set, calling **op()** with a workflow operation name runs a series of data processing steps.
 
-workflow operation|role|primary output file(s) and its file path API
-------------------|----|-----------------------------------------
-`nmr-nef-consistency-check`|Validate NEF file|Report file: **addOutput('`report_file_path`', '`file`', file_path)**
-`nmr-str-consistency-check`|Validate NMR-STAR file|Report file: **addOutput('`report_file_path`', '`file`', file_path)**
-`nmr-nef2str-deposit`|Convert NEF file to NMR-STAR file|NMR-STAR file: **addOutput('`report_file_path`', '`file`', file_path)**
-`nmr-nef2cif-deposit`|Convert NEF file to NMR-STAR and generate CIF formatted NMR-STAR file for OneDep system|NMR-STAR file: **setDestination(file_path)**,<br />CIF formatted NMR-STAR file: **addOutput('`nmr_cif_file_path`', '`file`', file_path)**
-`nmr-str2str-deposit`|Convert NMR-STAR file|NMR-STAR file: **setDestination(file_path)**
-`nmr-str2cif-deposit`|Convert NMR-STAR file and generate CIF formatted NMR-STAR file for OneDep system|NMR-STAR file: **setDestination(file_path)**,<br />CIF formatted NMR-STAR file: **addOutput('`nmr_cif_file_path`', '`file`', file_path)**
-`nmr-str2nef-release`|Convert NMR-STAR file to NEF file for OneDep release module.|NMR-STAR file: **setDestination(file_path)**,<br />NEF file: **addOutput('`nef_file_path`', '`file`', file_path)**
-`nmr-cs-nef-consistency-check`|**Deprecated.**|Report file: **addOutput('`report_file_path`', '`file`', file_path)**
-`nmr-cs-str-consistency-check`|**Deprecated.**|Report file: **addOutput('`report_file_path`', '`file`', file_path)**
-`nmr-cs-mr-merge`|Combine assigned chemical shifts and NMR restraints. Optionally, validate spectral peak lists and insert them as raw text data using `_Spectral_peak_list.Text_data` tag, otherwise convert them using regular NMR-STAR loops and tags|NMR-STAR file: **setDestination(file_path)**,<br />CIF formatted NMR-STAR file: **addOutput('`nmr_cif_file_path`', '`file`', file_path)**
-`nmr-str2cif-annotate`|OneDep system only, Update NMR-STAR file based on annotated model file|CIF formatted NMR-STAR file: **addOutput('`nmr_cif_file_path`', '`file`', file_path)**
-`nmr-if-merge-deposit`|Merge available NMR metadata (aka. NMRIF) to NMR-STAR file|CIF formatted NMR-STAR file: **addOutput('`nmr_cif_file_path`', '`file`', file_path)**
-`nmr-str-replace-cs`|Replace the assigned chemical shifts in the combined NMR-STAR file with those in new chemical shift files|NMR-STAR file: **setDestination(file_path)**,<br />CIF formatted NMR-STAR file: **addOutput('`nmr_cif_file_path`', '`file`', file_path)**
+workflow operation|role|primary output file(s) and how to set their paths
+------------------|----|-----------------------------------------------
+`nmr-nef-consistency-check`|Validate a NEF file|Report file: **setLog(file_path)**
+`nmr-str-consistency-check`|Validate an NMR-STAR file|Report file: **setLog(file_path)**
+`nmr-nef2str-deposit`|Convert a NEF file to an NMR-STAR file|NEF file: **setDestination(file_path)**,<br />NMR-STAR file: **addOutput('nmr-star_file_path', file_path, 'file')**
+`nmr-nef2cif-deposit`|Convert a NEF file to an NMR-STAR file and generate a CIF formatted NMR-STAR file for the OneDep system|NEF file: **setDestination(file_path)**,<br />NMR-STAR file: **addOutput('nmr-star_file_path', file_path, 'file')**,<br />CIF formatted NMR-STAR file: **addOutput('nmr_cif_file_path', file_path, 'file')**
+`nmr-str2str-deposit`|Convert an NMR-STAR file|NMR-STAR file: **setDestination(file_path)**
+`nmr-str2cif-deposit`|Convert an NMR-STAR file and generate a CIF formatted NMR-STAR file for the OneDep system|NMR-STAR file: **setDestination(file_path)**,<br />CIF formatted NMR-STAR file: **addOutput('nmr_cif_file_path', file_path, 'file')**
+`nmr-str2nef-release`|Convert an NMR-STAR file to a NEF file for the OneDep release module|NMR-STAR file: **setDestination(file_path)**,<br />NEF file: **addOutput('nef_file_path', file_path, 'file')**
+`nmr-cs-nef-consistency-check`|**Deprecated.**|Report file: **setLog(file_path)**
+`nmr-cs-str-consistency-check`|**Deprecated.**|Report file: **setLog(file_path)**
+`nmr-cs-mr-merge`|Combine assigned chemical shifts and NMR restraints. Spectral peak lists are validated and either inserted as raw text using the `_Spectral_peak_list.Text_data` tag, or converted into regular NMR-STAR loops and tags|NMR-STAR file: **setDestination(file_path)**,<br />CIF formatted NMR-STAR file: **addOutput('nmr_cif_file_path', file_path, 'file')**
+`nmr-str2cif-annotate`|OneDep system only. Update an NMR-STAR file based on the annotated model file|CIF formatted NMR-STAR file: **addOutput('nmr_cif_file_path', file_path, 'file')**
+`nmr-if-merge-deposit`|Merge available NMR metadata (aka. NMRIF) into an NMR-STAR file|CIF formatted NMR-STAR file: **addOutput('nmr_cif_file_path', file_path, 'file')**
+`nmr-str-replace-cs`|Replace the assigned chemical shifts in a combined NMR-STAR file with those in new chemical shift files|NMR-STAR file: **setDestination(file_path)**,<br />CIF formatted NMR-STAR file: **addOutput('nmr_cif_file_path', file_path, 'file')**
 
-6. Setup working and cache directory if necessary
+### 6. Set up the working and cache directories (if necessary)
 
-By default, NmrDpUtility sets the current working directory to store intermediate processing files and creates a directory named `utils_nmr` within the current working directory to store cache files for performance improvement. The working directory and the cache directory can be configured independently by using **setWorkspace(dirPath: str, cacheDirPath: str = None)**. If cacheDirPath is None, the cache directory will be created under the specified working directory. Considering the reprocessing of files using the same coordinates or the same NMR data, stored cache files can be reused, resulting in improved performance. It would be better to share a common cache directory across a session. NOTE: The specified workspace is updated to its default settings after each workflow operation is completed. Therefore, in order to continue applying the workspace settings, you need to configure the workspace again.
+By default, NmrDpUtility stores intermediate processing files in the current working directory, and caches files in a `utils_nmr` directory it creates there. Cached files are reused when the same coordinates or NMR data are processed again, which improves performance, so it is best to share one cache directory across a session.
 
-7. Release memory between workflow operations if necessary
+The working and cache directories can be configured independently with **setWorkspace(dirPath: str, cacheDirPath: str = None)**. If `cacheDirPath` is None, the cache directory is created under the specified working directory.
 
-NmrDpUtility keeps the parsed coordinate file after **op()**, so that the next operation on the same file skips re-parsing it. For a large structure this can take more than 1 GB. Call **release()** before running memory-hungry work in the same process, e.g. restraint validation with an NmrVrptUtility that is not given NmrDpUtility's CifReader, and so parses the coordinate file on its own; the next **op()** then re-reads the coordinate file.
+NOTE: The workspace is reset to its defaults after each workflow operation completes. To keep using your settings, call **setWorkspace()** again before the next operation.
+
+### 7. Release memory between workflow operations (if necessary)
+
+NmrDpUtility keeps the parsed coordinate file after **op()**, so that the next operation on the same file can skip re-parsing it. For a large structure this can take more than 1 GB. Call **release()** before running memory-hungry work in the same process, e.g. restraint validation with an NmrVrptUtility that is not given NmrDpUtility's CifReader and so parses the coordinate file on its own. The next **op()** then re-reads the coordinate file.
 
 ```python
-    util.op('nmr-str2str-deposit')
-    util.release()  # drop the parsed coordinates before NmrVrptUtility parses them again
+util.op('nmr-str2str-deposit')
+util.release()  # drop the parsed coordinates before NmrVrptUtility parses them again
 ```
 
 ## Typical workflow operations
 
-As of now, OneDep supports (a) single NMR data file deposition using NMR unified data file in NEF or NMR-STAR and (b) conventional separated NMR data file deposition requiring assigned chemical shift file and set of NMR restraint files.
+OneDep currently supports (a) single NMR data file deposition, using an NMR unified data file in NEF or NMR-STAR format, and (b) conventional separated NMR data file deposition, which requires an assigned chemical shift file and a set of NMR restraint files.
 
 ### (a) Single NMR data file deposition
 
-At first, NMR unified data file must be validated and cross-checked by given coordinate file. Then, file conversion workflow will follow where report file generated by data checking workflow is required as input source.
+First, the NMR unified data file is validated and cross-checked against the coordinate file. A file conversion workflow follows, which takes the report file generated by the data checking workflow as an input.
 
-For example, NEF to CIF formatted NMR-STAR file conversion
+For example, NEF to CIF formatted NMR-STAR conversion:
 
 ```python
-    util.setSource(data_dir_path + entry_id + '.nef)
-    util.addInput(name='coordinate_file_path', value=data_dir_path + entry_id + '.cif', type='file')
-    util.addInput(name='nonblk_anomalous_cs', value=True, type='param')
-    util.addInput(name='nonblk_bad_nterm', value=True, type='param')
-    util.addInput(name='resolve_conflict', value=True, type='param')
-    util.addInput(name='check_mandatory_tag', value=True, type='param')
-    util.setLog(data_dir_path + entry_id + '-nef-consistency-log.json')  # this report file is reused in successive data conversion workflow
-    util.setVerbose(False)
+util.setSource(data_dir_path + entry_id + '.nef')
+util.addInput(name='coordinate_file_path', value=data_dir_path + entry_id + '.cif', type='file')
+util.addInput(name='nonblk_anomalous_cs', value=True, type='param')
+util.addInput(name='nonblk_bad_nterm', value=True, type='param')
+util.addInput(name='resolve_conflict', value=True, type='param')
+util.addInput(name='check_mandatory_tag', value=True, type='param')
+util.setLog(data_dir_path + entry_id + '-nef-consistency-log.json')  # this report file is reused by the following data conversion workflow
+util.setVerbose(False)
 
-    util.op('nmr-nef-consistency-check')
+util.op('nmr-nef-consistency-check')
 
-    util.setSource(data_dir_path + entry_id + '.nef)
-    util.addInput(name='coordinate_file_path', value=data_dir_path + entry_id + '.cif', type='file')
-    util.addInput(name='report_file_path', value=data_dir_path + entry_id '-nef-consistency-log.json', type='file')  # take report file of the 'nmr-nef-consistency-check' workflow operation
-    util.addInput(name='nonblk_anomalous_cs', value=True, type='param')
-    util.addInput(name='nonblk_bad_nterm', value=True, type='param')
-    util.addInput(name='resolve_conflict', value=True, type='param')
-    util.addInput(name='check_mandatory_tag', value=True, type='param')
-    util.setLog(data_dir_path + entry_id '-nef2cif-deposit-log.json')  # report file for data conversion
-    util.setDestination(data_dir_path + entry_id '-next.nef')  # the primary destination is the converted NEF file of the original data source
-    util.addOutput(name='nmr-star_file_path', value=data_dir_path + entry + '-nef2cif.str', type='file')  # converted NMR-STAR file
-    util.addOutput(name='nmr_cif_file_path', value=data_dir_path + entry_id + '-nef2cif.cif', type='file')  # converted CIF formatted NMR-STAR file
-    util.addOutput(name='report_file_path', value=data_dir_path + entry_id + '-nef2cif-str-deposit-log.json', type='file')  # report file for the obtained NMR-STAR file
-    util.addOutput(name='entry_id', value=entry_id, type='param')
-    util.addOutput(name='leave_intl_note', value=False, type='param')
-    util.setVerbose(False)
+util.setSource(data_dir_path + entry_id + '.nef')
+util.addInput(name='coordinate_file_path', value=data_dir_path + entry_id + '.cif', type='file')
+util.addInput(name='report_file_path', value=data_dir_path + entry_id + '-nef-consistency-log.json', type='file')  # report file of the 'nmr-nef-consistency-check' workflow operation
+util.addInput(name='nonblk_anomalous_cs', value=True, type='param')
+util.addInput(name='nonblk_bad_nterm', value=True, type='param')
+util.addInput(name='resolve_conflict', value=True, type='param')
+util.addInput(name='check_mandatory_tag', value=True, type='param')
+util.setLog(data_dir_path + entry_id + '-nef2cif-deposit-log.json')  # report file for the data conversion
+util.setDestination(data_dir_path + entry_id + '-next.nef')  # the primary destination is the converted NEF file of the original data source
+util.addOutput(name='nmr-star_file_path', value=data_dir_path + entry_id + '-nef2cif.str', type='file')  # converted NMR-STAR file
+util.addOutput(name='nmr_cif_file_path', value=data_dir_path + entry_id + '-nef2cif.cif', type='file')  # converted CIF formatted NMR-STAR file
+util.addOutput(name='report_file_path', value=data_dir_path + entry_id + '-nef2cif-str-deposit-log.json', type='file')  # report file for the resulting NMR-STAR file
+util.addOutput(name='entry_id', value=entry_id, type='param')
+util.addOutput(name='leave_intl_note', value=False, type='param')
+util.setVerbose(False)
 
-    util.op('nmr-nef2cif-deposit')
+util.op('nmr-nef2cif-deposit')
 ```
 
-As for NMR-STAR (NMR unified data) to CIF formatted NMR-STAR file conversion
+NMR-STAR (NMR unified data) to CIF formatted NMR-STAR conversion:
 
 ```python
-    util.setSource(data_dir_path + entry_id + '.str)
-    util.addInput(name='coordinate_file_path', value=data_dir_path + entry_id + '.cif', type='file')
-    util.addInput(name='nonblk_anomalous_cs', value=True, type='param')
-    util.addInput(name='nonblk_bad_nterm', value=True, type='param')
-    util.addInput(name='resolve_conflict', value=True, type='param')
-    util.addInput(name='check_mandatory_tag', value=True, type='param')
-    util.setLog(data_dir_path + entry_id + '-str-consistency-log.json')  # this report file is reused in successive data conversion workflow
-    util.setVerbose(False)
+util.setSource(data_dir_path + entry_id + '.str')
+util.addInput(name='coordinate_file_path', value=data_dir_path + entry_id + '.cif', type='file')
+util.addInput(name='nonblk_anomalous_cs', value=True, type='param')
+util.addInput(name='nonblk_bad_nterm', value=True, type='param')
+util.addInput(name='resolve_conflict', value=True, type='param')
+util.addInput(name='check_mandatory_tag', value=True, type='param')
+util.setLog(data_dir_path + entry_id + '-str-consistency-log.json')  # this report file is reused by the following data conversion workflow
+util.setVerbose(False)
 
-    util.op('nmr-str-consistency-check')
+util.op('nmr-str-consistency-check')
 
-    util.setSource(data_dir_path + entry_id + '.str)
-    util.addInput(name='coordinate_file_path', value=data_dir_path + entry_id + '.cif', type='file')
-    util.addInput(name='report_file_path', value=data_dir_path + entry_id '-str-consistency-log.json', type='file')  # take report file of the 'nmr-str-consistency-check' workflow operation
-    util.addInput(name='nonblk_anomalous_cs', value=True, type='param')
-    util.addInput(name='nonblk_bad_nterm', value=True, type='param')
-    util.addInput(name='resolve_conflict', value=True, type='param')
-    util.addInput(name='check_mandatory_tag', value=True, type='param')
-    util.setLog(data_dir_path + entry_id '-str2cif-deposit-log.json')  # report file for data conversion
-    util.setDestination(data_dir_path + entry_id '-next.str')  # the primary destination is the converted NMR-STAR file of the original data source
-    util.addOutput(name='nmr_cif_file_path', value=data_dir_path + entry_id + '-str2cif.cif', type='file')  # converted CIF formatted NMR-STAR file
-    util.addOutput(name='report_file_path', value=data_dir_path + entry_id + '-str2cif-str-deposit-log.json', type='file')  # report file for the obtained NMR-STAR file
-    util.addOutput(name='entry_id', value=entry_id, type='param')
-    util.addOutput(name='leave_intl_note', value=False, type='param')
-    util.setVerbose(False)
+util.setSource(data_dir_path + entry_id + '.str')
+util.addInput(name='coordinate_file_path', value=data_dir_path + entry_id + '.cif', type='file')
+util.addInput(name='report_file_path', value=data_dir_path + entry_id + '-str-consistency-log.json', type='file')  # report file of the 'nmr-str-consistency-check' workflow operation
+util.addInput(name='nonblk_anomalous_cs', value=True, type='param')
+util.addInput(name='nonblk_bad_nterm', value=True, type='param')
+util.addInput(name='resolve_conflict', value=True, type='param')
+util.addInput(name='check_mandatory_tag', value=True, type='param')
+util.setLog(data_dir_path + entry_id + '-str2cif-deposit-log.json')  # report file for the data conversion
+util.setDestination(data_dir_path + entry_id + '-next.str')  # the primary destination is the converted NMR-STAR file of the original data source
+util.addOutput(name='nmr_cif_file_path', value=data_dir_path + entry_id + '-str2cif.cif', type='file')  # converted CIF formatted NMR-STAR file
+util.addOutput(name='report_file_path', value=data_dir_path + entry_id + '-str2cif-str-deposit-log.json', type='file')  # report file for the resulting NMR-STAR file
+util.addOutput(name='entry_id', value=entry_id, type='param')
+util.addOutput(name='leave_intl_note', value=False, type='param')
+util.setVerbose(False)
 
-    util.op('nmr-str2cif-deposit')
+util.op('nmr-str2cif-deposit')
 ```
 
 ### (b) Separated NMR data file deposition
 
-Conventional NMR deposition requires assigned chemical shift file and software native formatted restraint files. The OneDep system can combine these NMR data into an NMR unified data file that is achived by running `nmr-cs-mr-merge` workflow operation.
+Conventional NMR deposition requires an assigned chemical shift file and restraint files in software-native formats. The OneDep system combines these into an NMR unified data file with the `nmr-cs-mr-merge` workflow operation.
 
 ```python
-    model_file_path = 'D_1000259961_model-upload_P1.cif.V1'
-    cs_path_list = [{'file_name': 'D_1000259961_cs-upload_P1.str.V1', 'file_type': 'nmr-star', 'original_file_name': 'TGM1D3.str'}]
-    mr_file_type = ['nm-res-xpl', 'nm-res-xpl', 'nm-res-xpl', 'nm-res-xpl', 'nm-res-xpl']
-    mr_file_path = ['HBDA-5.tbl', 'jhnhacoup3.tbl', 'tgmd3_rdc_caco_ave_v3.tbl', 'tgmd3_rdc_caha_ave_v4.tbl', 'tgmd3_rdc_nh_CHB.tbl']
-    ar_path_list = []
-    for i, ar_path in enumerate(mr_file_path):
-        ar_path_list.append({'file_name': data_dir_path + ar_path, 'file_type': mr_file_type[i], 'original_file_name': ar_path})
+model_file_path = 'D_1000259961_model-upload_P1.cif.V1'
+cs_path_list = [{'file_name': data_dir_path + 'D_1000259961_cs-upload_P1.str.V1', 'file_type': 'nmr-star', 'original_file_name': 'TGM1D3.str'}]
+mr_file_type = ['nm-res-xpl', 'nm-res-xpl', 'nm-res-xpl', 'nm-res-xpl', 'nm-res-xpl']
+mr_file_path = ['HBDA-5.tbl', 'jhnhacoup3.tbl', 'tgmd3_rdc_caco_ave_v3.tbl', 'tgmd3_rdc_caha_ave_v4.tbl', 'tgmd3_rdc_nh_CHB.tbl']
+ar_path_list = []
+for i, ar_path in enumerate(mr_file_path):
+    ar_path_list.append({'file_name': data_dir_path + ar_path, 'file_type': mr_file_type[i], 'original_file_name': ar_path})
 
-    util.addInput(name='chem_shift_file_path_list', value=cs_path_list, type='file_dict_list')
-    util.addInput(name='atypical_restraint_file_path_list', value=ar_path_list, type='file_dict_list')
-    util.addInput(name='coordinate_file_path', value=data_dir_path + model_file_path, type='file')
-    util.addInput(name='nonblk_anomalous_cs', value=True, type='param')
-    util.addInput(name='nonblk_bad_nterm', value=True, type='param')
-    util.addInput(name='resolve_conflict', value=True, type='param')
-    util.addInput(name='check_mandatory_tag', value=False, type='param')
-    util.addInput(name='remediation', value=True, type='param')  # turn on remediation mode
-    util.setLog(data_dir_path + entry_id + '-cs-str-consistency-log.json')
-    util.setDestination(data_dir_path + entry_id + '_cs_mr_merged.str')  # combined NMR-STAR file
-    util.setVerbose(False)
+util.addInput(name='chem_shift_file_path_list', value=cs_path_list, type='file_dict_list')
+util.addInput(name='atypical_restraint_file_path_list', value=ar_path_list, type='file_dict_list')
+util.addInput(name='coordinate_file_path', value=data_dir_path + model_file_path, type='file')
+util.addInput(name='nonblk_anomalous_cs', value=True, type='param')
+util.addInput(name='nonblk_bad_nterm', value=True, type='param')
+util.addInput(name='resolve_conflict', value=True, type='param')
+util.addInput(name='check_mandatory_tag', value=False, type='param')
+util.addInput(name='remediation', value=True, type='param')  # turn on remediation mode
+util.setLog(data_dir_path + entry_id + '-cs-str-consistency-log.json')
+util.setDestination(data_dir_path + entry_id + '_cs_mr_merged.str')  # combined NMR-STAR file
+util.setVerbose(False)
 
-    util.op('nmr-cs-mr-merge')
+util.op('nmr-cs-mr-merge')
 ```
 
-The result combined NMR-STAR file will be validated as if NMR unified data file deposition by the following `nmr-str-consistency-check` and `nmr-str2cif-deposit` workflow operations. Please note that the `atypical_restraint_file_path_list` argument accepcts any software-native restraints and spectral peak lists in supported software native formats except for NMR-STAR format and use the `restraint_file_path_list` argument to incorporate restraints and spectral peak lists in NMR-STAR format. The usage of `restraint_file_path_list` and `atypical_restraint_file_path_list` is the same.
+The resulting combined NMR-STAR file is then validated in the same way as an NMR unified data file deposition, by the `nmr-str-consistency-check` and `nmr-str2cif-deposit` workflow operations.
 
-NmrDpUtility class can absorb differences between NMR-STAR file and CIF formatted NMR-STAR file so that you can directly use the CIF formatted NMR-STAR file as input resource file. To get **CIF formatted NMR-STAR** file as output, please append output file path with name `nmr_cif_file_path` as follows.
+The `atypical_restraint_file_path_list` argument accepts restraints and spectral peak lists in any supported software-native format other than NMR-STAR. Use the `restraint_file_path_list` argument for restraints and spectral peak lists in NMR-STAR format; the two arguments are used the same way.
+
+NmrDpUtility absorbs the differences between NMR-STAR and CIF formatted NMR-STAR, so a CIF formatted NMR-STAR file can be used directly as an input. To get a **CIF formatted NMR-STAR** file as output, add an output file path named `nmr_cif_file_path`:
 
 ```python
-    util.addOutput(name='nmr_cif_file_path', value=path_to_pdbx_nmr_data_file, type='file')
+util.addOutput(name='nmr_cif_file_path', value=path_to_pdbx_nmr_data_file, type='file')
 ```
 
 ### Support for Stereo-Array Isotope Labeling (SAIL)
 
-NmrDpUtility class can notice the Stereo Array Isotope Labeling (SAIL) method. This is a trigger that prevents to generate atom names in the same atom group from fanning out for a given atom name. To turn off fan-out mode, you must add one of the following metadata to your upload file. Here are four cases (a, b, c, and d):
+NmrDpUtility detects the Stereo-Array Isotope Labeling (SAIL) method. Detection turns off fan-out mode, which otherwise expands a given atom name into the names of all atoms in the same atom group. To mark your data as SAIL, add one of the following four kinds of metadata to your uploaded file:
 
 - NMR-STAR
-	- 1. Create `_Systematic_chem_shift_offset` loop in `_Assiged_chem_shift_list` saveframe and set proper description in `_Systematic_chem_shift_offset.Type` data item
-	- 2. Create '_Sample_component' loop in `_Sample` saveframe and set proper description in `_Sample_component.Isotopic_labeling` data item for target entity
-For example,
-```
+    1. Create a `_Systematic_chem_shift_offset` loop in the `_Assigned_chem_shift_list` saveframe, and set an appropriate description in the `_Systematic_chem_shift_offset.Type` data item.
+    2. Create a `_Sample_component` loop in the `_Sample` saveframe, and set an appropriate description in the `_Sample_component.Isotopic_labeling` data item for the target entity.
+
+    For example:
+
+    ```
     _Systematic_chem_shift_offset.Type 'stereo-array isotope labeling'
     _Systematic_chem_shift_offset.Type SAIL
     _Sample_component.Isotopic_labeling 'stereo-array isotope labeling'
     _Sample_component.Isotopic_labeling SAIL
-```
+    ```
+
 - PDBx/mmCIF (coordinates)
-	- 3. Add proper description in `_struct_keywords.text` data item
-	- 4. Set proper description in `_pdbx_nmr_exptl_sample.isotopic_labeling` data item for target entity
-For example,
-```
+    3. Add an appropriate description in the `_struct_keywords.text` data item.
+    4. Set an appropriate description in the `_pdbx_nmr_exptl_sample.isotopic_labeling` data item for the target entity.
+
+    For example:
+
+    ```
     _struct_keywords.text 'stereo-array isotope labeling'
     _struct_keywords.text SAIL
     _pdbx_nmr_exptl_sample.isotopic_labeling 'stereo-array isotope labeling'
     _pdbx_nmr_exptl_sample.isotopic_labeling SAIL
-```
+    ```
 
-## Schema of NMR data processing report file
+## Schema of the NMR data processing report file
 
-[NmrDpReport class](NmrDpReport.py) handles writing and reading the report file. Document structure of the report file is defined in [JSON Schema file](../tests-nmr/json-schema/nmr-data-processing-report-schema-v5.json).
+The [NmrDpReport class](NmrDpReport.py) writes and reads the report file. The structure of the report file is defined by a [JSON Schema file](../tests-nmr/json-schema/nmr-data-processing-report-schema-v5.json).
 
 ## Standalone mode
 
 ### Requirements
 
-- python 3.6 or later
+- Python 3.6 or later
 
 - pip packages:
-	- antlr4-python3-runtime
-	- chardet
-	- datetime
-	- dbscan ; python_version >= '3.9'  # Otherwise, scikit-learn's DBSCAN is used instead
-	- mmcif
-	- munkres
-	- numpy
-	- packaging
-	- pynmrstar (3.2.0 or later)
-	- python-dateutil
-	- requests
-	- rmsd
-	- scikit-learn
-	- striprtf
-	- wwpdb.utils.align
-	- dataclasses ; python_version == '3.6'  # Only for Python 3.6
+    - antlr4-python3-runtime
+    - chardet
+    - datetime
+    - dbscan ; python_version >= '3.9'  # otherwise, scikit-learn's DBSCAN is used instead
+    - mmcif
+    - munkres
+    - numpy
+    - packaging
+    - pynmrstar (3.2.0 or later)
+    - python-dateutil
+    - requests
+    - rmsd
+    - scikit-learn
+    - striprtf
+    - wwpdb.utils.align
+    - dataclasses ; python_version == '3.6'  # only for Python 3.6
 
-- If your Python version is less than 3.10, downgrade urllib3 from v2 to v1. Otherwise, [the urllib3 v2 requires OpenSSL 1.1.1+](https://github.com/urllib3/urllib3/issues/2168).
-```bash
-    pip install urllib3==1.26.18  # Only for Python 3.6, 3.7, 3.8, and 3.9.
-```
+- If your Python version is older than 3.10, downgrade urllib3 from v2 to v1, because [urllib3 v2 requires OpenSSL 1.1.1+](https://github.com/urllib3/urllib3/issues/2168).
 
-- compiler supported c++17 (e.g. gcc 8.1 or later, optional for big performance acceleration based on speedy-antlr-tool)
+    ```bash
+    pip install urllib3==1.26.18  # only for Python 3.6, 3.7, 3.8 and 3.9
+    ```
+
+- Optional: a C++17-capable compiler (e.g. GCC 8.1 or later), for a large performance boost from the speedy-antlr-tool accelerators.
 
 ### Set up standalone mode
 
-Set enviromnent variable PYTHONPATH
+Set the PYTHONPATH environment variable:
+
 ```bash
-    export PYTHONPATH=$PYTHONPATH:(path to wwpdb/utils)  # Required only the first time.
+export PYTHONPATH=$PYTHONPATH:(path to wwpdb/utils)  # required only the first time
 ```
 
-Update Chemical Component Dictionary (CCD) periodically
+Update the Chemical Component Dictionary (CCD) periodically:
+
 ```bash
-    python wwpdb/utils/nmr/ChemCompUpdater.py  # Please run the script every Wednesday UTC+00:00.
+python wwpdb/utils/nmr/ChemCompUpdater.py  # run the script every Wednesday (UTC+00:00)
 ```
 
-Import test
+Test the import:
+
 ```python
-    from nmr.NmrDpUtility import NmrDpUtility
+from nmr.NmrDpUtility import NmrDpUtility
 ```
 
-### Running your script using standalone Docker container
+### Running your script in the standalone Docker container
 
-Docker container of py-wwpdb_utils_nmr with reqularly updated CCD is available at the GitHub Container Repository. The container, `ghcr.io/yokochi47/py-wwpdb_utils_nmr:main`, will be published on every Wednesday (03:10~ UTC).
+A Docker container of py-wwpdb_utils_nmr with a regularly updated CCD is available from the GitHub Container Registry. The container, `ghcr.io/yokochi47/py-wwpdb_utils_nmr:main`, is published every Wednesday (from 03:10 UTC).
 
 ```shell
-    docker pull ghcr.io/yokochi47/py-wwpdb_utils_nmr:main
+docker pull ghcr.io/yokochi47/py-wwpdb_utils_nmr:main
 ```
 
-Then, prepare an arbitrary directory named `tmp` that includes your Python script (e.g. tmp/app.py) and input files. To mount the directory under a predefined working directory `mnt` on a container machine, use the `docker run -v` option.
+Then prepare a directory, e.g. `tmp`, containing your Python script (e.g. `tmp/app.py`) and input files. Mount it under the container's predefined working directory `/mnt` with the `docker run -v` option. The host path must be absolute; a bare name such as `tmp` would be taken as a named Docker volume.
+
 ```shell
-    docker run --rm -it -v tmp:/mnt/tmp -u $(id -u):$(id -g) ghcr.io/yokochi47/py-wwpdb_utils_nmr:main python tmp/app.py
+docker run --rm -it -v $(pwd)/tmp:/mnt/tmp -u $(id -u):$(id -g) ghcr.io/yokochi47/py-wwpdb_utils_nmr:main python tmp/app.py
 ```
 
 ### Check software and resource version information
-You can check installed software and resource version information as environment variables.
+
+Installed software and resource versions are available as environment variables:
+
 ```shell
 docker run ghcr.io/yokochi47/py-wwpdb_utils_nmr:main env
 
@@ -337,7 +366,7 @@ CS_STAT_REL=2026-06-24    # BMRB chemical shift statistics release date
 ...
 ```
 
-For more information, see [Docker image in forked repository](https://github.com/yokochi47/py-wwpdb_utils_nmr/blob/main/Dockerfile)
+For more information, see the [Dockerfile in the forked repository](https://github.com/yokochi47/py-wwpdb_utils_nmr/blob/main/Dockerfile).
 
 ## ANTLR4 C++ parser accelerators
 
@@ -359,9 +388,9 @@ Requires the `antlr4-tools` and `speedy-antlr-tool` pip packages, plus Java
 (`antlr4-tools` provisions a JRE on first use):
 
 ```bash
-    python3 tools/gen_speedy_antlr.py --list          # show bridged grammars
-    python3 tools/gen_speedy_antlr.py XplorMR         # regenerate one
-    python3 tools/gen_speedy_antlr.py --all
+python3 tools/gen_speedy_antlr.py --list          # show bridged grammars
+python3 tools/gen_speedy_antlr.py XplorMR         # regenerate one
+python3 tools/gen_speedy_antlr.py --all
 ```
 
 Grammars are **discovered from the `*Reader.py` classes** rather than listed in a
@@ -404,8 +433,8 @@ speedy-antlr-tool upgrade fails loudly rather than silently dropping a patch:
 Off by default, so the sdist and source wheel published to PyPI stay pure Python:
 
 ```bash
-    WWPDB_NMR_BUILD_SPEEDY_ANTLR=1 python3 setup.py build_clib build_ext --inplace -j $(nproc)
-    find wwpdb/utils/nmr -name 'sa_*_cpp_parser*.so' -exec strip --strip-unneeded {} +
+WWPDB_NMR_BUILD_SPEEDY_ANTLR=1 python3 setup.py build_clib build_ext --inplace -j $(nproc)
+find wwpdb/utils/nmr -name 'sa_*_cpp_parser*.so' -exec strip --strip-unneeded {} +
 ```
 
 `build_clib` compiles the ANTLR4 C++ runtime once into a static library shared by
@@ -425,7 +454,7 @@ because `XplorMRReader`, `CnsMRReader`, `CyanaMRReader`, `CharmmMRReader`,
 
 ### Known differences
 
-Verified by A/B running all 42 grammars through both paths over six inputs x both
+Verified by A/B running all 42 grammars through both paths over six inputs × both
 prediction modes - 504 comparisons, each in its own process - checking parse trees
 field-for-field (token type, channel, line, column, start/stop, tokenIndex, text)
 plus both syntax-error reports. **502 of 504 were identical**; the two exceptions
@@ -447,7 +476,7 @@ malformed input:
    accurate one, and the syntax-error messages users see are unaffected.
 
 [SpeedyAntlrErrorListener.py](mr/SpeedyAntlrErrorListener.py) also undoes the C++
-target's `?` escaping of `?`, so error messages match byte for byte.
+target's `\u003F` escaping of `?`, so error messages match byte for byte.
 
 ### Note on the ANTLR Python runtime's shared DFA cache
 
@@ -484,7 +513,7 @@ raised for a wrong-typed argument.
 Off by default, same contract as the ANTLR accelerators:
 
 ```bash
-    WWPDB_NMR_BUILD_C_ACCEL=1 python3 setup.py build_ext --inplace
+WWPDB_NMR_BUILD_C_ACCEL=1 python3 setup.py build_ext --inplace
 ```
 
 No static library and no extra toolchain - one `.c` file against `Python.h`. The
@@ -543,7 +572,7 @@ atoms could be shared outright.
 
 ## Appendix
 
-The codes used for specifying each file type in NmrDpUtility are compatible with OneDep system as follows:
+The file type codes used in NmrDpUtility correspond to those of the OneDep system as follows:
 
 NmrDpUtility|OneDep&nbsp;(DepUI)|OneDep (content type / format)|description
 ------------|--------------|----------------------------|-----------
@@ -554,7 +583,7 @@ NmrDpUtility|OneDep&nbsp;(DepUI)|OneDep (content type / format)|description
 `nm-res-amb`|`nm-res-amb`|`nmr-restraints` / `amber`|Restraint file in AMBER format
 `nm-res-ari`|`nm-res-ari`|`nmr-restraints` / `aria`|Restraint file in ARIA format
 `nm-res-arx`|**internal use**|`nmr-restraints` / `aria`|Restraint file in ARIA XML format
-`nm-res-bar`|**internal use**|`nmr-restraints` / `any`|Bare WSV/TSV/CSV distance restraint file with a header (MARDIGAS, AQUA's NOE restraint output, or User defined header)
+`nm-res-bar`|**internal use**|`nmr-restraints` / `any`|Bare WSV/TSV/CSV distance restraint file with a header (MARDIGAS, AQUA's NOE restraint output, or a user-defined header)
 `nm-res-bio`|`nm-res-bio`|`nmr-restraints` / `biosym`|Restraint file in BIOSYM format (including INSIGHT-II)
 `nm-aux-cha`|`nm-aux-cha`|`nmr-restraints` / `any`|Topology file in CHARMM/CRD format
 `nm-res-cha`|`nm-res-cha`|`nmr-restraints` / `charmm`|Restraint file in CHARMM format
@@ -565,7 +594,7 @@ NmrDpUtility|OneDep&nbsp;(DepUI)|OneDep (content type / format)|description
 `nm-res-gro`|`nm-res-gro`|`nmr-restraints` / `gromacs`|Restraint file in GROMACS format
 `nm-res-isd`|`nm-res-isd`|`nmr-restraints` / `isd`|Restraint file in ISD format
 `nm-res-noa`|**internal use**|`nmr-restraints` / `cyana`|Restraint file in CYANA NOE assignment format (aka. NOA)
-`nm-aux-pdb`|**internal use**|`nmr-restraints` / `any`|Topology file in Bare PDB format for AMBER/CHARMM/GROMACS/SCHRODINGER systems in case
+`nm-aux-pdb`|**internal use**|`nmr-restraints` / `any`|Topology file in Bare PDB format for AMBER/CHARMM/GROMACS/SCHRODINGER systems
 `nm-res-ros`|`nm-res-ros`|`nmr-restraints` / `rosetta`|Restraint file in ROSETTA format (including CS-ROSETTA extension for disulfide bond and RDC)
 `nm-res-sch`|`nm-res-sch`|`nmr-restraints` / `schrodinger`|Restraint file in Schrödinger/ASL format
 `nm-res-syb`|`nm-res-syb`|`nmr-restraints` / `sybyl`|Restraint file in SYBYL format
@@ -598,13 +627,13 @@ NmrDpUtility|OneDep&nbsp;(DepUI)|OneDep (content type / format)|description
 `nm-shi-ppm`|**internal use**|`nmr-chemical-shifts` / `any`|PPM chemical shift file (NMRVIEW, CAMRA)
 `nm-shi-st2`|**internal use**|`nmr-chemical-shifts` / `any`|NMR-STAR V2 chemical shift file (loop only)
 `nm-shi-xea`|**internal use**|`nmr-chemical-shifts` / `any`|XEASY chemical shift file same as `nm-aux-xea`
-`nm-csp-ari`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|ARIA chemical shift file
-`nm-csp-bar`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|Bare WSV/TSV/CSV chemical shift file (residue per line, atom per line, or SPARKY's resonance list)
-`nm-csp-gar`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|GARRET chemical shift file (CAMRA)
-`nm-csp-npi`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|NMRPIPE chemical shift file
-`nm-csp-oli`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|OLIVIA chemical shift file
-`nm-csp-pip`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|PIPP chemical shift file
-`nm-csp-ppm`|**internal use**|`nmr-chemical-cspfts-perturbation` / `any`|PPM chemical shift file (NMRVIEW, CAMRA)
-`nm-csp-st2`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|NMR-STAR V2 chemical shift file (loop only)
-`nm-csp-xea`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|XEASY chemical shift file same as `nm-aux-xea`
+`nm-csp-ari`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|ARIA chemical shift perturbation file
+`nm-csp-bar`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|Bare WSV/TSV/CSV chemical shift perturbation file (residue per line, atom per line, or SPARKY's resonance list)
+`nm-csp-gar`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|GARRET chemical shift perturbation file (CAMRA)
+`nm-csp-npi`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|NMRPIPE chemical shift perturbation file
+`nm-csp-oli`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|OLIVIA chemical shift perturbation file
+`nm-csp-pip`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|PIPP chemical shift perturbation file
+`nm-csp-ppm`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|PPM chemical shift perturbation file (NMRVIEW, CAMRA)
+`nm-csp-st2`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|NMR-STAR V2 chemical shift perturbation file (loop only)
+`nm-csp-xea`|**internal use**|`nmr-chemical-shifts-perturbation` / `any`|XEASY chemical shift perturbation file same as `nm-aux-xea`
 

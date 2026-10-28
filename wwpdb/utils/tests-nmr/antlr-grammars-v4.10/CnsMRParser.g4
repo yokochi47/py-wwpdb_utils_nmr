@@ -99,11 +99,11 @@ noe_statement:
 	Analysis Equ_op? Noe_analysis |
 	noe_assign |
 	noe_assign_loop |
+	classification |
 	Asymptote class_name number_s |
 	Average Class_name_AM Averaging_methods |
 	Bhig class_name number_s |
 	Ceiling Equ_op? number_s |
-	classification |
 	CountViol class_name |
 	Cv Equ_op? Integer |
 	Den Initialize |
@@ -144,7 +144,7 @@ noe_annotation:
 	(Volume | Vol) Equ_op? number_a |
 	Ppm1 Equ_op? number_a |
 	Ppm2 Equ_op? number_a |
-	Cv Equ_op? number_a |
+	Cv Equ_op? number_a? |
 	Comma;
 
 /* CNS: Dihedral angle restraints - Syntax - restranits/dihedral
@@ -454,17 +454,17 @@ number_a:
 
 /* classification */
 classification:
-	Classification Equ_op? class_name;
+	Classification Equ_op_CL? Class_name;
 
 /* class name */
 class_name:
-	Simple_name | Noe | Restraints | AngleDb | HBonded | Dihedral | Improper;
+	Simple_name | Noe | Restraints | AngleDb | HBonded | Dihedral | Improper | Average;
 
 /* XPLOR-NIH: Flags - Syntax
  See also https://nmr.cit.nih.gov/xplor-nih/xplorMan/node125.html (compatible with XPLOR-NIH)
 */
 flag_statement:
-	Flags (Exclude (Class_name* | Any_class))? Include Class_name* End_FL;
+	Flags (Exclude (Class_name_FL* | Any_class))? Include Class_name_FL* End_FL;
 
 /* Vector statement - Syntax
  See also https://nmr.cit.nih.gov/xplor-nih/xplorMan/node42.html (compatible with XPLOR-NIH)

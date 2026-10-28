@@ -32,7 +32,7 @@ Asymptote:		'ASYM' 'P'? 'T'? 'O'? 'T'? 'E'?;	// Class_names Real
 Average:		'AVER' 'A'? 'G'? (('I'? 'N'? 'G'?) | 'E'?) -> pushMode(AVER_MODE);	// Class_names Noe_avr_methods
 Bhig:			'BHIG';					// Class_names Real
 Ceiling:		'CEIL' 'I'? 'N'? 'G'?;			// = Real
-Classification:		'CLAS' 'S'? 'I'? 'F'? 'I'? 'C'? 'A'? 'T'? 'I'? 'O'? 'N'?;	// Class_name
+Classification:		'CLAS' 'S'? 'I'? 'F'? 'I'? 'C'? 'A'? 'T'? 'I'? 'O'? 'N'? -> pushMode(CLAS_MODE);	// Class_name
 CountViol:		'COUN' 'T'? 'V'? 'I'? 'O'? 'L'?;	// Class_name
 Distribute:		'DIST' 'R'? 'I'? 'B'? 'U'? 'T'? 'E'?;	// Class_name Class_name Real
 Monomers:		'MONO' 'M'? 'E'? 'R'? 'S'?;		// Class_names Integer
@@ -182,7 +182,7 @@ Initialize:		'INIT' 'I'? 'A'? 'L'? 'I'? 'Z'? 'E'?;
 //Print_any:		'?';
 
 // group_statement
-Selection:		'SELE' 'C'? 'T'? 'I'? 'O'? 'N'?;	// = selection
+Selection:		'SELE' 'C'? 'T'? 'I'? 'O'? 'N'? '='?;	// = selection
 Weight:			'WEIG' 'H'? 'T'?;			// = Real
 
 /* XPLOR-NIH: Harmonic coordiate restraints - Syntax
@@ -554,7 +554,7 @@ Ncs:			'NCS';
 //Initialize:		'INIT' 'I'? 'A'? 'L'? 'I'? 'Z'? 'E'?;
 //Print_any:		'?';
 
-Equivalence:		'EQUI' 'V'? 'A'? 'L'? 'E'? 'N'? 'C'? 'E'?;
+Equivalence:		'EQUI' 'V'? 'A'? 'L'? 'E'? 'N'? 'C'? 'E'? '='?;
 								// = selection
 Sigb:			'SIGB';					// = Real
 //Weight:		'WEIG' 'H'? 'T'?;			// = Real
@@ -643,8 +643,8 @@ Loop:			'LOOP' -> pushMode(LOOP_LABEL_MODE);
 /* Three-dimentional vectors - Syntax
  See also https://nmr.cit.nih.gov/xplor-nih/xplorMan/node15.html
 */
-Tail:			'TAIL';
-Head:			'HEAD';
+Tail:			'TAIL' '='?;
+Head:			'HEAD' '='?;
 
 // Logical operations
 Or_op:			'OR';
@@ -714,6 +714,14 @@ Comparison_ops:		(Equ_op | Lt_op | Gt_op | Leq_op | Geq_op | Neq_op) -> popMode;
 
 SPACE_AP:		[ \t\r\n]+ -> skip;
 
+mode CLAS_MODE; // Inside of Classification tag
+
+Equ_op_CL:		'=';
+
+Class_name:		(SIMPLE_NAME | '*') -> popMode;
+
+SPACE_CL:		[ \t\r\n]+ -> skip;
+
 mode AVER_MODE; // Inside of Average tag
 
 Averaging_methods:	('R-6' | 'R-3' | 'SUM' | 'CENT' 'E'? 'R'? | 'SUMD' 'I'? 'F'? | 'AVER' 'A'? 'G'? 'E'?) -> popMode;
@@ -758,7 +766,7 @@ Include:		'INCL' 'U'? 'D'? 'E'?;			// Class_name*
 
 End_FL:			'END' -> popMode;
 
-Class_name:		SIMPLE_NAME;
+Class_name_FL:		SIMPLE_NAME;
 Any_class:		'*';
 
 SPACE_FL:		[ \t\r\n]+ -> skip;

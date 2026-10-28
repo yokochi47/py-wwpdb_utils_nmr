@@ -47,30 +47,30 @@ public:
     Neq_op = 169, Symbol_name = 170, SPACE = 171, ENCLOSE_COMMENT = 172, 
     SECTION_COMMENT = 173, LINE_COMMENT = 174, SET_VARIABLE = 175, Abs = 176, 
     Attr_properties = 177, Comparison_ops = 178, SPACE_AP = 179, Averaging_methods = 180, 
-    Class_name_AM = 181, SPACE_AM = 182, Equ_op_PT = 183, Potential_types = 184, 
-    Class_name_PT = 185, SPACE_PT = 186, Noe_analysis = 187, SPACE_NA = 188, 
-    Exclude = 189, Include = 190, End_FL = 191, Class_name = 192, Any_class = 193, 
-    SPACE_FL = 194, R_paren_VE = 195, Equ_op_VE = 196, Add_op_VE = 197, 
-    Sub_op_VE = 198, Mul_op_VE = 199, Div_op_VE = 200, Exp_op_VE = 201, 
-    Comma_VE = 202, Integer_VE = 203, Real_VE = 204, Atom_properties_VE = 205, 
-    Abs_VE = 206, Acos_VE = 207, Asin_VE = 208, Cos_VE = 209, Decode_VE = 210, 
-    Encode_VE = 211, Exp_VE = 212, Gauss_VE = 213, Heavy_VE = 214, Int_VE = 215, 
-    Log10_VE = 216, Log_VE = 217, Max_VE = 218, Maxw_VE = 219, Min_VE = 220, 
-    Mod_VE = 221, Norm_VE = 222, Random_VE = 223, Sign_VE = 224, Sin_VE = 225, 
-    Sqrt_VE = 226, Tan_VE = 227, Symbol_name_VE = 228, Simple_name_VE = 229, 
-    Double_quote_string_VE = 230, SPACE_VE = 231, L_paren_VF = 232, SPACE_VF = 233, 
-    L_paren_VS = 234, R_paren_VS = 235, Average_VS = 236, Element_VS = 237, 
-    Max_VS = 238, Min_VS = 239, Norm_VS = 240, Rms_VS = 241, Sum_VS = 242, 
-    Atom_properties_VS = 243, SPACE_VS = 244, L_paren_CF = 245, R_paren_CF = 246, 
-    In_CF = 247, Integer_CF = 248, Real_CF = 249, Symbol_name_CF = 250, 
-    Simple_name_CF = 251, SPACE_CF = 252, COMMENT_CF = 253, Simple_name_LL = 254, 
-    SPACE_LL = 255
+    Equ_op_CL = 181, Class_name = 182, SPACE_CL = 183, Class_name_AM = 184, 
+    SPACE_AM = 185, Equ_op_PT = 186, Potential_types = 187, Class_name_PT = 188, 
+    SPACE_PT = 189, Noe_analysis = 190, SPACE_NA = 191, Exclude = 192, Include = 193, 
+    End_FL = 194, Class_name_FL = 195, Any_class = 196, SPACE_FL = 197, 
+    R_paren_VE = 198, Equ_op_VE = 199, Add_op_VE = 200, Sub_op_VE = 201, 
+    Mul_op_VE = 202, Div_op_VE = 203, Exp_op_VE = 204, Comma_VE = 205, Integer_VE = 206, 
+    Real_VE = 207, Atom_properties_VE = 208, Abs_VE = 209, Acos_VE = 210, 
+    Asin_VE = 211, Cos_VE = 212, Decode_VE = 213, Encode_VE = 214, Exp_VE = 215, 
+    Gauss_VE = 216, Heavy_VE = 217, Int_VE = 218, Log10_VE = 219, Log_VE = 220, 
+    Max_VE = 221, Maxw_VE = 222, Min_VE = 223, Mod_VE = 224, Norm_VE = 225, 
+    Random_VE = 226, Sign_VE = 227, Sin_VE = 228, Sqrt_VE = 229, Tan_VE = 230, 
+    Symbol_name_VE = 231, Simple_name_VE = 232, Double_quote_string_VE = 233, 
+    SPACE_VE = 234, L_paren_VF = 235, SPACE_VF = 236, L_paren_VS = 237, 
+    R_paren_VS = 238, Average_VS = 239, Element_VS = 240, Max_VS = 241, 
+    Min_VS = 242, Norm_VS = 243, Rms_VS = 244, Sum_VS = 245, Atom_properties_VS = 246, 
+    SPACE_VS = 247, L_paren_CF = 248, R_paren_CF = 249, In_CF = 250, Integer_CF = 251, 
+    Real_CF = 252, Symbol_name_CF = 253, Simple_name_CF = 254, SPACE_CF = 255, 
+    COMMENT_CF = 256, Simple_name_LL = 257, SPACE_LL = 258
   };
 
   enum {
-    ATTR_MODE = 1, AVER_MODE = 2, POTE_MODE = 3, ANAL_MODE = 4, FLAG_MODE = 5, 
-    VECTOR_EXPR_MODE = 6, VECTOR_FUNC_MODE = 7, VECTOR_SHOW_MODE = 8, CTL_FOR_MODE = 9, 
-    LOOP_LABEL_MODE = 10
+    ATTR_MODE = 1, AVER_MODE = 2, CLAS_MODE = 3, POTE_MODE = 4, ANAL_MODE = 5, 
+    FLAG_MODE = 6, VECTOR_EXPR_MODE = 7, VECTOR_FUNC_MODE = 8, VECTOR_SHOW_MODE = 9, 
+    CTL_FOR_MODE = 10, LOOP_LABEL_MODE = 11
   };
 
   explicit CnsMRLexer(antlr4::CharStream *input);

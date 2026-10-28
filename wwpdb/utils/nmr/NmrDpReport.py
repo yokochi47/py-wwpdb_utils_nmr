@@ -141,6 +141,7 @@
 # 10-Jul-2026  M. Yokochi - add 'ensemble_composition' item in NmrDpReportInputSource class (DAOTHER-9785)
 # 29-Sep-2026  M. Yokochi - stream the report to its JSON file in writeFile() (DAOTHER-7829, 9785)
 # 21-Oct-2026  M. Yokochi - fix hasSequenceMismatchErrorInCsLoop() and add hasSequenceMismatchErrorsInMrLoop() (DAOTHER-11129)
+# 28-Oct-2026  M. Yokochi - add getUnmappedSeqKeyOfModelChainId() (DAOTHER-9785, 10987)
 ##
 """ Wrapper class for NMR data processing report.
     @author: Masashi Yokochi
@@ -1283,6 +1284,66 @@ class NmrDpReport:
 
         return None
 
+    @functools.lru_cache(maxsize=32)
+    def getUnmappedSeqKeyOfModelChainId(self, cif_chain_id: str, label_scheme: bool = True
+                                        ) -> Optional[List[Tuple]]:
+        """ Retrieve unmapped sequence keys ('auth_seq_id', 'comp_id') corresponding to a given coordinate chain_id.
+        """
+
+        chain_assigns = get_value_safe(self.chain_assignment.get(), 'nmr_poly_seq_vs_model_poly_seq')
+
+        if chain_assigns is None:
+            return None
+
+        for ca in chain_assigns:
+
+            if (ca['test_chain_id'] == cif_chain_id and label_scheme) or\
+               ((ca['test_auth_chain_id'] if 'test_auth_chain_id' in ca
+                 else ca['test_chain_id']) == cif_chain_id and not label_scheme):
+
+                if 'unmapped_sequence' not in ca:
+                    break
+
+                sa = self.getSequenceAlignmentWithModelChainId(cif_chain_id, label_scheme)
+
+                if sa is None:
+                    break
+
+                cif_offset = 0
+
+                seq_align_model = get_value_safe(self.sequence_alignment.get(), 'model_poly_seq_vs_coordinate')
+
+                if seq_align_model is not None:
+                    sa_model = next((_sa for _sa in seq_align_model if _sa['chain_id'] == ca['test_chain_id']), None)
+                    if sa_model is not None:
+                        cif_offset = sa_model['test_seq_id'][0] - sa_model['ref_seq_id'][0]
+
+                offset = None
+
+                seq_keys = []
+                for unmapped in ca['unmapped_sequence']:
+                    nmr_seq_id = unmapped['ref_seq_id']
+                    comp_id = unmapped['ref_comp_id']
+                    if nmr_seq_id in sa['test_seq_id']:
+                        try:
+                            label_seq_id = sa['ref_seq_id'][sa['test_seq_id'].index(nmr_seq_id)]
+                            offset = label_seq_id - nmr_seq_id
+                        except IndexError:
+                            if offset is not None:
+                                label_seq_id = nmr_seq_id + offset
+                            else:
+                                continue
+                        auth_seq_id = label_seq_id + cif_offset
+                        seq_key = (str(auth_seq_id), comp_id)
+                        seq_keys.append(seq_key)
+
+                if len(seq_keys) == 0:
+                    break
+
+                return seq_keys
+
+        return None
+
     def getNmrSeq1LetterCodeWithModelChainId(self, cif_chain_id: str, label_scheme: bool = True
                                              ) -> Optional[str]:
         """ Retrieve NMR polymer sequence (1-letter code) corresponding to a given coordinate chain_id.
@@ -1555,6 +1616,7 @@ class NmrDpReport:
 
         self.getNmrPolymerSequenceWithModelChainId.cache_clear()
         self.getModelPolymerSequenceWithNmrChainId.cache_clear()
+        self.getUnmappedSeqKeyOfModelChainId.cache_clear()
 
         if not self.__immutable:
 

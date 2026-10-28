@@ -4900,7 +4900,8 @@ class BaseStackedMRParserListener():
         foundCompId = False
 
         if self.reasons is not None and 'segment_id_poly_type_stats' in self.reasons\
-           and 'segment_id' in _factor and _factor['segment_id'] in self.reasons['segment_id_poly_type_stats']:
+           and 'segment_id' in _factor and _factor['segment_id'] in self.reasons['segment_id_poly_type_stats']\
+           and self.hasNonPoly:
             stats = self.reasons['segment_id_poly_type_stats'][_factor['segment_id']]
             if isPolySeq and stats['polymer'] < stats['non-poly']:
                 return False
@@ -4993,7 +4994,7 @@ class BaseStackedMRParserListener():
                                    and chainId in self.reasons['segment_id_mismatch'].values()\
                                    and 'segment_id_poly_type_stats' in self.reasons\
                                    and _factor['segment_id'] in self.reasons['segment_id_poly_type_stats']\
-                                   and stats['polymer'] <= stats['non-poly']:  # 2mtk
+                                   and self.hasNonPoly and stats['polymer'] <= stats['non-poly']:  # 2mtk
                                     _, __seqId = retrieveRemappedSeqId(self.reasons['np_seq_id_remap'], chainId, seqId)
                                     if __seqId is not None and __seqId != seqId\
                                        and list(self.reasons['segment_id_mismatch'].values()).count(chainId) > 1:
@@ -6863,6 +6864,9 @@ class BaseStackedMRParserListener():
             # 2la5
             if _score == __score and _chainId != __chainId and altChainId in self.reasonsForReParsing['segment_id_mismatch']:
                 del self.reasonsForReParsing['segment_id_mismatch'][altChainId]  # 2lzs
+            if self.__lenPolySeq == 2 and self.__polyPeptide and (self.__polyDeoxyribonucleotide or self.__polyRibonucleotide)\
+               and _score * 2 > __score:
+                self.reasonsForReParsing['segment_id_mismatch'][altChainId] = _chainId
 
     @functools.lru_cache(maxsize=2048)
     def getCoordAtomSiteOf(self, chainId: str, seqId: int, compId: Optional[str] = None, cifCheck: bool = True, asis: bool = True
