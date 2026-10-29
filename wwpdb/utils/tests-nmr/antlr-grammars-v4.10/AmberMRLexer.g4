@@ -308,6 +308,10 @@ DIJ:			'DIJ'
 			-> pushMode(REAL_ARRAY_MODE);		// = RealArray
 DCUT:			'DCUT'
 			-> pushMode(REAL_PARAM_MODE);		// = Real
+FJ:			'FJ'
+			-> pushMode(REAL_PARAM_MODE);		// = Real
+DFAC_AL:		'DFAC_AL'
+			-> pushMode(REAL_ARRAY_MODE);		// = RealArray
 
 FREEZEMOL:		'FREEZEMOL';				// = Logical
 
@@ -383,7 +387,10 @@ fragment START_CHAR:	ALPHA_NUM | '_';
 fragment NAME_CHAR:	START_CHAR | '\'' | '-' | '+' | '.';
 fragment QEXT_CHAR:	ALPHA_NUM | '\'' | '"' | ' ';
 fragment SIMPLE_NAME:	START_CHAR NAME_CHAR*;
-fragment QSTRING:	SIMPLE_NAME | '\'' SIMPLE_NAME QEXT_CHAR* '\'' | '"' SIMPLE_NAME QEXT_CHAR* '"';
+fragment ALPHA_EX_R:	[A-QS-Z];
+fragment START_CHAR_EX_R:	ALPHA_EX_R | DEC_DIGIT | '_';
+fragment SIMPLE_NAME_EX_R:	START_CHAR_EX_R NAME_CHAR*;
+fragment QSTRING:	SIMPLE_NAME_EX_R | '\'' SIMPLE_NAME QEXT_CHAR* '\'' | '"' SIMPLE_NAME QEXT_CHAR* '"';
 
 L_paren:		'(';
 R_paren:		')';

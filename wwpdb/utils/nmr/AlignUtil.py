@@ -2257,11 +2257,9 @@ def assignPolymerSequence(pA, ccU, fileType: str, polySeqModel: List[dict], poly
                 if ca['conflict'] > 0:
                     continue
 
-                chain_id = ca['ref_chain_id']
-
                 try:
                     identity = next(ps['identical_auth_chain_id'] for ps in polySeqModel
-                                    if ps['auth_chain_id'] == chain_id and 'identical_auth_chain_id' in ps)
+                                    if ps['auth_chain_id'] == ca['ref_chain_id'] and 'identical_auth_chain_id' in ps)
 
                     for chain_id in identity:
 

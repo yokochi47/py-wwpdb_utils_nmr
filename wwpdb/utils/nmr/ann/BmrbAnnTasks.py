@@ -1174,6 +1174,10 @@ class BmrbAnnTasks:
 
                 try:
 
+                    lp_category = '_Chem_shift_perturbation_experiment'
+
+                    lp = sf.get_loop(lp_category)
+
                     tags = ['Chem_shift_val_err', 'Difference_chem_shift_val_err']
 
                     if set(tags) & set(lp.tags) == set(tags):
