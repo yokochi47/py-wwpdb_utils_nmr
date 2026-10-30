@@ -280,6 +280,9 @@ class NmrDpValidationInput(NmrDpValidationBase):
                                 if 'No such file or directory' not in str(e):
                                     err += ' ' + re.sub('not in list', 'unknown item.', str(e))
 
+                                if len(message['error']) > 0:
+                                    err += ' ' + message['error'][0]
+
                                 self._reg.report.error.appendDescription('format_issue',
                                                                          {'file_name': file_name, 'description': err})
 
