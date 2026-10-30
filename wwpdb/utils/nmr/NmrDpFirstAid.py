@@ -138,9 +138,14 @@ class NmrDpFirstAid:
                     else:
                         missing_loop = False
 
-                        for err_message in self.__reg.original_error_message[file_list_id]['error']:
-                            if 'No such file or directory' not in err_message:
-                                err += ' ' + re.sub('not in list', 'unknown item.', err_message)
+                        try:
+                            for err_message in self.__reg.original_error_message[file_list_id]['error']:
+                                if 'No such file or directory' not in err_message:
+                                    err += ' ' + re.sub('not in list', 'unknown item.', err_message)
+                        except IndexError:
+                            pass
+
+                    err += ' ' + message['error'][0]
 
                 if not self.__reg.remediation_mode or not missing_loop or file_list_id > 0:
 
@@ -744,9 +749,14 @@ class NmrDpFirstAid:
                 else:
                     missing_loop = False
 
-                    for err_message in self.__reg.original_error_message[file_list_id]['error']:
-                        if 'No such file or directory' not in err_message:
-                            err += ' ' + re.sub('not in list', 'unknown item.', err_message)
+                    try:
+                        for err_message in self.__reg.original_error_message[file_list_id]['error']:
+                            if 'No such file or directory' not in err_message:
+                                err += ' ' + re.sub('not in list', 'unknown item.', err_message)
+                    except IndexError:
+                        pass
+
+                err += ' ' + message['error'][0]
 
             if not self.__reg.remediation_mode or not missing_loop or file_list_id > 0:
 
