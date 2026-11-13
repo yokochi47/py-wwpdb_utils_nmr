@@ -1,1 +1,0 @@
-../antlr-grammars-v4.10/NmrViewCSParser.g4
