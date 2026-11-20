@@ -100,7 +100,7 @@ jobs:
           max_attempts=10
           attempt=1
           while [ $attempt -le $max_attempts ]; do
-            if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}; then
+            if docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main; then
               echo "Image pull successful"
               break
             fi
