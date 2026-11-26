@@ -606,7 +606,8 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                                 return
 
                             if self.createSfDict:
-                                sf = self.getSf(potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc),
+                                sf = self.getSf(potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc,
+                                                                               cyanaFileExt=self.file_ext),
                                                 rdcCode=getRdcCode([self.atomSelectionSet[0][0], self.atomSelectionSet[1][0]]),
                                                 orientationId=self.cur_rdc_orientation)
                                 sf['id'] += 1
@@ -668,13 +669,15 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                     return
 
                 if self.createSfDict:
-                    constraintType = getDistConstraintType(self.atomSelectionSet, dstFunc, self.csStat, self.originalFileName)
+                    constraintType = getDistConstraintType(self.atomSelectionSet, dstFunc, self.csStat, self.originalFileName,
+                                                           cyanaFileExt=self.file_ext)
                     if upper_limit is None and lower_limit is not None and constraintType == 'metal coordination':  # 2mze
                         dstFunc = self.validateDistanceRange(weight, target_value, None, lower_limit,
                                                              target_value_uncertainty,
                                                              self.omitDistLimitOutlier)
                     sf = self.getSf(constraintType=constraintType,
-                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc,
+                                                                   cyanaFileExt=self.file_ext))
                     sf['id'] += 1
                     memberLogicCode = 'OR' if len(self.atomSelectionSet[0]) * len(self.atomSelectionSet[1]) > 1 else '.'
 
@@ -1242,7 +1245,8 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                                 return
 
                             if self.createSfDict:
-                                sf = self.getSf(potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc),
+                                sf = self.getSf(potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc,
+                                                                               cyanaFileExt=self.file_ext),
                                                 rdcCode=getRdcCode([self.atomSelectionSet[0][0], self.atomSelectionSet[1][0]]),
                                                 orientationId=self.cur_rdc_orientation)
                                 sf['id'] += 1
@@ -1304,13 +1308,15 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                     return
 
                 if self.createSfDict:
-                    constraintType = getDistConstraintType(self.atomSelectionSet, dstFunc, self.csStat, self.originalFileName)
+                    constraintType = getDistConstraintType(self.atomSelectionSet, dstFunc, self.csStat, self.originalFileName,
+                                                           cyanaFileExt=self.file_ext)
                     if upper_limit is None and lower_limit is not None and constraintType == 'metal coordination':  # 2mze
                         dstFunc = self.validateDistanceRange(weight, target_value, None, lower_limit,
                                                              target_value_uncertainty,
                                                              self.omitDistLimitOutlier)
                     sf = self.getSf(constraintType=constraintType,
-                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc,
+                                                                   cyanaFileExt=self.file_ext))
                     sf['id'] += 1
                     memberLogicCode = 'OR' if len(self.atomSelectionSet[0]) * len(self.atomSelectionSet[1]) > 1 else '.'
 
@@ -2939,8 +2945,10 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
                 if self.createSfDict:
                     sf = self.getSf(constraintType=getDistConstraintType(self.atomSelectionSet, dstFunc,
-                                                                         self.csStat, self.originalFileName),
-                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                                                                         self.csStat, self.originalFileName,
+                                                                         cyanaFileExt=self.file_ext),
+                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc,
+                                                                   cyanaFileExt=self.file_ext))
                     sf['id'] += 1
                     memberLogicCode = 'OR' if len(self.atomSelectionSet[0]) * len(self.atomSelectionSet[1]) > 1 else '.'
 
@@ -3310,13 +3318,15 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                         return
 
                 if self.createSfDict:
-                    constraintType = getDistConstraintType(self.atomSelectionSet, dstFunc, self.csStat, self.originalFileName)
+                    constraintType = getDistConstraintType(self.atomSelectionSet, dstFunc, self.csStat, self.originalFileName,
+                                                           cyanaFileExt=self.file_ext)
                     if upper_limit is None and lower_limit is not None and constraintType == 'metal coordination':  # 2mze
                         dstFunc = self.validateDistanceRange(weight, target_value, None, lower_limit,
                                                              target_value_uncertainty,
                                                              omit_dist_limit_outlier)
                     sf = self.getSf(constraintType=constraintType,
-                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc,
+                                                                   cyanaFileExt=self.file_ext))
                     sf['id'] += 1
                     memberLogicCode = 'OR' if len(self.atomSelectionSet[0]) * len(self.atomSelectionSet[1]) > 1 else '.'
 
@@ -3592,8 +3602,10 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
                 if self.createSfDict:
                     sf = self.getSf(constraintType=getDistConstraintType(self.atomSelectionSet, dstFunc,
-                                                                         self.csStat, self.originalFileName),
-                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                                                                         self.csStat, self.originalFileName,
+                                                                         cyanaFileExt=self.file_ext),
+                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc,
+                                                                   cyanaFileExt=self.file_ext))
                     sf['id'] += 1
                     memberLogicCode = 'OR' if len(self.atomSelectionSet[0]) * len(self.atomSelectionSet[1]) > 1 else '.'
 
@@ -3884,8 +3896,10 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
                 if self.createSfDict:
                     sf = self.getSf(constraintType=getDistConstraintType(self.atomSelectionSet, dstFunc,
-                                                                         self.csStat, self.originalFileName),
-                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                                                                         self.csStat, self.originalFileName,
+                                                                         cyanaFileExt=self.file_ext),
+                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc,
+                                                                   cyanaFileExt=self.file_ext))
                     sf['id'] += 1
                     memberLogicCode = 'OR' if len(self.atomSelectionSet[0]) * len(self.atomSelectionSet[1]) > 1 else '.'
 
@@ -4255,13 +4269,15 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                         return
 
                 if self.createSfDict:
-                    constraintType = getDistConstraintType(self.atomSelectionSet, dstFunc, self.csStat, self.originalFileName)
+                    constraintType = getDistConstraintType(self.atomSelectionSet, dstFunc, self.csStat, self.originalFileName,
+                                                           cyanaFileExt=self.file_ext)
                     if upper_limit is None and lower_limit is not None and constraintType == 'metal coordination':  # 2mze
                         dstFunc = self.validateDistanceRange(weight, target_value, None, lower_limit,
                                                              target_value_uncertainty,
                                                              omit_dist_limit_outlier)
                     sf = self.getSf(constraintType=constraintType,
-                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc,
+                                                                   cyanaFileExt=self.file_ext))
                     sf['id'] += 1
                     memberLogicCode = 'OR' if len(self.atomSelectionSet[0]) * len(self.atomSelectionSet[1]) > 1 else '.'
 
@@ -4537,8 +4553,10 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
                 if self.createSfDict:
                     sf = self.getSf(constraintType=getDistConstraintType(self.atomSelectionSet, dstFunc,
-                                                                         self.csStat, self.originalFileName),
-                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                                                                         self.csStat, self.originalFileName,
+                                                                         cyanaFileExt=self.file_ext),
+                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc,
+                                                                   cyanaFileExt=self.file_ext))
                     sf['id'] += 1
                     memberLogicCode = 'OR' if len(self.atomSelectionSet[0]) * len(self.atomSelectionSet[1]) > 1 else '.'
 
@@ -4772,8 +4790,10 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
             if self.createSfDict:
                 sf = self.getSf(constraintType=getDistConstraintType(self.atomSelectionSet, dstFunc,
-                                                                     self.csStat, self.originalFileName),
-                                potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                                                                     self.csStat, self.originalFileName,
+                                                                     cyanaFileExt=self.file_ext),
+                                potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc,
+                                                               cyanaFileExt=self.file_ext))
                 sf['id'] += 1
                 memberLogicCode = 'OR' if len(self.atomSelectionSet[0]) * len(self.atomSelectionSet[1]) > 1 else '.'
 
@@ -4921,8 +4941,10 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
             if self.createSfDict:
                 sf = self.getSf(constraintType=getDistConstraintType(self.atomSelectionSet, dstFunc,
-                                                                     self.csStat, self.originalFileName),
-                                potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                                                                     self.csStat, self.originalFileName,
+                                                                     cyanaFileExt=self.file_ext),
+                                potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc,
+                                                               cyanaFileExt=self.file_ext))
                 sf['id'] += 1
                 memberLogicCode = 'OR' if len(self.atomSelectionSet[0]) * len(self.atomSelectionSet[1]) > 1 else '.'
 
@@ -7373,7 +7395,8 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                                 return
 
                             if self.createSfDict:
-                                sf = self.getSf(potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc),
+                                sf = self.getSf(potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc,
+                                                                               cyanaFileExt=self.file_ext),
                                                 rdcCode=getRdcCode([self.atomSelectionSet[0][0], self.atomSelectionSet[1][0]]),
                                                 orientationId=self.cur_rdc_orientation)
                                 sf['id'] += 1
@@ -7453,13 +7476,15 @@ class CyanaMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                     return
 
                 if self.createSfDict:
-                    constraintType = getDistConstraintType(self.atomSelectionSet, dstFunc, self.csStat, self.originalFileName)
+                    constraintType = getDistConstraintType(self.atomSelectionSet, dstFunc, self.csStat, self.originalFileName,
+                                                           cyanaFileExt=self.file_ext)
                     if upper_limit is None and lower_limit is not None and constraintType == 'metal coordination':  # 2mze
                         dstFunc = self.validateDistanceRange(weight, target_value, None, lower_limit,
                                                              target_value_uncertainty,
                                                              self.omitDistLimitOutlier)
                     sf = self.getSf(constraintType=constraintType,
-                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+                                    potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc,
+                                                                   cyanaFileExt=self.file_ext))
                     sf['id'] += 1
                     memberLogicCode = 'OR' if len(self.atomSelectionSet[0]) * len(self.atomSelectionSet[1]) > 1 else '.'
 

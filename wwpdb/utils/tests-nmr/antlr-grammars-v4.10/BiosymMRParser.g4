@@ -19,6 +19,7 @@ parser grammar BiosymMRParser;
 options { tokenVocab=BiosymMRLexer; }
 
 biosym_mr:
+	RETURN?
 	(
 	distance_restraints |
 	distance_constraints |
@@ -30,7 +31,9 @@ biosym_mr:
 	chirality_constraints |
 	prochirality_constraints |
 	mixing_time |
-	ins_distance_restraints
+	ins_distance_restraints |
+	ins_dihedral_angle_restraints |
+	RETURN
 	)*
 	EOF;
 
@@ -45,7 +48,8 @@ distance_restraint:
 	number number number					// lower limit, upper limit, observation
 	number number number					// weights for lower bound, upper bound, maximum penalty
 	number?
-	(Or Atom_selection Atom_selection)*;
+	RETURN
+	(Or Atom_selection Atom_selection RETURN)*;
 
 /* BIOSYM - Distance constraints
 */
@@ -56,7 +60,8 @@ distance_constraint:
 	Ordinal? Atom_selection Atom_selection
 	number number						// lower limit, upper limit
 	number number number					// weights for lower bound, upper bound, maximum penalty
-	(Or Atom_selection Atom_selection)*;
+	RETURN
+	(Or Atom_selection Atom_selection RETURN)*;
 
 /* BIOSYM - Distance constraints
 */
@@ -66,7 +71,8 @@ distance_wo_w_constraints:
 distance_wo_w_constraint:
 	Ordinal? Atom_selection Atom_selection
 	number number number?					// lower limit, upper limit
-	(Or Atom_selection Atom_selection)*;
+	RETURN
+	(Or Atom_selection Atom_selection RETURN)*;
 
 /* BIOSYM - Dihedral angle restraints
  See also https://www.chem.uzh.ch/robinson/felixman/habas.html
@@ -79,7 +85,8 @@ dihedral_angle_restraint:
 	number number						// coupling constant, uncertainty of coupling constant
 	number number number					// weights for lower bound, upper bound, maximum penalty
 	number number						// range for lower bound, upper bound
-	(number number)? (number number)? (number number)?;	// 2nd, 3rd, 4th ranges
+	(number number)? (number number)? (number number)?	// 2nd, 3rd, 4th ranges
+	RETURN;
 
 /* BIOSYM - Dihedral angle constraints
 */
@@ -89,7 +96,8 @@ dihedral_angle_constraints:
 dihedral_angle_constraint:
 	Ordinal? Atom_selection Atom_selection Atom_selection Atom_selection
 	number number						// range for lower bound, upper bound
-	number number number;					// weights for lower bound, upper bound, maximum penalty
+	number number number?					// weights for lower bound, upper bound, maximum penalty
+	RETURN;
 
 /* BIOSYM - Dihedral angle constraints
 */
@@ -98,7 +106,8 @@ dihedral_angle_wo_w_constraints:
 
 dihedral_angle_wo_w_constraint:
 	Ordinal? Atom_selection Atom_selection Atom_selection Atom_selection
-	number number;						// range for lower bound, upper bound
+	number number						// range for lower bound, upper bound
+	RETURN;
 
 /* BIOSYM - RDC restraints
 */
@@ -107,7 +116,8 @@ rdc_restraints:
 
 rdc_restraint:
 	Ordinal? Atom_selection Atom_selection
-	number number number number;
+	number number number number
+	RETURN;
 
 /* BIOSYM - Chirality constraints
  See also https://www.chem.uzh.ch/robinson/felixman/felix-restraints.html
@@ -117,7 +127,8 @@ chirality_constraints:
 
 chirality_constraint:
 	Ordinal? Atom_selection
-	Chiral_code;
+	Chiral_code
+	RETURN;
 
 /* BIOSYM - Prochirality constraints
 */
@@ -125,11 +136,13 @@ prochirality_constraints:
 	prochirality_constraint+;
 
 prochirality_constraint:
-	Ordinal? Atom_selection Atom_selection Atom_selection Atom_selection Atom_selection;
+	Ordinal? Atom_selection Atom_selection Atom_selection Atom_selection Atom_selection
+	RETURN;
 
 mixing_time:
 	Mixing_times
-	((Real_MT | Float_MT | Integer_MT) (Comma_MT | Period_MT)?)* RETURN_MT;
+	(Real_MT | Float_MT | Integer_MT)+
+	RETURN_MT;
 
 /* number expression in restrains */
 number: Float | Float_DecimalComma | Integer;
@@ -139,13 +152,36 @@ ins_distance_restraints:
 	ins_distance_restraint;
 
 ins_distance_restraint:
-	decl_create decl_function decl_target;
+	decl_create_dist decl_function decl_target;
 
-decl_create:
-	Restraint Create Double_quote_string Distance Double_quote_string Double_quote_string RETURN_II;
+/* Insight II dihedral angle restraint */
+ins_dihedral_angle_restraints:
+	ins_dihedral_angle_restraint;
+
+ins_dihedral_angle_restraint:
+	decl_create_dihed decl_function decl_target?;
+
+decl_create_dist:
+	Restraint Create ins_rst_id Distance ins_atom_sel ins_atom_sel
+	RETURN_II;
+
+decl_create_dihed:
+        Restraint Create ins_rst_id Torsion ins_atom_sel ins_atom_sel ins_atom_sel ins_atom_sel
+	RETURN_II;
 
 decl_function:
-	Restraint Function Double_quote_string (Quadratic | Flat_bottomed) Double_quote_string Double_quote_string Double_quote_string? RETURN_II;
+	Restraint Function ins_rst_id ((Quadratic | Flat_bottomed) ins_num_sel ins_num_sel | Trans ins_num_sel) ins_num_sel?
+	RETURN_II;
 
 decl_target:
-	Restraint Target Double_quote_string (Double_quote_string | Relative) Double_quote_string RETURN_II;
+	Restraint Target ins_rst_id (ins_num_sel | Relative) ins_num_sel
+	RETURN_II;
+
+ins_rst_id:
+	Double_quote_string_II | Simple_name_II | Integer_II;
+
+ins_atom_sel:
+	Double_quote_string_II | Simple_name_II;
+
+ins_num_sel:
+	Double_quote_string_II | Float_II | Integer_II;

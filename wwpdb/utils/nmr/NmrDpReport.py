@@ -143,6 +143,7 @@
 # 21-Oct-2026  M. Yokochi - fix hasSequenceMismatchErrorInCsLoop() and add hasSequenceMismatchErrorsInMrLoop() (DAOTHER-11129)
 # 28-Oct-2026  M. Yokochi - add getUnmappedSeqKeyOfModelChainId() (DAOTHER-9785, 10987)
 # 06-Nov-2026  M. Yokochi - add 'nm-shi-dia' file type for DIANA chemical shift file (DAOTHER-8905, 9785)
+# 26-Nov-2026  M. Yokochi - add getInheritableDictByFileName() (DAOTHER-9785, https://github.com/yokochi47/bmrb-extract/issues/124)
 ##
 """ Wrapper class for NMR data processing report.
     @author: Masashi Yokochi
@@ -151,7 +152,7 @@ __docformat__ = "restructuredtext en"
 __author__ = "Masashi Yokochi"
 __email__ = "yokochi@protein.osaka-u.ac.jp"
 __license__ = "Apache License 2.0"
-__version__ = "5.4.8"
+__version__ = "5.4.9"
 
 import copy
 import functools
@@ -1813,7 +1814,7 @@ class NmrDpReport:
 
         if not self.__immutable:
 
-            file_name = self.input_sources[self.getInputSourceIdOfNmrData()].get()['file_name']
+            # file_name = self.input_sources[self.getInputSourceIdOfNmrData()].get()['file_name']
             _file_name = prev_report.input_sources[prev_report.getInputSourceIdOfNmrData()].get()['file_name']
 
             value_list = prev_report.error.getValueList(item, _file_name)
@@ -1866,7 +1867,7 @@ class NmrDpReport:
 
         if not self.__immutable:
 
-            file_name = self.input_sources[self.getInputSourceIdOfNmrData()].get()['file_name']
+            # file_name = self.input_sources[self.getInputSourceIdOfNmrData()].get()['file_name']
             _file_name = prev_report.input_sources[prev_report.getInputSourceIdOfNmrData()].get()['file_name']
 
             value_list = prev_report.warning.getValueList(item, _file_name)
@@ -1896,7 +1897,7 @@ class NmrDpReport:
 
         if not self.__immutable:
 
-            file_name = self.input_sources[self.getInputSourceIdOfNmrData()].get()['file_name']
+            # file_name = self.input_sources[self.getInputSourceIdOfNmrData()].get()['file_name']
             _file_name = prev_report.input_sources[prev_report.getInputSourceIdOfNmrData()].get()['file_name']
 
             value_list = prev_report.warning.getValueList(item, _file_name)
@@ -2970,6 +2971,34 @@ class NmrDpReportWarning:
 
             dlist = [c for c in v if 'inheritable' in c and c['inheritable']
                      and 'sf_framecode' in c and c['sf_framecode'] == sf_framecode]
+
+            if len(dlist) == 0:
+                continue
+
+            d[k] = dlist
+
+        if len(d) == 0:
+            return None
+
+        return d
+
+    def getInheritableDictByFileName(self, file_name: str
+                                     ) -> Optional[dict]:
+        """ Return dictionary of list of warning values with inheritable flag for a given file name.
+        """
+
+        if file_name in EMPTY_VALUE or self.__contents is None:
+            return None
+
+        d = {}
+
+        for k, v in self.__contents.items():
+
+            if k == 'total' or v is None:
+                continue
+
+            dlist = [c for c in v if 'inheritable' in c and c['inheritable']
+                     and 'file_name' in c and c['file_name'] == file_name]
 
             if len(dlist) == 0:
                 continue

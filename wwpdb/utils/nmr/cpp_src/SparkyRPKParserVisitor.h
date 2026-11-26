@@ -33,6 +33,8 @@ public:
 
     virtual std::any visitPeak_wo_assign(SparkyRPKParser::Peak_wo_assignContext *context) = 0;
 
+    virtual std::any visitPosition(SparkyRPKParser::PositionContext *context) = 0;
+
     virtual std::any visitNumber(SparkyRPKParser::NumberContext *context) = 0;
 
     virtual std::any visitNote(SparkyRPKParser::NoteContext *context) = 0;

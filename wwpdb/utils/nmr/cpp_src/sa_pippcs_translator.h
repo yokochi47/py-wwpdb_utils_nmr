@@ -17,6 +17,8 @@ class SA_PippCSTranslator : public PippCSParserBaseVisitor {
     PyObject *Ext_peak_pick_tblContext_cls = NULL;
     PyObject *Ext_peak_pick_tbl_rowContext_cls = NULL;
     PyObject *Residue_listContext_cls = NULL;
+    PyObject *Res_idContext_cls = NULL;
+    PyObject *Res_typeContext_cls = NULL;
     PyObject *Shift_listContext_cls = NULL;
     PyObject *NumberContext_cls = NULL;
 
@@ -32,6 +34,10 @@ class SA_PippCSTranslator : public PippCSParserBaseVisitor {
     antlrcpp::Any visitExt_peak_pick_tbl_row(PippCSParser::Ext_peak_pick_tbl_rowContext *ctx);
 
     antlrcpp::Any visitResidue_list(PippCSParser::Residue_listContext *ctx);
+
+    antlrcpp::Any visitRes_id(PippCSParser::Res_idContext *ctx);
+
+    antlrcpp::Any visitRes_type(PippCSParser::Res_typeContext *ctx);
 
     antlrcpp::Any visitShift_list(PippCSParser::Shift_listContext *ctx);
 

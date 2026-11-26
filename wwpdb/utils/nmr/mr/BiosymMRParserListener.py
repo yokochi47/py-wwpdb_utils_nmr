@@ -26,6 +26,8 @@ try:
                                                REPRESENTATIVE_ALT_ID,
                                                DIST_AMBIG_LOW,
                                                DIST_AMBIG_UP,
+                                               ANGLE_ERROR_MIN,
+                                               ANGLE_ERROR_MAX,
                                                JCOUP_BB_PAIR_CODE,
                                                ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS,
                                                RDC_BB_PAIR_CODE)
@@ -57,6 +59,8 @@ except ImportError:
                                    REPRESENTATIVE_ALT_ID,
                                    DIST_AMBIG_LOW,
                                    DIST_AMBIG_UP,
+                                   ANGLE_ERROR_MIN,
+                                   ANGLE_ERROR_MAX,
                                    JCOUP_BB_PAIR_CODE,
                                    ISOTOPE_NUMBERS_OF_NMR_OBS_NUCS,
                                    RDC_BB_PAIR_CODE)
@@ -733,7 +737,8 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                 self.dihedRestraints -= 1
                 self.cur_subtype = 'jcoup'
                 self.jcoupRestraints += 1
-                self.exitCoupling_restraint(ctx)
+                self.exitCoupling_restraint(str(ctx.Atom_selection(0)), str(ctx.Atom_selection(1)),
+                                            str(ctx.Atom_selection(2)), str(ctx.Atom_selection(3)))
                 return
 
             # cco = self.numberSelection[0]
@@ -977,7 +982,8 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
                 self.dihedRestraints -= 1
                 self.cur_subtype = 'jcoup'
                 self.jcoupRestraints += 1
-                self.exitCoupling_restraint(ctx)
+                self.exitCoupling_restraint(str(ctx.Atom_selection(0)), str(ctx.Atom_selection(1)),
+                                            str(ctx.Atom_selection(2)), str(ctx.Atom_selection(3)))
                 return
 
             target_value = None
@@ -1150,6 +1156,7 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
         if len(self.numberSelection) < 5:
             return False
+
         coup = self.numberSelection[0]
         if 0 < coup < 20.0:
             pass
@@ -1159,18 +1166,18 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
         low = self.numberSelection[1]
         up = self.numberSelection[2]
 
-        if -360.0 < low < up < 360.0:
+        if ANGLE_ERROR_MIN < low < up < ANGLE_ERROR_MAX:
             pass
         else:
-            return False
+            return True
 
         low2 = self.numberSelection[3]
         up2 = self.numberSelection[4]
 
-        if -360.0 < low2 < up2 < 360.0:
+        if ANGLE_ERROR_MIN < low2 < up2 < ANGLE_ERROR_MAX:
             pass
         else:
-            return False
+            return True
 
         avr = (low + up) / 2.0
         avr2 = (low2 + up2) / 2.0
@@ -1180,16 +1187,16 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
         return True
 
-    def exitCoupling_restraint(self, ctx: BiosymMRParser.Dihedral_angle_constraintContext):
+    def exitCoupling_restraint(self, atom_sel1: str, atom_sel2: str, atom_sel3: str, atom_sel4: str):
         """ Delegated function for J-coupling restraint
         """
 
         try:
 
-            chainId1, seqId1, compId1, atomId1 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(0)))
-            chainId2, seqId2, compId2, atomId2 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(1)))
-            chainId3, seqId3, compId3, atomId3 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(2)))
-            chainId4, seqId4, compId4, atomId4 = self.__splitAtomSelectionExpr(str(ctx.Atom_selection(3)))
+            chainId1, seqId1, compId1, atomId1 = self.__splitAtomSelectionExpr(atom_sel1)
+            chainId2, seqId2, compId2, atomId2 = self.__splitAtomSelectionExpr(atom_sel2)
+            chainId3, seqId3, compId3, atomId3 = self.__splitAtomSelectionExpr(atom_sel3)
+            chainId4, seqId4, compId4, atomId4 = self.__splitAtomSelectionExpr(atom_sel4)
 
             if len(self.numberSelection) == 0 or None in self.numberSelection or None in (atomId1, atomId2, atomId3, atomId4):
                 self.jcoupRestraints -= 1
@@ -1697,6 +1704,7 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
         self.atomSelectionSet.clear()
         self.insAtomSelection.clear()
+        self.numberSelection.clear()
 
     def exitIns_distance_restraint(self, ctx: BiosymMRParser.Ins_distance_restraintContext):  # pylint: disable=unused-argument
         """ Exit a parse tree produced by BiosymMRParser#ins_distance_restraint.
@@ -1715,7 +1723,11 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
 
         weight = 1.0
 
-        if not self.hasPolySeq and not self.hasNonPolySeq or None in (atomId1, atomId2):
+        if not self.hasPolySeq and not self.hasNonPolySeq:
+            return
+
+        if None in (atomId1, atomId2):
+            self.distRestraints -= 1
             return
 
         self.retrieveLocalSeqScheme()
@@ -1852,22 +1864,197 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
         if self.createSfDict and sf is not None and isinstance(memberId, int) and memberId == 1:
             sf['loop'].data[-1] = resetMemberId(self.cur_subtype, sf['loop'].data[-1])
 
-    def enterDecl_create(self, ctx: BiosymMRParser.Decl_createContext):
-        """ Enter a parse tree produced by BiosymMRParser#decl_create.
+    def enterIns_dihedral_angle_restraints(self, ctx: BiosymMRParser.Ins_dihedral_angle_restraintsContext
+                                           ):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by BiosymMRParser#ins_dihedral_angle_restraints.
         """
 
-        if ctx.Double_quote_string(0):
-            self.cur_ins_decl = str(ctx.Double_quote_string(0))
+        self.cur_subtype = 'dihed'
 
-        if ctx.Double_quote_string(1):
-            self.insAtomSelection.append(self.splitInsAtomSelectionExpr(str(ctx.Double_quote_string(1)).strip('"')))
+    def exitIns_dihedral_angle_restraints(self, ctx: BiosymMRParser.Ins_dihedral_angle_restraintsContext
+                                          ):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by BiosymMRParser#ins_dihedral_angle_restraints.
+        """
 
-        if ctx.Double_quote_string(2):
-            self.insAtomSelection.append(self.splitInsAtomSelectionExpr(str(ctx.Double_quote_string(2)).strip('"')))
+    def enterIns_dihedral_angle_restraint(self, ctx: BiosymMRParser.Ins_dihedral_angle_restraintContext
+                                          ):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by BiosymMRParser#ins_dihedral_angle_restraint.
+        """
 
-    def exitDecl_create(self, ctx: BiosymMRParser.Decl_createContext):  # pylint: disable=unused-argument
+        self.dihedRestraints += 1
+
+        self.atomSelectionSet.clear()
+        self.insAtomSelection.clear()
+        self.numberSelection.clear()
+
+    def exitIns_dihedral_angle_restraint(self, ctx: BiosymMRParser.Ins_dihedral_angle_restraintContext
+                                         ):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by BiosymMRParser#ins_dihedral_angle_restraint.
+        """
+
+        if len(self.insAtomSelection) != 4:
+            self.dihedRestraints -= 1
+            return
+
+        chainId1, seqId1, atomId1 = self.insAtomSelection[0]
+        chainId2, seqId2, atomId2 = self.insAtomSelection[1]
+        chainId3, seqId3, atomId3 = self.insAtomSelection[2]
+        chainId4, seqId4, atomId4 = self.insAtomSelection[3]
+
+        target_value = None
+        lower_limit = self.cur_lower_limit
+        upper_limit = self.cur_upper_limit
+
+        weight = 1.0
+
+        if not self.hasPolySeq and not self.hasNonPolySeq:
+            return
+
+        if None in (atomId1, atomId2, atomId3, atomId4):
+            self.dihedRestraints -= 1
+            return
+
+        dstFunc = self.validateAngleRange(weight, target_value, lower_limit, upper_limit)
+
+        if dstFunc is None:
+            return
+
+        self.retrieveLocalSeqScheme()
+
+        if not any(True for ps in self.polySeq if ps['auth_chain_id'] == chainId1):
+            chainId1 = None
+        if not any(True for ps in self.polySeq if ps['auth_chain_id'] == chainId2):
+            chainId2 = None
+        if not any(True for ps in self.polySeq if ps['auth_chain_id'] == chainId3):
+            chainId3 = None
+        if not any(True for ps in self.polySeq if ps['auth_chain_id'] == chainId4):
+            chainId4 = None
+
+        chainAssign1 = self.assignCoordPolymerSequenceWithChainIdWithoutCompId(chainId1, seqId1, atomId1)
+        chainAssign2 = self.assignCoordPolymerSequenceWithChainIdWithoutCompId(chainId2, seqId2, atomId2)
+        chainAssign3 = self.assignCoordPolymerSequenceWithChainIdWithoutCompId(chainId3, seqId3, atomId3)
+        chainAssign4 = self.assignCoordPolymerSequenceWithChainIdWithoutCompId(chainId4, seqId4, atomId4)
+
+        if 0 in (len(chainAssign1), len(chainAssign2), len(chainAssign3), len(chainAssign4)):
+            return
+
+        self.selectCoordAtoms(chainAssign1, seqId1, None, atomId1, False)
+        self.selectCoordAtoms(chainAssign2, seqId2, None, atomId2, False)
+        self.selectCoordAtoms(chainAssign3, seqId3, None, atomId3, False)
+        self.selectCoordAtoms(chainAssign4, seqId4, None, atomId4, False)
+
+        if len(self.atomSelectionSet) < 4:
+            return
+
+        try:
+            compId = self.atomSelectionSet[0][0]['comp_id']
+            peptide, nucleotide, carbohydrate = self.csStat.getTypeOfCompId(compId)
+        except IndexError:
+            self.areUniqueCoordAtoms('a dihedral angle')
+            return
+
+        len_f = len(self.f)
+        self.areUniqueCoordAtoms('a dihedral angle',
+                                 allow_ambig=True, allow_ambig_warn_title='Ambiguous dihedral angle')
+        combinationId = '.' if len_f == len(self.f) else 0
+
+        atomSelTotal = sum(len(s) for s in self.atomSelectionSet)
+
+        if isinstance(combinationId, int):
+            fixedAngleName = '.'
+            for atom1, atom2, atom3, atom4 in itertools.product(self.atomSelectionSet[0],
+                                                                self.atomSelectionSet[1],
+                                                                self.atomSelectionSet[2],
+                                                                self.atomSelectionSet[3]):
+                atoms = [atom1, atom2, atom3, atom4]
+                angleName = getTypeOfDihedralRestraint(peptide, nucleotide, carbohydrate,
+                                                       atoms,
+                                                       'plane_like' in dstFunc,
+                                                       self.cR, self.ccU,
+                                                       self.representativeModelId, self.representativeAltId, self.modelNumName)
+
+                if angleName is not None and angleName.startswith('pseudo'):
+                    angleName, atom2, atom3, err = fixBackboneAtomsOfDihedralRestraint(angleName,
+                                                                                       atoms,
+                                                                                       self.getCurrentRestraint())
+                    self.f.append(err)
+
+                if angleName in EMPTY_VALUE and atomSelTotal != 4:
+                    continue
+
+                fixedAngleName = angleName
+                break
+
+        sf = None
+        if self.createSfDict:
+            sf = self.getSf(potentialType=getPotentialType(self.file_type, self.cur_subtype, dstFunc))
+
+        first_item = True
+
+        for atom1, atom2, atom3, atom4 in itertools.product(self.atomSelectionSet[0],
+                                                            self.atomSelectionSet[1],
+                                                            self.atomSelectionSet[2],
+                                                            self.atomSelectionSet[3]):
+            atoms = [atom1, atom2, atom3, atom4]
+            angleName = getTypeOfDihedralRestraint(peptide, nucleotide, carbohydrate,
+                                                   atoms,
+                                                   'plane_like' in dstFunc,
+                                                   self.cR, self.ccU,
+                                                   self.representativeModelId, self.representativeAltId, self.modelNumName)
+
+            if angleName is not None and angleName.startswith('pseudo'):
+                angleName, atom2, atom3, err = fixBackboneAtomsOfDihedralRestraint(angleName,
+                                                                                   atoms,
+                                                                                   self.getCurrentRestraint())
+                self.f.append(err)
+
+            if angleName in EMPTY_VALUE and atomSelTotal != 4:
+                continue
+
+            if isinstance(combinationId, int):
+                if angleName != fixedAngleName:
+                    continue
+                combinationId += 1
+            if peptide and angleName == 'CHI2' and atom4['atom_id'] == 'CD1' and isLikePheOrTyr(atom2['comp_id'], self.ccU):
+                dstFunc = self.selectRealisticChi2AngleConstraint(atom1, atom2, atom3, atom4,
+                                                                  dstFunc)
+            if self.debug:
+                print(f"subtype={self.cur_subtype} id={self.dihedRestraints} angleName={angleName} "
+                      f"atom1={atom1} atom2={atom2} atom3={atom3} atom4={atom4} {dstFunc}")
+            if self.createSfDict and sf is not None:
+                if first_item:
+                    sf['id'] += 1
+                    first_item = False
+                sf['index_id'] += 1
+                row = getRow(self.cur_subtype, sf['id'], sf['index_id'],
+                             combinationId, None, angleName,
+                             sf['list_id'], self.entryId, dstFunc,
+                             self.authToStarSeq, self.authToOrigSeq, self.authToInsCode, self.offsetHolder,
+                             atom1, atom2, atom3, atom4)
+                sf['loop'].add_data(row)
+
+        if self.createSfDict and sf is not None and isinstance(combinationId, int) and combinationId == 1:
+            sf['loop'].data[-1] = resetCombinationId(self.cur_subtype, sf['loop'].data[-1])
+
+    def enterDecl_create_dist(self, ctx: BiosymMRParser.Decl_create_distContext):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by BiosymMRParser#decl_create_dist.
+        """
+
+    def exitDecl_create_dist(self, ctx: BiosymMRParser.Decl_create_distContext):  # pylint: disable=unused-argument
         """ Exit a parse tree produced by BiosymMRParser#decl_create.
         """
+
+        self.__cur_ins_decl = self.cur_ins_decl
+
+    def enterDecl_create_dihed(self, ctx: BiosymMRParser.Decl_create_dihedContext):  # pylint: disable=unused-argument
+        """ Enter a parse tree produced by BiosymMRParser#decl_create_dihed.
+        """
+
+    def exitDecl_create_dihed(self, ctx: BiosymMRParser.Decl_create_dihedContext):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by BiosymMRParser#decl_create_dihed.
+        """
+
+        self.__cur_ins_decl = self.cur_ins_decl
 
     def enterDecl_function(self, ctx: BiosymMRParser.Decl_functionContext):  # pylint: disable=unused-argument
         """ Enter a parse tree produced by BiosymMRParser#decl_function.
@@ -1877,33 +2064,96 @@ class BiosymMRParserListener(ParseTreeListener, BaseLinearMRParserListener):
         """ Exit a parse tree produced by BiosymMRParser#decl_function.
         """
 
-    def enterDecl_target(self, ctx: BiosymMRParser.Decl_targetContext):
+        if self.cur_subtype == 'dihed' and ctx.Trans():
+            self.cur_upper_limit = None
+            self.cur_lower_limit = None
+
+            if len(self.numberSelection) > 0 and self.numberSelection[0] is not None:
+                self.cur_lower_limit = 180.0 - self.numberSelection[0]
+                self.cur_upper_limit = 180.0 + self.numberSelection[0]
+
+        self.numberSelection.clear()
+
+    def enterDecl_target(self, ctx: BiosymMRParser.Decl_targetContext):  # pylint: disable=unused-argument
         """ Enter a parse tree produced by BiosymMRParser#decl_target.
         """
 
-        if ctx.Double_quote_string(0):
-            if str(ctx.Double_quote_string(0)) != self.cur_ins_decl:
-                return
-
-            if ctx.Relative():
-                self.cur_upper_limit = None
-                self.cur_lower_limit = None
-
-            else:
-                if ctx.Double_quote_string(1):
-                    try:
-                        self.cur_lower_limit = float(str(ctx.Double_quote_string(1)).strip('"'))
-                    except (ValueError, TypeError):
-                        pass
-
-                if ctx.Double_quote_string(2):
-                    try:
-                        self.cur_upper_limit = float(str(ctx.Double_quote_string(2)).strip('"'))
-                    except (ValueError, TypeError):
-                        pass
-
     def exitDecl_target(self, ctx: BiosymMRParser.Decl_targetContext):  # pylint: disable=unused-argument
         """ Exit a parse tree produced by BiosymMRParser#decl_target.
+        """
+
+        self.cur_upper_limit = None
+        self.cur_lower_limit = None
+
+        if self.cur_ins_decl != self.__cur_ins_decl or ctx.Relative():
+            return
+
+        len_num = len(self.numberSelection)
+
+        if len_num > 0:
+
+            if self.numberSelection[0] is not None:
+                self.cur_lower_limit = self.numberSelection[0]
+
+            if len_num > 1:
+                if self.numberSelection[1] is not None:
+                    self.cur_upper_limit = self.numberSelection[1]
+
+        # Enter a parse tree produced by BiosymMRParser#ins_rst_id.
+    def enterIns_rst_id(self, ctx: BiosymMRParser.Ins_rst_idContext):
+        """ Enter a parse tree produced by BiosymMRParser#ins_rst_id.
+        """
+
+        if ctx.Double_quote_string_II():
+            self.cur_ins_decl = str(ctx.Double_quote_string_II()).strip("")
+
+        elif ctx.Simple_name_II():
+            self.cur_ins_decl = str(ctx.Simple_name_II())
+
+        else:
+            self.cur_ins_decl = str(ctx.Integer_II())
+
+    # Exit a parse tree produced by BiosymMRParser#ins_rst_id.
+    def exitIns_rst_id(self, ctx: BiosymMRParser.Ins_rst_idContext):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by BiosymMRParser#ins_rst_id.
+        """
+
+    # Enter a parse tree produced by BiosymMRParser#ins_atom_sel.
+    def enterIns_atom_sel(self, ctx: BiosymMRParser.Ins_atom_selContext):
+        """ Enter a parse tree produced by BiosymMRParser#ins_atom_sel.
+        """
+
+        if ctx.Double_quote_string_II():
+            self.insAtomSelection.append(self.splitInsAtomSelectionExpr(str(ctx.Double_quote_string_II()).strip('"')))
+
+        elif ctx.Simple_name_II():
+            self.insAtomSelection.append(self.splitInsAtomSelectionExpr(str(ctx.Simple_name_II())))
+
+    def exitIns_atom_sel(self, ctx: BiosymMRParser.Ins_atom_selContext):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by BiosymMRParser#ins_atom_sel.
+        """
+
+    def enterIns_num_sel(self, ctx: BiosymMRParser.Ins_num_selContext):
+        """ Enter a parse tree produced by BiosymMRParser#ins_num_sel.
+        """
+
+        try:
+
+            if ctx.Double_quote_string_II():
+                self.numberSelection.append(float(str(ctx.Double_quote_string_II()).strip('"')))
+
+            elif ctx.Float_II():
+                self.numberSelection.append(float(str(ctx.Float_II())))
+
+            else:
+                self.numberSelection.append(float(str(ctx.Integer_II())))
+
+        except (ValueError, TypeError):
+            self.numberSelection.append(None)
+
+    # Exit a parse tree produced by BiosymMRParser#ins_num_sel.
+    def exitIns_num_sel(self, ctx: BiosymMRParser.Ins_num_selContext):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by BiosymMRParser#ins_num_sel.
         """
 
     def splitInsAtomSelectionExpr(self, atomSelection: str  # pylint: disable=no-self-use

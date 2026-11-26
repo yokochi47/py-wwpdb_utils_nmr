@@ -2321,7 +2321,8 @@ class BaseStackedMRParserListener():
                     del self.reasonsForReParsing['label_seq_offset']
                 if 'label_seq_scheme' in self.reasonsForReParsing:
                     if 'global_auth_sequence_offset' not in self.reasonsForReParsing:
-                        self.reasonsForReParsing['global_auth_sequence_offset'] = self.reasonsForReParsing['global_sequence_offset']
+                        self.reasonsForReParsing['global_auth_sequence_offset'] =\
+                            self.reasonsForReParsing['global_sequence_offset']
                         del self.reasonsForReParsing['global_sequence_offset']
                     revise_label_seq_scheme(seqIdRemapForRemaining)
                 if 'inhibit_label_seq_scheme' in self.reasonsForReParsing:
@@ -4949,7 +4950,17 @@ class BaseStackedMRParserListener():
                                for np in self.__nonPoly):
                     return False
 
-        def update_label_seq_scheme(force=False):
+        def update_label_seq_scheme(compId, force=False):
+            if not seqSpecified:
+                return
+            if compId is not None:
+                compType = self.csStat.getTypeOfCompId(compId)
+                _compId = self.csStat.getSimilarCompIdFromAtomIds(_factor['atom_id'], ignore_unmap=True)
+                if _compId is None:
+                    return
+                _compType = self.csStat.getTypeOfCompId(_compId)
+                if compType != _compType:
+                    return
             r = self.__getNamedReasonsForReparsing('label_seq_scheme')
             if self.cur_subtype not in r or force:
                 r[self.cur_subtype] = True
@@ -5168,7 +5179,7 @@ class BaseStackedMRParserListener():
                         #     if self.csStat.peptideLike(_compId_):
                         #         compIds = guessCompIdFromAtomId(_factor['atom_id'], self.polySeq, self.nefT)
                         #         if compIds is not None and _compId_ in compIds:
-                        #             update_label_seq_scheme(True)
+                        #             update_label_seq_scheme(compId, True)
                         #     self.preferAuthSeq = True
                         # """
                         if isPolySeq and seqSpecified and atomSpecified\
@@ -5575,7 +5586,7 @@ class BaseStackedMRParserListener():
                                                     if skip:
                                                         pass
                                                     else:
-                                                        update_label_seq_scheme(True)
+                                                        update_label_seq_scheme(compId, True)
                                                 elif _atomId in _coordAtomSite['atom_id']:
                                                     # _atom = {}
                                                     # _atom['comp_id'] = _compId
@@ -5585,7 +5596,7 @@ class BaseStackedMRParserListener():
                                                         cca = next((cca for cca in self.ccU.lastAtomDictList
                                                                     if cca['atom_id'] == _atomId), None)
                                                         if cca is None or (cca is not None and cca['leaving_atom_flag'] == 'Y'):
-                                                            update_label_seq_scheme()
+                                                            update_label_seq_scheme(compId)
                                             elif _atomId in ('HN1', 'HN2', 'HN3')\
                                                     and (f'{_atomId[-1]}HN' in _coordAtomSite['atom_id']
                                                          or f'H{_atomId[-1]}' in _coordAtomSite['atom_id']):
@@ -5597,7 +5608,7 @@ class BaseStackedMRParserListener():
                                                     if skip:
                                                         pass
                                                     else:
-                                                        update_label_seq_scheme(True)
+                                                        update_label_seq_scheme(compId, True)
                                                 else:
                                                     _atom = {}
                                                     _atom['comp_id'] = _compId
@@ -5607,7 +5618,7 @@ class BaseStackedMRParserListener():
                                                         cca = next((cca for cca in self.ccU.lastAtomDictList
                                                                     if cca['atom_id'] == _atomId), None)
                                                         if cca is None or (cca is not None and cca['leaving_atom_flag'] == 'Y'):
-                                                            update_label_seq_scheme()
+                                                            update_label_seq_scheme(compId)
                                             elif 'alt_atom_id' in _coordAtomSite and _atomId in _coordAtomSite['alt_atom_id']:
                                                 if (self.cur_subtype != 'dist' and not self.in_noe)\
                                                    or (has_nx_local and not has_nx_anchor
@@ -5615,7 +5626,7 @@ class BaseStackedMRParserListener():
                                                     if skip:
                                                         pass
                                                     else:
-                                                        update_label_seq_scheme(True)
+                                                        update_label_seq_scheme(compId, True)
                                                 else:
                                                     _atom = {}
                                                     _atom['comp_id'] = _compId
@@ -5625,7 +5636,7 @@ class BaseStackedMRParserListener():
                                                         cca = next((cca for cca in self.ccU.lastAtomDictList
                                                                     if cca['atom_id'] == _atomId), None)
                                                         if cca is None or (cca is not None and cca['leaving_atom_flag'] == 'Y'):
-                                                            update_label_seq_scheme()
+                                                            update_label_seq_scheme(compId)
                                     elif _seqId_ in ps['auth_seq_id'] and atomSpecified\
                                             and (self.reasons is None or 'label_seq_scheme' not in self.reasons
                                                  or self.reasons['label_seq_scheme'] is None
@@ -5706,7 +5717,7 @@ class BaseStackedMRParserListener():
                                                     cca = next((cca for cca in self.ccU.lastAtomDictList
                                                                 if cca['atom_id'] == _atomId), None)
                                                     if cca is None or (cca is not None and cca['leaving_atom_flag'] == 'Y'):
-                                                        update_label_seq_scheme()
+                                                        update_label_seq_scheme(compId)
                                             elif _atomId in ('HN1', 'HN2', 'HN3')\
                                                     and (f'{_atomId[-1]}HN' in _coordAtomSite['atom_id']
                                                          or f'H{_atomId[-1]}' in _coordAtomSite['atom_id']):
@@ -5720,7 +5731,7 @@ class BaseStackedMRParserListener():
                                                     cca = next((cca for cca in self.ccU.lastAtomDictList
                                                                 if cca['atom_id'] == _atomId), None)
                                                     if cca is None or (cca is not None and cca['leaving_atom_flag'] == 'Y'):
-                                                        update_label_seq_scheme()
+                                                        update_label_seq_scheme(compId)
                                             elif 'alt_atom_id' in _coordAtomSite and _atomId in _coordAtomSite['alt_atom_id']:
                                                 _atom = {}
                                                 _atom['comp_id'] = _compId
@@ -5730,7 +5741,7 @@ class BaseStackedMRParserListener():
                                                     cca = next((cca for cca in self.ccU.lastAtomDictList
                                                                 if cca['atom_id'] == _atomId), None)
                                                     if cca is None or (cca is not None and cca['leaving_atom_flag'] == 'Y'):
-                                                        update_label_seq_scheme()
+                                                        update_label_seq_scheme(compId)
 
                                 elif _seqId_ in ps['auth_seq_id'] and atomSpecified:
                                     if self.__lenAtomSelectionSet == 0\
@@ -5877,6 +5888,16 @@ class BaseStackedMRParserListener():
             return
 
         def update_label_seq_scheme():
+            if 'seq_not specified' in _factor:
+                return
+            if compId is not None:
+                compType = self.csStat.getTypeOfCompId(compId)
+                _compId = self.csStat.getSimilarCompIdFromAtomIds(_factor['atom_id'], ignore_unmap=True)
+                if _compId is None:
+                    return
+                _compType = self.csStat.getTypeOfCompId(_compId)
+                if compType != _compType:
+                    return
             r = self.__getNamedReasonsForReparsing('label_seq_scheme')
             if self.cur_subtype not in r:
                 r[self.cur_subtype] = True
@@ -6467,7 +6488,7 @@ class BaseStackedMRParserListener():
                         if len(_factor['seq_id']) == 1:
                             if len(_factor['atom_id']) == 1 and 'comp_id' not in _factor:
                                 compIds = guessCompIdFromAtomId(_factor['atom_id'], self.polySeq, self.nefT)
-                                if compIds is not None:
+                                if compIds is not None and 'ACE' not in compIds and 'NH2' not in compIds:  # 1jun
                                     for chainId in _factor['chain_id']:
                                         if len(compIds) == 1:
                                             updatePolySeqRst(self.__polySeqRstFailed, chainId, _factor['seq_id'][0], compIds[0])

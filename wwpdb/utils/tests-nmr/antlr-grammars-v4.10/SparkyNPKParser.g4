@@ -42,22 +42,26 @@ data_label:
 //	(peak_2d+ | peak_3d+ | peak_4d+);
 
 peak_2d:
-	Assignment_2d_ex Float Float number* note* (RETURN | EOF);
+	Assignment_2d_ex position position number* note* (RETURN | EOF);
 
 peak_3d:
-	Assignment_3d_ex Float Float Float number* note* (RETURN | EOF);
+	Assignment_3d_ex position position position number* note* (RETURN | EOF);
 
 peak_4d:
-	Assignment_4d_ex Float Float Float Float number* note* (RETURN | EOF);
+	Assignment_4d_ex position position position  number* note* (RETURN | EOF);
 
 peak_2d_po:
-	(Assignment_2d_ex | Assignment_3d_ex | Assignment_4d_ex) Float Float (RETURN | EOF);
+	(Assignment_2d_ex | Assignment_3d_ex | Assignment_4d_ex) position position (RETURN | EOF);
 
 peak_3d_po:
-	(Assignment_3d_ex | Assignment_4d_ex) Float Float Float (RETURN | EOF);
+	(Assignment_3d_ex | Assignment_4d_ex) position position position (RETURN | EOF);
 
 peak_4d_po:
-	Assignment_4d_ex Float Float Float Float (RETURN | EOF);
+	Assignment_4d_ex position position position  (RETURN | EOF);
+
+/* position expression in peak list */
+position:
+	Float | Integer;
 
 /* number expression in peak list */
 number:	Real_vol | Real | Float | Integer;

@@ -16,6 +16,8 @@ SA_PippCSTranslator::~SA_PippCSTranslator() {
     Py_XDECREF(Ext_peak_pick_tblContext_cls);
     Py_XDECREF(Ext_peak_pick_tbl_rowContext_cls);
     Py_XDECREF(Residue_listContext_cls);
+    Py_XDECREF(Res_idContext_cls);
+    Py_XDECREF(Res_typeContext_cls);
     Py_XDECREF(Shift_listContext_cls);
     Py_XDECREF(NumberContext_cls);
 }
@@ -48,6 +50,18 @@ antlrcpp::Any SA_PippCSTranslator::visitExt_peak_pick_tbl_row(PippCSParser::Ext_
 antlrcpp::Any SA_PippCSTranslator::visitResidue_list(PippCSParser::Residue_listContext *ctx){
     if(!Residue_listContext_cls) Residue_listContext_cls = PyObject_GetAttrString(translator->parser_cls, "Residue_listContext");
     PyObject *py_ctx = translator->convert_ctx(this, ctx, Residue_listContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_PippCSTranslator::visitRes_id(PippCSParser::Res_idContext *ctx){
+    if(!Res_idContext_cls) Res_idContext_cls = PyObject_GetAttrString(translator->parser_cls, "Res_idContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Res_idContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_PippCSTranslator::visitRes_type(PippCSParser::Res_typeContext *ctx){
+    if(!Res_typeContext_cls) Res_typeContext_cls = PyObject_GetAttrString(translator->parser_cls, "Res_typeContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Res_typeContext_cls);
     return py_ctx;
 }
 

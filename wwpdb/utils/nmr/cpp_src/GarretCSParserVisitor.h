@@ -23,6 +23,8 @@ public:
 
     virtual std::any visitResidue_list(GarretCSParser::Residue_listContext *context) = 0;
 
+    virtual std::any visitRes_id(GarretCSParser::Res_idContext *context) = 0;
+
     virtual std::any visitShift_list(GarretCSParser::Shift_listContext *context) = 0;
 
     virtual std::any visitNumber(GarretCSParser::NumberContext *context) = 0;

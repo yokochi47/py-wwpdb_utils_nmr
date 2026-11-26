@@ -25,9 +25,11 @@ garret_cs:
 	EOF;
 
 residue_list:
-	Integer Simple_name RETURN
-	shift_list+
-	SMCLN_COMMENT;
+	res_id Simple_name RETURN
+	shift_list+;
+
+res_id:
+	Integer | Simple_name;
 
 shift_list:
 	Simple_name number RETURN?;

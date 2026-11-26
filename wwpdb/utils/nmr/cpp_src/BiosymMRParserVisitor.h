@@ -65,11 +65,23 @@ public:
 
     virtual std::any visitIns_distance_restraint(BiosymMRParser::Ins_distance_restraintContext *context) = 0;
 
-    virtual std::any visitDecl_create(BiosymMRParser::Decl_createContext *context) = 0;
+    virtual std::any visitIns_dihedral_angle_restraints(BiosymMRParser::Ins_dihedral_angle_restraintsContext *context) = 0;
+
+    virtual std::any visitIns_dihedral_angle_restraint(BiosymMRParser::Ins_dihedral_angle_restraintContext *context) = 0;
+
+    virtual std::any visitDecl_create_dist(BiosymMRParser::Decl_create_distContext *context) = 0;
+
+    virtual std::any visitDecl_create_dihed(BiosymMRParser::Decl_create_dihedContext *context) = 0;
 
     virtual std::any visitDecl_function(BiosymMRParser::Decl_functionContext *context) = 0;
 
     virtual std::any visitDecl_target(BiosymMRParser::Decl_targetContext *context) = 0;
+
+    virtual std::any visitIns_rst_id(BiosymMRParser::Ins_rst_idContext *context) = 0;
+
+    virtual std::any visitIns_atom_sel(BiosymMRParser::Ins_atom_selContext *context) = 0;
+
+    virtual std::any visitIns_num_sel(BiosymMRParser::Ins_num_selContext *context) = 0;
 
 
 };

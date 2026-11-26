@@ -34,9 +34,15 @@ SA_BiosymMRTranslator::~SA_BiosymMRTranslator() {
     Py_XDECREF(NumberContext_cls);
     Py_XDECREF(Ins_distance_restraintsContext_cls);
     Py_XDECREF(Ins_distance_restraintContext_cls);
-    Py_XDECREF(Decl_createContext_cls);
+    Py_XDECREF(Ins_dihedral_angle_restraintsContext_cls);
+    Py_XDECREF(Ins_dihedral_angle_restraintContext_cls);
+    Py_XDECREF(Decl_create_distContext_cls);
+    Py_XDECREF(Decl_create_dihedContext_cls);
     Py_XDECREF(Decl_functionContext_cls);
     Py_XDECREF(Decl_targetContext_cls);
+    Py_XDECREF(Ins_rst_idContext_cls);
+    Py_XDECREF(Ins_atom_selContext_cls);
+    Py_XDECREF(Ins_num_selContext_cls);
 }
 
 
@@ -178,9 +184,27 @@ antlrcpp::Any SA_BiosymMRTranslator::visitIns_distance_restraint(BiosymMRParser:
     return py_ctx;
 }
 
-antlrcpp::Any SA_BiosymMRTranslator::visitDecl_create(BiosymMRParser::Decl_createContext *ctx){
-    if(!Decl_createContext_cls) Decl_createContext_cls = PyObject_GetAttrString(translator->parser_cls, "Decl_createContext");
-    PyObject *py_ctx = translator->convert_ctx(this, ctx, Decl_createContext_cls);
+antlrcpp::Any SA_BiosymMRTranslator::visitIns_dihedral_angle_restraints(BiosymMRParser::Ins_dihedral_angle_restraintsContext *ctx){
+    if(!Ins_dihedral_angle_restraintsContext_cls) Ins_dihedral_angle_restraintsContext_cls = PyObject_GetAttrString(translator->parser_cls, "Ins_dihedral_angle_restraintsContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Ins_dihedral_angle_restraintsContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_BiosymMRTranslator::visitIns_dihedral_angle_restraint(BiosymMRParser::Ins_dihedral_angle_restraintContext *ctx){
+    if(!Ins_dihedral_angle_restraintContext_cls) Ins_dihedral_angle_restraintContext_cls = PyObject_GetAttrString(translator->parser_cls, "Ins_dihedral_angle_restraintContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Ins_dihedral_angle_restraintContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_BiosymMRTranslator::visitDecl_create_dist(BiosymMRParser::Decl_create_distContext *ctx){
+    if(!Decl_create_distContext_cls) Decl_create_distContext_cls = PyObject_GetAttrString(translator->parser_cls, "Decl_create_distContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Decl_create_distContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_BiosymMRTranslator::visitDecl_create_dihed(BiosymMRParser::Decl_create_dihedContext *ctx){
+    if(!Decl_create_dihedContext_cls) Decl_create_dihedContext_cls = PyObject_GetAttrString(translator->parser_cls, "Decl_create_dihedContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Decl_create_dihedContext_cls);
     return py_ctx;
 }
 
@@ -193,5 +217,23 @@ antlrcpp::Any SA_BiosymMRTranslator::visitDecl_function(BiosymMRParser::Decl_fun
 antlrcpp::Any SA_BiosymMRTranslator::visitDecl_target(BiosymMRParser::Decl_targetContext *ctx){
     if(!Decl_targetContext_cls) Decl_targetContext_cls = PyObject_GetAttrString(translator->parser_cls, "Decl_targetContext");
     PyObject *py_ctx = translator->convert_ctx(this, ctx, Decl_targetContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_BiosymMRTranslator::visitIns_rst_id(BiosymMRParser::Ins_rst_idContext *ctx){
+    if(!Ins_rst_idContext_cls) Ins_rst_idContext_cls = PyObject_GetAttrString(translator->parser_cls, "Ins_rst_idContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Ins_rst_idContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_BiosymMRTranslator::visitIns_atom_sel(BiosymMRParser::Ins_atom_selContext *ctx){
+    if(!Ins_atom_selContext_cls) Ins_atom_selContext_cls = PyObject_GetAttrString(translator->parser_cls, "Ins_atom_selContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Ins_atom_selContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_BiosymMRTranslator::visitIns_num_sel(BiosymMRParser::Ins_num_selContext *ctx){
+    if(!Ins_num_selContext_cls) Ins_num_selContext_cls = PyObject_GetAttrString(translator->parser_cls, "Ins_num_selContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Ins_num_selContext_cls);
     return py_ctx;
 }

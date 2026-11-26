@@ -107,7 +107,19 @@ public:
     return visitChildren(ctx);
   }
 
-  virtual std::any visitDecl_create(BiosymMRParser::Decl_createContext *ctx) override {
+  virtual std::any visitIns_dihedral_angle_restraints(BiosymMRParser::Ins_dihedral_angle_restraintsContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitIns_dihedral_angle_restraint(BiosymMRParser::Ins_dihedral_angle_restraintContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitDecl_create_dist(BiosymMRParser::Decl_create_distContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitDecl_create_dihed(BiosymMRParser::Decl_create_dihedContext *ctx) override {
     return visitChildren(ctx);
   }
 
@@ -116,6 +128,18 @@ public:
   }
 
   virtual std::any visitDecl_target(BiosymMRParser::Decl_targetContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitIns_rst_id(BiosymMRParser::Ins_rst_idContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitIns_atom_sel(BiosymMRParser::Ins_atom_selContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitIns_num_sel(BiosymMRParser::Ins_num_selContext *ctx) override {
     return visitChildren(ctx);
   }
 

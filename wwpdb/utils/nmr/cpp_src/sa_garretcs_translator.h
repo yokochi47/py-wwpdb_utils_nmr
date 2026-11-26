@@ -14,6 +14,7 @@ class SA_GarretCSTranslator : public GarretCSParserBaseVisitor {
     // Cached context classes
     PyObject *Garret_csContext_cls = NULL;
     PyObject *Residue_listContext_cls = NULL;
+    PyObject *Res_idContext_cls = NULL;
     PyObject *Shift_listContext_cls = NULL;
     PyObject *NumberContext_cls = NULL;
 
@@ -23,6 +24,8 @@ class SA_GarretCSTranslator : public GarretCSParserBaseVisitor {
     antlrcpp::Any visitGarret_cs(GarretCSParser::Garret_csContext *ctx);
 
     antlrcpp::Any visitResidue_list(GarretCSParser::Residue_listContext *ctx);
+
+    antlrcpp::Any visitRes_id(GarretCSParser::Res_idContext *ctx);
 
     antlrcpp::Any visitShift_list(GarretCSParser::Shift_listContext *ctx);
 

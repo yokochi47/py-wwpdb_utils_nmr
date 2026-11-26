@@ -41,17 +41,23 @@ ext_peak_pick_tbl_row:
 	Simple_name_ET Simple_name_ET Simple_name_ET Simple_name_ET RETURN_ET;
 
 residue_list:
-	(Res_ID | Res_ID_) Integer RETURN
-	Res_type Simple_name RETURN
-	(Prev_type Type_pred* RETURN)?
-	(Cur_type Type_pred* RETURN)?
+	(Res_ID | Res_ID_) res_id RETURN
+	Res_type res_type* RETURN
+	(Prev_type res_type* RETURN)?
+	(Cur_type res_type* RETURN)?
 	Spin_system_ID Integer RETURN
 	(Heterogeneity Integer RETURN)?
 	shift_list*
 	End_res_def (RETURN | EOF);
 
+res_id:
+	Integer | Simple_name;
+
+res_type:
+	Simple_name | Type_pred;
+
 shift_list:
-	Simple_name number number? (Note_begin Note* Note_end)? RETURN;
+	Simple_name number number? (Note_begin Note* Note_end)? number? (Note_begin Note* Note_end)? RETURN;
 
 /* number expression in chemical shift */
 number: Float | Integer;

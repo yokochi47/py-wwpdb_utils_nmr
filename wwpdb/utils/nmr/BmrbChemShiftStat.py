@@ -58,7 +58,8 @@ try:
                                                CS_STAT_IGNORED_LIG_CODE,
                                                CS_STAT_AA_THRESHOLD,
                                                CS_STAT_NA_THRESHOLD,
-                                               CS_STAT_MAX_COUNT_THRESHOLD)
+                                               CS_STAT_MAX_COUNT_THRESHOLD,
+                                               STD_MON_DICT)
     from wwpdb.utils.nmr.ChemCompUtil import ChemCompUtil
     from wwpdb.utils.nmr.mr.ParserListenerUtil import translateToStdAtomName
 except ImportError:
@@ -72,7 +73,8 @@ except ImportError:
                                    CS_STAT_IGNORED_LIG_CODE,
                                    CS_STAT_AA_THRESHOLD,
                                    CS_STAT_NA_THRESHOLD,
-                                   CS_STAT_MAX_COUNT_THRESHOLD)
+                                   CS_STAT_MAX_COUNT_THRESHOLD,
+                                   STD_MON_DICT)
     from nmr.ChemCompUtil import ChemCompUtil
     from nmr.mr.ParserListenerUtil import translateToStdAtomName
 
@@ -243,7 +245,7 @@ class BmrbChemShiftStat:
 
         return results
 
-    def getSimilarCompIdFromAtomIds(self, atom_ids: List[str]
+    def getSimilarCompIdFromAtomIds(self, atom_ids: List[str], ignore_unmap=False
                                     ) -> Optional[str]:
         """ Return the most similar comp_id including atom_ids.
             @return: the most similar comp_id, otherwise None
@@ -263,7 +265,11 @@ class BmrbChemShiftStat:
         try:
 
             length = len(atom_ids)
-            atom_id_set = set(atom_ids)
+            atom_id_set = set(a.upper() for a in atom_ids)
+
+            if ignore_unmap and 'HN' in atom_id_set:
+                atom_id_set.remove('HN')
+                atom_id_set.add('H')
 
             match = [len(atom_id_set & aa_bb),
                      len(atom_id_set & dn_bb),
@@ -280,7 +286,7 @@ class BmrbChemShiftStat:
                     for _comp_id in self.__aa_comp_ids:
                         _atom_id_set = set(item['atom_id'] for item in self.__get(_comp_id))
                         conflict = len(atom_id_set - _atom_id_set)
-                        unmapped = len(_atom_id_set - atom_id_set)
+                        unmapped = 0 if ignore_unmap else len(_atom_id_set - atom_id_set)
                         score = length - conflict - unmapped
                         if score > max_score:
                             max_score = score
@@ -294,6 +300,7 @@ class BmrbChemShiftStat:
                         _atom_id_set = set(item['atom_id'] for item in self.__get(_comp_id))
                         conflict = len(atom_id_set - _atom_id_set)
                         unmapped = len(_atom_id_set - atom_id_set)
+                        unmapped = 0 if ignore_unmap else len(_atom_id_set - atom_id_set)
                         score = length - conflict - unmapped
                         if score > max_score:
                             max_score = score
@@ -306,7 +313,7 @@ class BmrbChemShiftStat:
                     for _comp_id in self.__rna_comp_ids:
                         _atom_id_set = set(item['atom_id'] for item in self.__get(_comp_id))
                         conflict = len(atom_id_set - _atom_id_set)
-                        unmapped = len(_atom_id_set - atom_id_set)
+                        unmapped = 0 if ignore_unmap else len(_atom_id_set - atom_id_set)
                         score = length - conflict - unmapped
                         if score > max_score:
                             max_score = score
@@ -322,7 +329,7 @@ class BmrbChemShiftStat:
                             _atom_id_set = set(item['atom_id'] for item in self.__get(_comp_id))
                             conflict = len(atom_id_set - _atom_id_set)
                             unmapped = len(_atom_id_set - atom_id_set)
-                            score = length - conflict - unmapped
+                            score = length - conflict - (0 if ignore_unmap else unmapped)
                             if score > max_score:
                                 max_score = score
                                 comp_id = _comp_id
@@ -335,7 +342,7 @@ class BmrbChemShiftStat:
                         if self.getTypeOfCompId(_comp_id)[1]:
                             _atom_id_set = set(item['atom_id'] for item in self.__get(_comp_id))
                             conflict = len(atom_id_set - _atom_id_set)
-                            unmapped = len(_atom_id_set - atom_id_set)
+                            unmapped = 0 if ignore_unmap else len(_atom_id_set - atom_id_set)
                             score = length - conflict - unmapped
                             if score > max_score:
                                 max_score = score
@@ -349,7 +356,7 @@ class BmrbChemShiftStat:
                         if self.getTypeOfCompId(_comp_id)[2]:
                             _atom_id_set = set(item['atom_id'] for item in self.__get(_comp_id))
                             conflict = len(atom_id_set - _atom_id_set)
-                            unmapped = len(_atom_id_set - atom_id_set)
+                            unmapped = 0 if ignore_unmap else len(_atom_id_set - atom_id_set)
                             score = length - conflict - unmapped
                             if score > max_score:
                                 max_score = score
@@ -357,15 +364,26 @@ class BmrbChemShiftStat:
                     if comp_id is not None:
                         return comp_id
 
-            else:
+            elif not ignore_unmap:
                 max_score = 0
                 for _comp_id in self.__all_comp_ids:
                     peptide_like, nucleotide_like, carbohydrate_like = self.getTypeOfCompId(_comp_id)
                     if not (peptide_like or nucleotide_like or carbohydrate_like):
                         _atom_id_set = set(item['atom_id'] for item in self.__get(_comp_id))
                         conflict = len(atom_id_set - _atom_id_set)
-                        unmapped = len(_atom_id_set - atom_id_set)
+                        unmapped = 0 if ignore_unmap else len(_atom_id_set - atom_id_set)
                         score = length - conflict - unmapped
+                        if score > max_score:
+                            max_score = score
+                            comp_id = _comp_id
+
+            else:
+                max_score = 0
+                for _comp_id in STD_MON_DICT:
+                    if self.__ccU.updateChemCompDict(_comp_id):
+                        _atom_id_set = set(a['atom_id'] for a in self.__ccU.lastAtomDictList)
+                        conflict = len(atom_id_set - _atom_id_set)
+                        score = length - conflict
                         if score > max_score:
                             max_score = score
                             comp_id = _comp_id

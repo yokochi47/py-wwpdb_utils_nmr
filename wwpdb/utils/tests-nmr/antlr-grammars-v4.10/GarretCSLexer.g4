@@ -26,7 +26,7 @@ fragment SEPARATOR:	[,:|/];
 
 SHARP_COMMENT:		'#'+ ~[\r\n]* '#'* ~[\r\n]* -> channel(HIDDEN);
 EXCLM_COMMENT:		'!'+ ~[\r\n]* '!'* ~[\r\n]* -> channel(HIDDEN);
-SMCLN_COMMENT:		';'+ ~[\r\n]* RETURN;
+SMCLN_COMMENT:		';'+ ~[\r\n]* RETURN -> channel(HIDDEN);
 
 Simple_name:		SIMPLE_NAME;
 //Residue_number:	Integer;

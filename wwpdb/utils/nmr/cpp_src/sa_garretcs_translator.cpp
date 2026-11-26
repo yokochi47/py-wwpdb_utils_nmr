@@ -13,6 +13,7 @@ SA_GarretCSTranslator::SA_GarretCSTranslator(speedy_antlr::Translator *translato
 SA_GarretCSTranslator::~SA_GarretCSTranslator() {
     Py_XDECREF(Garret_csContext_cls);
     Py_XDECREF(Residue_listContext_cls);
+    Py_XDECREF(Res_idContext_cls);
     Py_XDECREF(Shift_listContext_cls);
     Py_XDECREF(NumberContext_cls);
 }
@@ -27,6 +28,12 @@ antlrcpp::Any SA_GarretCSTranslator::visitGarret_cs(GarretCSParser::Garret_csCon
 antlrcpp::Any SA_GarretCSTranslator::visitResidue_list(GarretCSParser::Residue_listContext *ctx){
     if(!Residue_listContext_cls) Residue_listContext_cls = PyObject_GetAttrString(translator->parser_cls, "Residue_listContext");
     PyObject *py_ctx = translator->convert_ctx(this, ctx, Residue_listContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_GarretCSTranslator::visitRes_id(GarretCSParser::Res_idContext *ctx){
+    if(!Res_idContext_cls) Res_idContext_cls = PyObject_GetAttrString(translator->parser_cls, "Res_idContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, Res_idContext_cls);
     return py_ctx;
 }
 

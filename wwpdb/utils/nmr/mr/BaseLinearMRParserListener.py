@@ -413,6 +413,7 @@ class BaseLinearMRParserListener():
 
     # current Insight II restraint declaration (BIOSYM specific)
     cur_ins_decl = None
+    __cur_ins_decl = None
 
     # current boundary values (ARIA/BIOSYM/ISD specific)
     cur_lower_limit = None

@@ -2503,7 +2503,7 @@ class NmrVrptUtility:
 
         try:
 
-            has_chem_comp_assembly = False
+            has_chem_comp_assembly = has_entity_assembly = has_entity_comp_index = False
 
             lp_category = 'Chem_comp_assembly'
 
@@ -2582,6 +2582,8 @@ class NmrVrptUtility:
 
                 if len(entity_id_mapping) > 0:
 
+                    has_entity_assembly = True
+
                     lp_category = 'Entity_comp_index'
 
                     for datablock_name in self.__rR.getDataBlockNameList():
@@ -2619,32 +2621,111 @@ class NmrVrptUtility:
                                                     and cca['c_terminal_atom_flag'] == 'N')):
                                             self.__entityInstance[auth_chain_id][seq_key]['atoms'].append(cca['atom_id'])
 
-            lp_category = 'Entity_deleted_atom'
+                    lp_category = 'Entity_deleted_atom'
 
-            for datablock_name in self.__rR.getDataBlockNameList():
+                    for datablock_name in self.__rR.getDataBlockNameList():
 
-                if not self.__rR.hasCategory(lp_category, datablock_name):
-                    continue
+                        if not self.__rR.hasCategory(lp_category, datablock_name):
+                            continue
 
-                for row in self.__rR.getDictList(lp_category, datablock_name):
-                    auth_chain_id = row['Entity_assembly_ID']
-                    seq_id = row['Comp_index_ID']
-                    auth_seq_id = row['Seq_ID']
-                    comp_id = row['Comp_ID']
-                    atom_id = row['Atom_ID']
+                        for row in self.__rR.getDictList(lp_category, datablock_name):
+                            auth_chain_id = row['Entity_assembly_ID']
+                            seq_id = row['Comp_index_ID']
+                            auth_seq_id = row['Seq_ID']
+                            comp_id = row['Comp_ID']
+                            atom_id = row['Atom_ID']
 
-                    if auth_seq_id in EMPTY_VALUE or not auth_seq_id.isdigit():
-                        auth_seq_id = seq_id
+                            if auth_seq_id in EMPTY_VALUE or not auth_seq_id.isdigit():
+                                auth_seq_id = seq_id
 
-                    if auth_chain_id not in self.__entityUninstance:
-                        self.__entityUninstance[auth_chain_id] = {}
+                            if auth_chain_id not in self.__entityUninstance:
+                                self.__entityUninstance[auth_chain_id] = {}
 
-                    seq_key = (auth_seq_id, comp_id)
+                            seq_key = (auth_seq_id, comp_id)
 
-                    if seq_key not in self.__entityUninstance[auth_chain_id]:
-                        self.__entityUninstance[auth_chain_id][seq_key] = {'seq_id': seq_id, 'atoms': []}
+                            if seq_key not in self.__entityUninstance[auth_chain_id]:
+                                self.__entityUninstance[auth_chain_id][seq_key] = {'seq_id': seq_id, 'atoms': []}
 
-                    self.__entityUninstance[auth_chain_id][seq_key]['atoms'].append(atom_id)
+                            self.__entityUninstance[auth_chain_id][seq_key]['atoms'].append(atom_id)
+
+            if not has_entity_assembly:
+
+                lp_category = 'Entity_comp_index'
+
+                for datablock_name in self.__rR.getDataBlockNameList():
+
+                    if not self.__rR.hasCategory(lp_category, datablock_name):
+                        continue
+
+                    has_entity_comp_index = True
+
+                    for row in self.__rR.getDictList(lp_category, datablock_name):
+                        seq_id = row['ID']
+                        auth_seq_id = row['Auth_seq_ID']
+                        comp_id = row['Comp_ID']
+                        entity_id = row['Entity_ID']
+
+                        if auth_seq_id in EMPTY_VALUE or not auth_seq_id.isdigit():
+                            auth_seq_id = seq_id
+
+                        auth_chain_id = entity_id
+
+                        if auth_chain_id not in self.__entityInstance:
+                            self.__entityInstance[auth_chain_id] = {}
+
+                        seq_key = (auth_seq_id, comp_id)
+
+                        if seq_key not in self.__entityInstance[auth_chain_id]:
+                            self.__entityInstance[auth_chain_id][seq_key] = {'seq_id': seq_id, 'atoms': []}
+
+                        if self.__ccU.updateChemCompDict(comp_id):
+                            peptide_like = self.__csStat.peptideLike(comp_id)
+                            for cca in self.__ccU.lastAtomDictList:
+                                if cca['type_symbol'] in NMR_OBS_NUCS\
+                                   and (cca['leaving_atom_flag'] != 'Y'
+                                        or (peptide_like
+                                            and cca['n_terminal_atom_flag'] == 'N'
+                                            and cca['c_terminal_atom_flag'] == 'N')):
+                                    self.__entityInstance[auth_chain_id][seq_key]['atoms'].append(cca['atom_id'])
+
+            if not has_entity_comp_index:
+
+                lp_category = 'Atom_chem_shift'
+
+                for datablock_name in self.__rR.getDataBlockNameList():
+
+                    if not self.__rR.hasCategory(lp_category, datablock_name):
+                        continue
+
+                    for row in self.__rR.getDictList(lp_category, datablock_name):
+                        seq_id = row['Comp_index_ID']
+                        auth_seq_id = row['Auth_seq_ID']
+                        comp_id = row['Comp_ID']
+                        entity_id = row['Entity_ID']
+                        entity_assembly_id = row['Entity_assembly_ID']
+
+                        if auth_seq_id in EMPTY_VALUE or not auth_seq_id.isdigit():
+                            auth_seq_id = seq_id
+
+                        auth_chain_id = entity_assembly_id
+
+                        if auth_chain_id not in self.__entityInstance:
+                            self.__entityInstance[auth_chain_id] = {}
+
+                        seq_key = (auth_seq_id, comp_id)
+
+                        if seq_key not in self.__entityInstance[auth_chain_id]:
+                            self.__entityInstance[auth_chain_id][seq_key] = {'seq_id': seq_id, 'atoms': []}
+
+                        if self.__ccU.updateChemCompDict(comp_id):
+                            peptide_like = self.__csStat.peptideLike(comp_id)
+                            for cca in self.__ccU.lastAtomDictList:
+                                if cca['type_symbol'] in NMR_OBS_NUCS\
+                                   and (cca['leaving_atom_flag'] != 'Y'
+                                        or (peptide_like
+                                            and cca['n_terminal_atom_flag'] == 'N'
+                                            and cca['c_terminal_atom_flag'] == 'N')):
+                                    self.__entityInstance[auth_chain_id][seq_key]['atoms'].append(cca['atom_id'])
 
             return len(self.__entityInstance) > 0
 

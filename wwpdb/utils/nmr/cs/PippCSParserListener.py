@@ -19,10 +19,12 @@ from typing import IO, List, Optional
 from antlr4 import ParseTreeListener
 
 try:
+    from wwpdb.utils.nmr.NmrDpConstant import ASSIGNMENT_SEPARATOR_PAT
     from wwpdb.utils.nmr.nef.NefTranslator import NefTranslator
     from wwpdb.utils.nmr.cs.PippCSParser import PippCSParser
     from wwpdb.utils.nmr.cs.BaseCSParserListener import BaseCSParserListener
 except ImportError:
+    from nmr.NmrDpConstant import ASSIGNMENT_SEPARATOR_PAT
     from nmr.nef.NefTranslator import NefTranslator
     from nmr.cs.PippCSParser import PippCSParser
     from nmr.cs.BaseCSParserListener import BaseCSParserListener
@@ -33,6 +35,7 @@ class PippCSParserListener(ParseTreeListener, BaseCSParserListener):
     """
     __slots__ = ()
 
+    __chain_id = None
     __seq_id = None
     __comp_id = None
 
@@ -90,18 +93,64 @@ class PippCSParserListener(ParseTreeListener, BaseCSParserListener):
         """ Exit a parse tree produced by PippCSParser#ext_peak_pick_tbl_row.
         """
 
-    def enterResidue_list(self, ctx: PippCSParser.Residue_listContext):
+    def enterResidue_list(self, ctx: PippCSParser.Residue_listContext):  # pylint: disable=unused-argument
         """ Enter a parse tree produced by PippCSParser#residue_list.
         """
 
-        try:
-            self.__seq_id = int(str(ctx.Integer(0)))
-            self.__comp_id = str(ctx.Simple_name())
-        except ValueError:
-            pass
+        self.__comp_id = '.'
 
     def exitResidue_list(self, ctx: PippCSParser.Residue_listContext):  # pylint: disable=unused-argument
         """ Exit a parse tree produced by PippCSParser#residue_list.
+        """
+
+    def enterRes_id(self, ctx: PippCSParser.Res_idContext):
+        """ Enter a parse tree produced by PippCSParser#res_id.
+        """
+
+        try:
+
+            if ctx.Integer():
+                self.__chain_id = None
+                self.__seq_id = int(str(ctx.Integer()))
+
+            else:
+                string = str(ctx.Simple_name())
+                _str = ASSIGNMENT_SEPARATOR_PAT.sub(' ', string.upper()).split()
+
+                len_str = len(_str)
+
+                if len_str == 1 and _str[0][1:].isdigit():
+                    self.__chain_id = _str[0][0]
+                    self.__seq_id = int(_str[0][1:])
+
+                elif len_str == 2 and _str[1].isdigit():
+                    self.__chain_id = _str[0]
+                    self.__seq_id = int(_str[1])
+
+                else:
+                    self.__chain_id = None
+                    self.__seq_id = None
+
+        except ValueError:
+            self.__chain_id = None
+            self.__seq_id = None
+
+    def exitRes_id(self, ctx: PippCSParser.Res_idContext):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by PippCSParser#res_id.
+        """
+
+    def enterRes_type(self, ctx: PippCSParser.Res_typeContext):
+        """ Enter a parse tree produced by PippCSParser#res_type.
+        """
+
+        if self.__comp_id == '.':
+            if ctx.Simple_name():
+                self.__comp_id = str(ctx.Simple_name())
+            else:
+                self.__comp_id = None
+
+    def exitRes_type(self, ctx: PippCSParser.Res_typeContext):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by PippCSParser#res_type.
         """
 
     def enterShift_list(self, ctx: PippCSParser.Shift_listContext):  # pylint: disable=unused-argument
@@ -132,6 +181,9 @@ class PippCSParserListener(ParseTreeListener, BaseCSParserListener):
                 if dstFunc2 is None:
                     return
 
+            if None in (self.__seq_id, self.__comp_id) or self.__comp_id == '.':
+                return
+
             auth_seq_id_map = {}
 
             seq_id = self.__seq_id
@@ -139,14 +191,20 @@ class PippCSParserListener(ParseTreeListener, BaseCSParserListener):
                 seq_id += self.offset[None]
                 auth_seq_id_map[seq_id] = self.__seq_id
 
-            atom_ids = str(ctx.Simple_name()).split('|')
+            atom_ids = str(ctx.Simple_name())
+
+            if atom_ids.endswith(':-1'):
+                return
+
+            atom_ids = atom_ids.split('|')
             len_atom_ids = len(atom_ids)
 
             if len_atom_ids == 1:
 
-                L = f'{seq_id}:{self.__comp_id}:{atom_ids[0]}'
+                L = f'{seq_id}:{self.__comp_id}:{atom_ids[0]}' if self.__chain_id is None\
+                    else f'{self.__chain_id}:{seq_id}:{self.__comp_id}:{atom_ids[0]}'
 
-                assignment = self.extractChemShiftAssignment(1, L, self.cur_line_num,
+                assignment = self.extractChemShiftAssignment(1, L, self.cur_line_num, with_segid=self.__chain_id,
                                                              with_compid=self.__comp_id, with_atomid=atom_ids[0])
 
                 if assignment is None:
@@ -191,9 +249,11 @@ class PippCSParserListener(ParseTreeListener, BaseCSParserListener):
 
                 for idx, atom_id in enumerate(atom_ids):
 
-                    L = f'{seq_id}:{self.__comp_id}:{atom_id}'
+                    L = f'{seq_id}:{self.__comp_id}:{atom_id}' if self.__chain_id is None\
+                        else f'{self.__chain_id}:{seq_id}:{self.__comp_id}:{atom_id}'
 
                     assignment = self.extractChemShiftAssignment(1, L, self.cur_line_num,
+                                                                 with_segid=self.__chain_id,
                                                                  with_compid=self.__comp_id, with_atomid=atom_id)
 
                     if assignment is None:

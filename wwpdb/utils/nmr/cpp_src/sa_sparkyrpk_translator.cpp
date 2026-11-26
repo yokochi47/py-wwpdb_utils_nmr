@@ -18,6 +18,7 @@ SA_SparkyRPKTranslator::~SA_SparkyRPKTranslator() {
     Py_XDECREF(Peak_3dContext_cls);
     Py_XDECREF(Peak_4dContext_cls);
     Py_XDECREF(Peak_wo_assignContext_cls);
+    Py_XDECREF(PositionContext_cls);
     Py_XDECREF(NumberContext_cls);
     Py_XDECREF(NoteContext_cls);
 }
@@ -62,6 +63,12 @@ antlrcpp::Any SA_SparkyRPKTranslator::visitPeak_4d(SparkyRPKParser::Peak_4dConte
 antlrcpp::Any SA_SparkyRPKTranslator::visitPeak_wo_assign(SparkyRPKParser::Peak_wo_assignContext *ctx){
     if(!Peak_wo_assignContext_cls) Peak_wo_assignContext_cls = PyObject_GetAttrString(translator->parser_cls, "Peak_wo_assignContext");
     PyObject *py_ctx = translator->convert_ctx(this, ctx, Peak_wo_assignContext_cls);
+    return py_ctx;
+}
+
+antlrcpp::Any SA_SparkyRPKTranslator::visitPosition(SparkyRPKParser::PositionContext *ctx){
+    if(!PositionContext_cls) PositionContext_cls = PyObject_GetAttrString(translator->parser_cls, "PositionContext");
+    PyObject *py_ctx = translator->convert_ctx(this, ctx, PositionContext_cls);
     return py_ctx;
 }
 

@@ -245,6 +245,11 @@ class BiosymMRReader:
 if __name__ == "__main__":
     reader = BiosymMRReader(True)
     reader.setDebugMode(True)
+    reader.parse('../../tests-nmr/mock-data-remediation/2l5i/2l5i-trimmed.mr',
+                 '../../tests-nmr/mock-data-remediation/2l5i/2l5i.cif')
+
+    reader = BiosymMRReader(True)
+    reader.setDebugMode(True)
     reader.parse('../../tests-nmr/mock-data-remediation/1ykg/1ykg-corrected.mr',
                  '../../tests-nmr/mock-data-remediation/1ykg/1ykg.cif')
 

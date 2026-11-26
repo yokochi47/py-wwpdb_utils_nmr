@@ -47,6 +47,10 @@ public:
     return visitChildren(ctx);
   }
 
+  virtual std::any visitPosition(SparkyNPKParser::PositionContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
   virtual std::any visitNumber(SparkyNPKParser::NumberContext *ctx) override {
     return visitChildren(ctx);
   }

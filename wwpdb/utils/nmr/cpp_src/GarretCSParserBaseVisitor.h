@@ -23,6 +23,10 @@ public:
     return visitChildren(ctx);
   }
 
+  virtual std::any visitRes_id(GarretCSParser::Res_idContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
   virtual std::any visitShift_list(GarretCSParser::Shift_listContext *ctx) override {
     return visitChildren(ctx);
   }

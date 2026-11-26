@@ -49,16 +49,20 @@ data_label_wo_assign:
 	peak_wo_assign+;
 
 peak_2d:
-	Assignment_2d_ex Float Float number+ note* (RETURN | EOF);
+	Assignment_2d_ex position position number+ note* (RETURN | EOF);
 
 peak_3d:
-	Assignment_3d_ex Float Float Float number+ note* (RETURN | EOF);
+	Assignment_3d_ex position position position number+ note* (RETURN | EOF);
 
 peak_4d:
-	Assignment_4d_ex Float Float Float Float number+ note* (RETURN | EOF);
+	Assignment_4d_ex position position position position number+ note* (RETURN | EOF);
 
 peak_wo_assign:
 	number+ note? (RETURN | EOF);
+
+/* position expression in peak list */
+position:
+	Float | Integer;
 
 /* number expression in peak list */
 number:	Real_vol | Real | Float | Integer;

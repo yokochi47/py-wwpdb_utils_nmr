@@ -14,7 +14,7 @@ __docformat__ = "restructuredtext en"
 __author__ = "Masashi Yokochi"
 __email__ = "yokochi@protein.osaka-u.ac.jp"
 __license__ = "Apache License 2.0"
-__version__ = "5.4.8"
+__version__ = "5.4.9"
 
 import copy
 import gc
@@ -1392,7 +1392,11 @@ class NmrDpValidationInput(NmrDpValidationBase):
                 if content_subtype in lp_counts:
                     mr_loops += lp_counts[content_subtype]
 
-            if mr_loops == 0 and not self._reg.validation_server and not self._reg.bmrb_only:
+            if mr_loops == 0 and not self._reg.validation_server\
+               and (not self._reg.bmrb_only
+                    or (self._reg.conversion_server and
+                        (not has_key_value(self._reg.inputParamDict, 'dep_sys_name')
+                         or self._reg.inputParamDict['dep_sys_name'] != 'bmrbdep'))):
 
                 if 'other_data_types' not in self._reg.sf_category_list:
 

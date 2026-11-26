@@ -35,9 +35,15 @@ class SA_BiosymMRTranslator : public BiosymMRParserBaseVisitor {
     PyObject *NumberContext_cls = NULL;
     PyObject *Ins_distance_restraintsContext_cls = NULL;
     PyObject *Ins_distance_restraintContext_cls = NULL;
-    PyObject *Decl_createContext_cls = NULL;
+    PyObject *Ins_dihedral_angle_restraintsContext_cls = NULL;
+    PyObject *Ins_dihedral_angle_restraintContext_cls = NULL;
+    PyObject *Decl_create_distContext_cls = NULL;
+    PyObject *Decl_create_dihedContext_cls = NULL;
     PyObject *Decl_functionContext_cls = NULL;
     PyObject *Decl_targetContext_cls = NULL;
+    PyObject *Ins_rst_idContext_cls = NULL;
+    PyObject *Ins_atom_selContext_cls = NULL;
+    PyObject *Ins_num_selContext_cls = NULL;
 
     public:
     SA_BiosymMRTranslator(speedy_antlr::Translator *translator);
@@ -88,10 +94,22 @@ class SA_BiosymMRTranslator : public BiosymMRParserBaseVisitor {
 
     antlrcpp::Any visitIns_distance_restraint(BiosymMRParser::Ins_distance_restraintContext *ctx);
 
-    antlrcpp::Any visitDecl_create(BiosymMRParser::Decl_createContext *ctx);
+    antlrcpp::Any visitIns_dihedral_angle_restraints(BiosymMRParser::Ins_dihedral_angle_restraintsContext *ctx);
+
+    antlrcpp::Any visitIns_dihedral_angle_restraint(BiosymMRParser::Ins_dihedral_angle_restraintContext *ctx);
+
+    antlrcpp::Any visitDecl_create_dist(BiosymMRParser::Decl_create_distContext *ctx);
+
+    antlrcpp::Any visitDecl_create_dihed(BiosymMRParser::Decl_create_dihedContext *ctx);
 
     antlrcpp::Any visitDecl_function(BiosymMRParser::Decl_functionContext *ctx);
 
     antlrcpp::Any visitDecl_target(BiosymMRParser::Decl_targetContext *ctx);
+
+    antlrcpp::Any visitIns_rst_id(BiosymMRParser::Ins_rst_idContext *ctx);
+
+    antlrcpp::Any visitIns_atom_sel(BiosymMRParser::Ins_atom_selContext *ctx);
+
+    antlrcpp::Any visitIns_num_sel(BiosymMRParser::Ins_num_selContext *ctx);
 
 };

@@ -11,7 +11,7 @@ __docformat__ = "restructuredtext en"
 __author__ = "Masashi Yokochi"
 __email__ = "yokochi@protein.osaka-u.ac.jp"
 __license__ = "Apache License 2.0"
-__version__ = "5.4.8"
+__version__ = "5.4.9"
 
 import copy
 import os
@@ -2086,6 +2086,15 @@ class NmrDpValidationOutStats(NmrDpValidationBase):
 
                         err = f"Failed in data conversion of {sf_info['number_of_unparsed_with_error']} {err_data_type}s "\
                             f"of {data_file_name!r}."
+
+                        # https://github.com/yokochi47/bmrb-extract/issues/124
+                        warns = self._reg.report_prev.warning.getInheritableDictByFileName(data_file_name)
+                        if warns is not None:
+                            for k, v in warns.items():
+                                err += f"\n{k[0].upper()}{k[1:].replace('_', ' ')}:"
+                                for item in v:
+                                    if 'description' in item:
+                                        err += f"\n{item['description']}"
 
                         self._reg.report.error.appendDescription('unparsed_data',
                                                                  {'file_name': data_file_name, 'sf_framecode': sf_framecode,

@@ -24,7 +24,8 @@ public:
 
   enum {
     RulePipp_cs = 0, RulePipp_format = 1, RuleExt_peak_pick_tbl = 2, RuleExt_peak_pick_tbl_row = 3, 
-    RuleResidue_list = 4, RuleShift_list = 5, RuleNumber = 6
+    RuleResidue_list = 4, RuleRes_id = 5, RuleRes_type = 6, RuleShift_list = 7, 
+    RuleNumber = 8
   };
 
   explicit PippCSParser(antlr4::TokenStream *input);
@@ -49,6 +50,8 @@ public:
   class Ext_peak_pick_tblContext;
   class Ext_peak_pick_tbl_rowContext;
   class Residue_listContext;
+  class Res_idContext;
+  class Res_typeContext;
   class Shift_listContext;
   class NumberContext; 
 
@@ -130,24 +133,24 @@ public:
   public:
     Residue_listContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
-    std::vector<antlr4::tree::TerminalNode *> Integer();
-    antlr4::tree::TerminalNode* Integer(size_t i);
+    Res_idContext *res_id();
     std::vector<antlr4::tree::TerminalNode *> RETURN();
     antlr4::tree::TerminalNode* RETURN(size_t i);
     antlr4::tree::TerminalNode *Res_type();
-    antlr4::tree::TerminalNode *Simple_name();
     antlr4::tree::TerminalNode *Spin_system_ID();
+    std::vector<antlr4::tree::TerminalNode *> Integer();
+    antlr4::tree::TerminalNode* Integer(size_t i);
     antlr4::tree::TerminalNode *End_res_def();
     antlr4::tree::TerminalNode *Res_ID();
     antlr4::tree::TerminalNode *Res_ID_();
     antlr4::tree::TerminalNode *EOF();
+    std::vector<Res_typeContext *> res_type();
+    Res_typeContext* res_type(size_t i);
     antlr4::tree::TerminalNode *Prev_type();
     antlr4::tree::TerminalNode *Cur_type();
     antlr4::tree::TerminalNode *Heterogeneity();
     std::vector<Shift_listContext *> shift_list();
     Shift_listContext* shift_list(size_t i);
-    std::vector<antlr4::tree::TerminalNode *> Type_pred();
-    antlr4::tree::TerminalNode* Type_pred(size_t i);
 
 
     virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
@@ -155,6 +158,34 @@ public:
   };
 
   Residue_listContext* residue_list();
+
+  class  Res_idContext : public antlr4::ParserRuleContext {
+  public:
+    Res_idContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode *Integer();
+    antlr4::tree::TerminalNode *Simple_name();
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Res_idContext* res_id();
+
+  class  Res_typeContext : public antlr4::ParserRuleContext {
+  public:
+    Res_typeContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode *Simple_name();
+    antlr4::tree::TerminalNode *Type_pred();
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  Res_typeContext* res_type();
 
   class  Shift_listContext : public antlr4::ParserRuleContext {
   public:
@@ -164,8 +195,10 @@ public:
     std::vector<NumberContext *> number();
     NumberContext* number(size_t i);
     antlr4::tree::TerminalNode *RETURN();
-    antlr4::tree::TerminalNode *Note_begin();
-    antlr4::tree::TerminalNode *Note_end();
+    std::vector<antlr4::tree::TerminalNode *> Note_begin();
+    antlr4::tree::TerminalNode* Note_begin(size_t i);
+    std::vector<antlr4::tree::TerminalNode *> Note_end();
+    antlr4::tree::TerminalNode* Note_end(size_t i);
     std::vector<antlr4::tree::TerminalNode *> Note();
     antlr4::tree::TerminalNode* Note(size_t i);
 

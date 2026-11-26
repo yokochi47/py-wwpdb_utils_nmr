@@ -11,7 +11,7 @@ __docformat__ = "restructuredtext en"
 __author__ = "Masashi Yokochi"
 __email__ = "yokochi@protein.osaka-u.ac.jp"
 __license__ = "Apache License 2.0"
-__version__ = "5.4.8"
+__version__ = "5.4.9"
 
 import copy
 import os
@@ -1484,7 +1484,9 @@ class NmrDpRemediationLegacyMr(NmrDpRemediationBase):
                     else:
                         upl_or_lol = None
 
-                cya_file_ext = self._reg.dpS.retrieveOriginalFileExtensionOfCyanaMrFile() if self._reg.dpS is not None else None
+                cya_file_ext =\
+                    self._reg.dpS.retrieveOriginalFileExtensionOfCyanaMrFile(original_file_name if original_file_name is not None
+                                                                             else file_name)
 
                 reader = CyanaMRReader(self._reg.verbose, self._reg.log,
                                        self._reg.representative_model_id,

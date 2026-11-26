@@ -1269,6 +1269,11 @@ class BaseCSParserListener():
                         atomId = term[index:len(term)]
                         xplorAtomId = None
 
+                        if with_atomid is not None and (with_atomid[0] != atomId[0]
+                                                        and (with_atomid[0] not in PSE_PRO_BEGIN_CODE
+                                                             or atomId[0] not in PSE_PRO_BEGIN_CODE)):
+                            continue
+
                         if len(term) == len(atomId) + 1 and atomId[0] in PSE_PRO_BEGIN_CODE\
                            and term[index - 1] in PROTON_BEGIN_CODE:
                             xplorAtomId = term[index - 1] + atomId

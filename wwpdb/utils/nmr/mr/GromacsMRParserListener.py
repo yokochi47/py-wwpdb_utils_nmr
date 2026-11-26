@@ -430,7 +430,7 @@ class GromacsMRParserListener(ParseTreeListener):
 
         def get_eff_digits(val):
             eff_digits = 0
-            if '.' in val and val[-1] == '0':
+            if '.' in val:
                 period = val.index('.')
                 last = len(val) - 1
                 while val[last] == '0':

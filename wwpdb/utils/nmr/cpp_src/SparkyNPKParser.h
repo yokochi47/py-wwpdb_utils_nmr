@@ -28,7 +28,7 @@ public:
   enum {
     RuleSparky_npk = 0, RuleData_label = 1, RulePeak_2d = 2, RulePeak_3d = 3, 
     RulePeak_4d = 4, RulePeak_2d_po = 5, RulePeak_3d_po = 6, RulePeak_4d_po = 7, 
-    RuleNumber = 8, RuleNote = 9
+    RulePosition = 8, RuleNumber = 9, RuleNote = 10
   };
 
   explicit SparkyNPKParser(antlr4::TokenStream *input);
@@ -56,6 +56,7 @@ public:
   class Peak_2d_poContext;
   class Peak_3d_poContext;
   class Peak_4d_poContext;
+  class PositionContext;
   class NumberContext;
   class NoteContext; 
 
@@ -141,8 +142,8 @@ public:
     Peak_2dContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
     antlr4::tree::TerminalNode *Assignment_2d_ex();
-    std::vector<antlr4::tree::TerminalNode *> Float();
-    antlr4::tree::TerminalNode* Float(size_t i);
+    std::vector<PositionContext *> position();
+    PositionContext* position(size_t i);
     antlr4::tree::TerminalNode *RETURN();
     antlr4::tree::TerminalNode *EOF();
     std::vector<NumberContext *> number();
@@ -162,8 +163,8 @@ public:
     Peak_3dContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
     antlr4::tree::TerminalNode *Assignment_3d_ex();
-    std::vector<antlr4::tree::TerminalNode *> Float();
-    antlr4::tree::TerminalNode* Float(size_t i);
+    std::vector<PositionContext *> position();
+    PositionContext* position(size_t i);
     antlr4::tree::TerminalNode *RETURN();
     antlr4::tree::TerminalNode *EOF();
     std::vector<NumberContext *> number();
@@ -183,8 +184,8 @@ public:
     Peak_4dContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
     antlr4::tree::TerminalNode *Assignment_4d_ex();
-    std::vector<antlr4::tree::TerminalNode *> Float();
-    antlr4::tree::TerminalNode* Float(size_t i);
+    std::vector<PositionContext *> position();
+    PositionContext* position(size_t i);
     antlr4::tree::TerminalNode *RETURN();
     antlr4::tree::TerminalNode *EOF();
     std::vector<NumberContext *> number();
@@ -203,8 +204,8 @@ public:
   public:
     Peak_2d_poContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
-    std::vector<antlr4::tree::TerminalNode *> Float();
-    antlr4::tree::TerminalNode* Float(size_t i);
+    std::vector<PositionContext *> position();
+    PositionContext* position(size_t i);
     antlr4::tree::TerminalNode *Assignment_2d_ex();
     antlr4::tree::TerminalNode *Assignment_3d_ex();
     antlr4::tree::TerminalNode *Assignment_4d_ex();
@@ -222,8 +223,8 @@ public:
   public:
     Peak_3d_poContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
-    std::vector<antlr4::tree::TerminalNode *> Float();
-    antlr4::tree::TerminalNode* Float(size_t i);
+    std::vector<PositionContext *> position();
+    PositionContext* position(size_t i);
     antlr4::tree::TerminalNode *Assignment_3d_ex();
     antlr4::tree::TerminalNode *Assignment_4d_ex();
     antlr4::tree::TerminalNode *RETURN();
@@ -241,8 +242,8 @@ public:
     Peak_4d_poContext(antlr4::ParserRuleContext *parent, size_t invokingState);
     virtual size_t getRuleIndex() const override;
     antlr4::tree::TerminalNode *Assignment_4d_ex();
-    std::vector<antlr4::tree::TerminalNode *> Float();
-    antlr4::tree::TerminalNode* Float(size_t i);
+    std::vector<PositionContext *> position();
+    PositionContext* position(size_t i);
     antlr4::tree::TerminalNode *RETURN();
     antlr4::tree::TerminalNode *EOF();
 
@@ -252,6 +253,20 @@ public:
   };
 
   Peak_4d_poContext* peak_4d_po();
+
+  class  PositionContext : public antlr4::ParserRuleContext {
+  public:
+    PositionContext(antlr4::ParserRuleContext *parent, size_t invokingState);
+    virtual size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode *Float();
+    antlr4::tree::TerminalNode *Integer();
+
+
+    virtual std::any accept(antlr4::tree::ParseTreeVisitor *visitor) override;
+   
+  };
+
+  PositionContext* position();
 
   class  NumberContext : public antlr4::ParserRuleContext {
   public:

@@ -35,6 +35,14 @@ public:
     return visitChildren(ctx);
   }
 
+  virtual std::any visitRes_id(PippCSParser::Res_idContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual std::any visitRes_type(PippCSParser::Res_typeContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
   virtual std::any visitShift_list(PippCSParser::Shift_listContext *ctx) override {
     return visitChildren(ctx);
   }

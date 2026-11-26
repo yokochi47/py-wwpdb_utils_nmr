@@ -20,6 +20,7 @@ class SA_SparkyNPKTranslator : public SparkyNPKParserBaseVisitor {
     PyObject *Peak_2d_poContext_cls = NULL;
     PyObject *Peak_3d_poContext_cls = NULL;
     PyObject *Peak_4d_poContext_cls = NULL;
+    PyObject *PositionContext_cls = NULL;
     PyObject *NumberContext_cls = NULL;
     PyObject *NoteContext_cls = NULL;
 
@@ -41,6 +42,8 @@ class SA_SparkyNPKTranslator : public SparkyNPKParserBaseVisitor {
     antlrcpp::Any visitPeak_3d_po(SparkyNPKParser::Peak_3d_poContext *ctx);
 
     antlrcpp::Any visitPeak_4d_po(SparkyNPKParser::Peak_4d_poContext *ctx);
+
+    antlrcpp::Any visitPosition(SparkyNPKParser::PositionContext *ctx);
 
     antlrcpp::Any visitNumber(SparkyNPKParser::NumberContext *ctx);
 

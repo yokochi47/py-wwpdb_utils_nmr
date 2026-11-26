@@ -9972,8 +9972,8 @@ def testCoordAtomIdConsistency(caC: dict, ccU, authChainId: str, chainId: str, s
     return None
 
 
-def getDistConstraintType(atomSelectionSet: List[List[dict]], dstFunc: dict, csStat, hint: str = '.'
-                          ) -> Optional[str]:
+def getDistConstraintType(atomSelectionSet: List[List[dict]], dstFunc: dict, csStat, hint: str = '.',
+                          cyanaFileExt: str = None) -> Optional[str]:
     """ Return distance constraint type for _Constraint_file.Constraint_type tag value.
         @return 'hydrogen bond', 'disulfide bond', etc., None for unclassified distance constraint
     """
@@ -10037,12 +10037,18 @@ def getDistConstraintType(atomSelectionSet: List[List[dict]], dstFunc: dict, csS
         if upperLimit == 0.0 and 0.0 < lowerLimit <= 1.8\
            and atom_id_1_ not in PROTON_BEGIN_CODE and atom_id_2_ not in PROTON_BEGIN_CODE:
             return 'covalent bond'
+
         if upperLimit >= DIST_AMBIG_UP or lowerLimit >= DIST_AMBIG_UP:
             if is_like_hbond():
                 return 'ambiguous hydrogen bond'
             return 'general distance'
+
         if upperLimit <= DIST_AMBIG_LOW and lowerLimit > 0.0:
             return 'NOE (lower bound)' if 'roe' not in _hint else 'ROE (lower bound)'
+
+        if cyanaFileExt == 'lol':  # https://github.com/yokochi47/bmrb-extract/issues/121
+            return 'NOE (lower bound)'
+
         return None
 
     def is_like_sebond():
@@ -10133,6 +10139,9 @@ def getDistConstraintType(atomSelectionSet: List[List[dict]], dstFunc: dict, csS
 
             return 'NOE (lower bound)' if 'roe' not in _hint else 'ROE (lower bound)'
 
+        if cyanaFileExt == 'lol':  # https://github.com/yokochi47/bmrb-extract/issues/121
+            return 'NOE (lower bound)'
+
         return None if 'roe' not in _hint else 'ROE'
 
     if is_like_sebond_support():
@@ -10150,10 +10159,13 @@ def getDistConstraintType(atomSelectionSet: List[List[dict]], dstFunc: dict, csS
     if is_like_hbond():
         return 'hydrogen bond' if upperLimit > DIST_AMBIG_LOW or lowerLimit <= 0.0 else 'hydrogen bond (lower bound)'
 
+    if cyanaFileExt == 'lol':  # https://github.com/yokochi47/bmrb-extract/issues/121
+        return 'NOE (lower bound)'
+
     return None if 'roe' not in _hint else 'ROE'
 
 
-def getPotentialType(fileType: str, mrSubtype: str, dstFunc: dict
+def getPotentialType(fileType: str, mrSubtype: str, dstFunc: dict, cyanaFileExt: str = None
                      ) -> Optional[str]:
     """ Return NMR-STAR potential type for a given function.
         @return potential type, None for unmatched case
@@ -10167,6 +10179,12 @@ def getPotentialType(fileType: str, mrSubtype: str, dstFunc: dict
 
     if 'lower_linear_limit' in dstFunc:
         return 'lower-bound-parabolic-linear'
+
+    if cyanaFileExt in ('upl', 'upv'):  # https://github.com/yokochi47/bmrb-extract/issues/121
+        return 'upper-bound-parabolic'
+
+    if cyanaFileExt in ('lol', 'lov'):  # https://github.com/yokochi47/bmrb-extract/issues/121
+        return 'lower-bound-parabolic'
 
     if 'lower_limit' in dstFunc and 'upper_limit' in dstFunc:
         return 'square-well-parabolic'

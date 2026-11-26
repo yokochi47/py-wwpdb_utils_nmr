@@ -218,8 +218,8 @@ class SparkyPKParserListener(ParseTreeListener, BasePKParserListener):
             if _ass_ in ('?-?', None) and self.__has_note and len(self.__noteSelection) > 0:
                 _ass_ = ' '.join(self.__noteSelection)
 
-            x_ppm = float(str(ctx.Float(0)))
-            y_ppm = float(str(ctx.Float(1)))
+            x_ppm = self.positionSelection[0]
+            y_ppm = self.positionSelection[1]
 
             offset = 0
 
@@ -332,10 +332,11 @@ class SparkyPKParserListener(ParseTreeListener, BasePKParserListener):
                                     None if (has_assignments and not has_multiple_assignments)
                                     or _ass_ in ('?-?', None) else _ass_)
 
-        except ValueError:
+        except IndexError:
             self.peaks2D -= 1
 
         finally:
+            self.positionSelection.clear()
             self.numberSelection.clear()
             self.originalNumberSelection.clear()
             self.__real_vol = None
@@ -374,9 +375,9 @@ class SparkyPKParserListener(ParseTreeListener, BasePKParserListener):
             if _ass_ in ('?-?-?', None) and self.__has_note and len(self.__noteSelection) > 0:
                 _ass_ = ' '.join(self.__noteSelection)
 
-            x_ppm = float(str(ctx.Float(0)))
-            y_ppm = float(str(ctx.Float(1)))
-            z_ppm = float(str(ctx.Float(2)))
+            x_ppm = self.positionSelection[0]
+            y_ppm = self.positionSelection[1]
+            z_ppm = self.positionSelection[2]
 
             offset = 0
 
@@ -499,10 +500,11 @@ class SparkyPKParserListener(ParseTreeListener, BasePKParserListener):
                                     None if (has_assignments and not has_multiple_assignments)
                                     or _ass_ in ('?-?-?', None) else _ass_)
 
-        except ValueError:
+        except IndexError:
             self.peaks3D -= 1
 
         finally:
+            self.positionSelection.clear()
             self.numberSelection.clear()
             self.originalNumberSelection.clear()
             self.__real_vol = None
@@ -541,10 +543,10 @@ class SparkyPKParserListener(ParseTreeListener, BasePKParserListener):
             if _ass_ in ('?-?-?-?', None) and self.__has_note and len(self.__noteSelection) > 0:
                 _ass_ = ' '.join(self.__noteSelection)
 
-            x_ppm = float(str(ctx.Float(0)))
-            y_ppm = float(str(ctx.Float(1)))
-            z_ppm = float(str(ctx.Float(2)))
-            a_ppm = float(str(ctx.Float(3)))
+            x_ppm = self.positionSelection[0]
+            y_ppm = self.positionSelection[1]
+            z_ppm = self.positionSelection[2]
+            a_ppm = self.positionSelection[3]
 
             offset = 0
 
@@ -677,10 +679,11 @@ class SparkyPKParserListener(ParseTreeListener, BasePKParserListener):
                                     None if (has_assignments and not has_multiple_assignments)
                                     or _ass_ in ('?-?-?-?', None) else _ass_)
 
-        except ValueError:
+        except IndexError:
             self.peaks4D -= 1
 
         finally:
+            self.positionSelection.clear()
             self.numberSelection.clear()
             self.originalNumberSelection.clear()
             self.__real_vol = None
@@ -1063,10 +1066,31 @@ class SparkyPKParserListener(ParseTreeListener, BasePKParserListener):
                 self.peaks4D -= 1
 
         finally:
+            self.positionSelection.clear()
             self.numberSelection.clear()
             self.originalNumberSelection.clear()
             self.__real_vol = None
             self.__noteSelection.clear()
+
+    def enterPosition(self, ctx: SparkyPKParser.PositionContext):
+        """ Enter a parse tree produced by SparkyPKParser#position.
+        """
+
+        try:
+
+            if ctx.Float():
+                self.positionSelection.append(float(str(ctx.Float())))
+
+            else:
+                self.positionSelection.append(float(str(ctx.Integer())))
+
+        except ValueError:
+            self.positionSelection.append(None)
+
+    # Exit a parse tree produced by SparkyNPKParser#cs_val.
+    def exitPosition(self, ctx: SparkyPKParser.PositionContext):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by SparkyPKParser#position.
+        """
 
     def enterNumber(self, ctx: SparkyPKParser.NumberContext):
         """ Enter a parse tree produced by SparkyPKParser#number.

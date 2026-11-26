@@ -29,6 +29,10 @@ public:
 
     virtual std::any visitResidue_list(PippCSParser::Residue_listContext *context) = 0;
 
+    virtual std::any visitRes_id(PippCSParser::Res_idContext *context) = 0;
+
+    virtual std::any visitRes_type(PippCSParser::Res_typeContext *context) = 0;
+
     virtual std::any visitShift_list(PippCSParser::Shift_listContext *context) = 0;
 
     virtual std::any visitNumber(PippCSParser::NumberContext *context) = 0;

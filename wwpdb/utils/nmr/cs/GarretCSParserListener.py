@@ -18,10 +18,12 @@ from typing import IO, List, Optional
 from antlr4 import ParseTreeListener
 
 try:
+    from wwpdb.utils.nmr.NmrDpConstant import ASSIGNMENT_SEPARATOR_PAT
     from wwpdb.utils.nmr.nef.NefTranslator import NefTranslator
     from wwpdb.utils.nmr.cs.GarretCSParser import GarretCSParser
     from wwpdb.utils.nmr.cs.BaseCSParserListener import BaseCSParserListener
 except ImportError:
+    from nmr.NmrDpConstant import ASSIGNMENT_SEPARATOR_PAT
     from nmr.nef.NefTranslator import NefTranslator
     from nmr.cs.GarretCSParser import GarretCSParser
     from nmr.cs.BaseCSParserListener import BaseCSParserListener
@@ -32,6 +34,7 @@ class GarretCSParserListener(ParseTreeListener, BaseCSParserListener):
     """
     __slots__ = ()
 
+    __chain_id = None
     __seq_id = None
     __comp_id = None
     __number = None
@@ -68,18 +71,49 @@ class GarretCSParserListener(ParseTreeListener, BaseCSParserListener):
         """ Enter a parse tree produced by GarretCSParser#residue_list.
         """
 
-        try:
-
-            if ctx.Integer():
-                self.__seq_id = int(str(ctx.Integer()))
-            if ctx.Simple_name():
-                self.__comp_id = str(ctx.Simple_name())
-
-        except ValueError:
-            pass
+        if ctx.Simple_name():
+            self.__comp_id = str(ctx.Simple_name())
+        else:
+            self.__comp_id = None
 
     def exitResidue_list(self, ctx: GarretCSParser.Residue_listContext):  # pylint: disable=unused-argument
         """ Exit a parse tree produced by GarretCSParser#residue_list.
+        """
+
+    def enterRes_id(self, ctx: GarretCSParser.Res_idContext):
+        """ Enter a parse tree produced by GarretCSParser#res_id.
+        """
+
+        try:
+
+            if ctx.Integer():
+                self.__chain_id = None
+                self.__seq_id = int(str(ctx.Integer()))
+
+            else:
+                string = str(ctx.Simple_name())
+                _str = ASSIGNMENT_SEPARATOR_PAT.sub(' ', string.upper()).split()
+
+                len_str = len(_str)
+
+                if len_str == 1 and _str[0][1:].isdigit():
+                    self.__chain_id = _str[0][0]
+                    self.__seq_id = int(_str[0][1:])
+
+                elif len_str == 2 and _str[1].isdigit():
+                    self.__chain_id = _str[0]
+                    self.__seq_id = int(_str[1])
+
+                else:
+                    self.__chain_id = None
+                    self.__seq_id = None
+
+        except ValueError:
+            self.__chain_id = None
+            self.__seq_id = None
+
+    def exitRes_id(self, ctx: GarretCSParser.Res_idContext):  # pylint: disable=unused-argument
+        """ Exit a parse tree produced by GarretCSParser#res_id.
         """
 
     def enterShift_list(self, ctx: GarretCSParser.Shift_listContext):  # pylint: disable=unused-argument
@@ -105,11 +139,18 @@ class GarretCSParserListener(ParseTreeListener, BaseCSParserListener):
         if dstFunc is None:
             return
 
-        L = f'{self.__seq_id}:{self.__comp_id}:{str(ctx.Simple_name())}'
+        if None in (self.__seq_id, self.__comp_id):
+            return
+
+        atom_id = str(ctx.Simple_name())
+
+        L = f'{self.__seq_id}:{self.__comp_id}:{atom_id}' if self.__chain_id is None\
+            else f'{self.__chain_id}:{self.__seq_id}:{self.__comp_id}:{atom_id}'
 
         assignment = self.extractChemShiftAssignment(1, L, self.cur_line_num,
+                                                     with_segid=self.__chain_id,
                                                      with_compid=self.__comp_id,
-                                                     with_atomid=str(ctx.Simple_name()))
+                                                     with_atomid=atom_id)
 
         if assignment is None:
             return

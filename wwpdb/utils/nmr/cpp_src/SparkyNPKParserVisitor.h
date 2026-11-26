@@ -35,6 +35,8 @@ public:
 
     virtual std::any visitPeak_4d_po(SparkyNPKParser::Peak_4d_poContext *context) = 0;
 
+    virtual std::any visitPosition(SparkyNPKParser::PositionContext *context) = 0;
+
     virtual std::any visitNumber(SparkyNPKParser::NumberContext *context) = 0;
 
     virtual std::any visitNote(SparkyNPKParser::NoteContext *context) = 0;

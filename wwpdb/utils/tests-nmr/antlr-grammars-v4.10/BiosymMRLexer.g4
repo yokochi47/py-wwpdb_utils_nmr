@@ -54,27 +54,37 @@ Restraint:		'restraint' -> pushMode(INSIGHT_II_MODE);
 
 Mixing_times:		'#mixing_times' [\r\n]+ -> pushMode(MIXING_TIME_MODE);
 
-SPACE:			[ \t\r\n]+ -> skip;
+SPACE:			[ \t]+ -> skip;
+RETURN:			[\r\n]+;
+
 ENCLOSE_COMMENT:	'{' (ENCLOSE_COMMENT | .)*? '}' -> channel(HIDDEN);
 SECTION_COMMENT:	('#' | '!' | ';' | '\\' | '&' | '/' '/'+ | '*' '*'+ | '-' '-'+ | '+' '+'+ | '=' '='+ | 'REMARK' 'S'?) ' '* [\r\n]+ -> channel(HIDDEN);
 LINE_COMMENT:		('#' | '!' | ';' | '\\' | '&' | '/' '/'+ | '*' '*'+ | '-' '-'+ | '+' '+'+ | '=' '='+ | 'REMARK' 'S'?) ~[\r\n]* -> channel(HIDDEN);
 
 mode INSIGHT_II_MODE;
 
-fragment NAME_CHAR_II:	START_CHAR | '\'' | '-' | '+' | '.' | '"' | '*' | '#' | ':' | '|';
-fragment SIMPLE_NAME_II:	START_CHAR NAME_CHAR_II*;
+fragment START_CHAR_II:	ALPHA_NUM | '_' | '*';
+fragment NAME_CHAR_II:	START_CHAR_II | '\'' | '-' | '+' | '.' | '"' | '#' | ':' | '|';
 
-Double_quote_string:	'"' SIMPLE_NAME_II '"';
+Integer_II:		Integer;
+Float_II:		Float;
 
 Create:			'create';
 Function:		'function';
 Target:			'target';
 
 Distance:		'distance';
+Torsion:		'torsion';
 Quadratic:		'quadratic';
 Flat_bottomed:		'flatBottomed';
 
 Relative:		'relative';
+Trans:			'trans';
+
+Simple_name_II:		START_CHAR_II NAME_CHAR_II*;
+Double_quote_string_II:	'"' Simple_name_II '"';
+
+CONTINUE:		'\\' [\r\n]+ -> skip;
 
 SPACE_II:		[ \t]+ -> skip;
 
@@ -88,9 +98,8 @@ Real_MT:		Real UNIT_MT?;
 Float_MT:		Float UNIT_MT?;
 Integer_MT:		Integer UNIT_MT?;
 
-Comma_MT:		',';
-Period_MT:		'.';
+And_MR:			'and' -> skip;
 
-SPACE_MT:		[ \t]+ -> skip;
+SPACE_MT:		[ \t,.]+ -> skip;
 
 RETURN_MT:		[\r\n]+ -> popMode;

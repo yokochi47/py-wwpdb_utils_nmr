@@ -2091,7 +2091,7 @@ class CnsMRParserListener(ParseTreeListener, BaseStackedMRParserListener):
                     pass
                 else:
                     self.f.append(f"[Range value error] {self.getCurrentRestraint()}"
-                                  f"CB chemical shift value '{ca_shift}' must be within range {CS_RESTRAINT_ERROR}.")
+                                  f"CB chemical shift value '{cb_shift}' must be within range {CS_RESTRAINT_ERROR}.")
                     return
 
             if self.createSfDict:

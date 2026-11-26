@@ -16,7 +16,7 @@ __docformat__ = "restructuredtext en"
 __author__ = "Masashi Yokochi"
 __email__ = "yokochi@protein.osaka-u.ac.jp"
 __license__ = "Apache License 2.0"
-__version__ = "5.4.8"
+__version__ = "5.4.9"
 
 import codecs
 import copy
@@ -8691,35 +8691,62 @@ class NmrDpMrSplitter:
 
         return is_valid, err, genuine_type, valid_types, possible_types
 
-    def retrieveOriginalFileExtensionOfCyanaMrFile(self) -> Optional[str]:
+    def retrieveOriginalFileExtensionOfCyanaMrFile(self, original_file_name: str = None) -> Optional[str]:
         """ Retrieve original file extension of CYANA MR file.
         """
 
-        if self.__cur_original_ar_file_name is None:
+        if self.__cur_original_ar_file_name is not None and original_file_name is None:
+
+            if self.__cur_original_ar_file_name.endswith('.gz'):
+                self.__cur_original_ar_file_name = os.path.splitext(self.__cur_original_ar_file_name)[0]
+
+            if self.__cur_original_ar_file_name.endswith('.mr'):
+                return None
+
+            if self.__cur_original_ar_file_name.endswith('-corrected'):
+                self.__cur_original_ar_file_name = self.__cur_original_ar_file_name.replace('-corrected', '')
+
+            if self.__cur_original_ar_file_name.endswith('.txt'):
+                self.__cur_original_ar_file_name = self.__cur_original_ar_file_name.replace('.txt', '')
+
+            if self.__cur_original_ar_file_name.endswith('.tbl'):
+                self.__cur_original_ar_file_name = self.__cur_original_ar_file_name.replace('.tbl', '')
+
+            if self.__cur_original_ar_file_name.endswith('.dat'):
+                self.__cur_original_ar_file_name = self.__cur_original_ar_file_name.replace('.dat', '')
+
+            if self.__cur_original_ar_file_name.endswith('.10'):
+                self.__cur_original_ar_file_name = self.__cur_original_ar_file_name.replace('.10', '')
+
+            split_ext = os.path.splitext(self.__cur_original_ar_file_name)
+
+        elif original_file_name is not None:  # https://github.com/yokochi47/bmrb-extract/issues/121
+
+            if original_file_name.endswith('.gz'):
+                original_file_name = os.path.splitext(original_file_name)[0]
+
+            if original_file_name.endswith('.mr'):
+                return None
+
+            if original_file_name.endswith('-corrected'):
+                original_file_name = original_file_name.replace('-corrected', '')
+
+            if original_file_name.endswith('.txt'):
+                original_file_name = original_file_name.replace('.txt', '')
+
+            if original_file_name.endswith('.tbl'):
+                original_file_name = original_file_name.replace('.tbl', '')
+
+            if original_file_name.endswith('.dat'):
+                original_file_name = original_file_name.replace('.dat', '')
+
+            if original_file_name.endswith('.10'):
+                original_file_name = original_file_name.replace('.10', '')
+
+            split_ext = os.path.splitext(original_file_name)
+
+        else:
             return None
-
-        if self.__cur_original_ar_file_name.endswith('.gz'):
-            self.__cur_original_ar_file_name = os.path.splitext(self.__cur_original_ar_file_name)[0]
-
-        if self.__cur_original_ar_file_name.endswith('.mr'):
-            return None
-
-        if self.__cur_original_ar_file_name.endswith('-corrected'):
-            self.__cur_original_ar_file_name = self.__cur_original_ar_file_name.replace('-corrected', '')
-
-        if self.__cur_original_ar_file_name.endswith('.txt'):
-            self.__cur_original_ar_file_name = self.__cur_original_ar_file_name.replace('.txt', '')
-
-        if self.__cur_original_ar_file_name.endswith('.tbl'):
-            self.__cur_original_ar_file_name = self.__cur_original_ar_file_name.replace('.tbl', '')
-
-        if self.__cur_original_ar_file_name.endswith('.dat'):
-            self.__cur_original_ar_file_name = self.__cur_original_ar_file_name.replace('.dat', '')
-
-        if self.__cur_original_ar_file_name.endswith('.10'):
-            self.__cur_original_ar_file_name = self.__cur_original_ar_file_name.replace('.10', '')
-
-        split_ext = os.path.splitext(self.__cur_original_ar_file_name)
 
         if len(split_ext) != 2 or len(split_ext[1]) == 0:
 
